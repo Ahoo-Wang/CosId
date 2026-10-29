@@ -137,6 +137,11 @@ enum TestBackend {
             return StoreLocation.parse(url, backend == H2 ? Map.of("initSchema", "true") : Map.of());
         }
 
+        /** The location as a 4.x source: without {@code initSchema}, which only a 5.0 target takes (R2-mig-02). */
+        StoreLocation sourceLocation() {
+            return StoreLocation.parse(url, Map.of());
+        }
+
         /** The 5.0 store itself, through its {@code StoreProvider}. */
         me.ahoo.cosid.store.Store open5() {
             StoreSpec spec = spec();

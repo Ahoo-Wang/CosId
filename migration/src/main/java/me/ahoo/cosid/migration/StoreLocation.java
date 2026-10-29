@@ -13,11 +13,18 @@
 
 package me.ahoo.cosid.migration;
 
+import me.ahoo.cosid.store.StoreOptions;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,6 +53,18 @@ public record StoreLocation(String type, String url, Map<String, String> options
     public static final String REDIS = "redis";
     public static final String MONGO = "mongo";
     public static final String ZOOKEEPER = "zookeeper";
+    /** The options a 4.x source takes, by type: what the readers read (R2-mig-02). */
+    private static final Map<String, Set<String>> SOURCE_OPTIONS = Map.of(
+        JDBC, Set.of("user", "username", "password", "segmentTable", "machineTable"),
+        REDIS, Set.of("user", "username", "password", "cluster"),
+        MONGO, Set.of("user", "username", "password", "database", "authSource"),
+        ZOOKEEPER, Set.of());
+    /** The options a 5.0 target takes, by type: those of its store that the migration writes with, and the account. */
+    private static final Map<String, Set<String>> TARGET_OPTIONS = Map.of(
+        JDBC, Set.of("user", "username", "password", "dialect", "initSchema", "rangeTable", "slotTable", "namespaceTable"),
+        REDIS, Set.of("user", "username", "password", "cluster"),
+        MONGO, Set.of("user", "username", "password", "database", "authSource"),
+        ZOOKEEPER, Set.of());
 
     public StoreLocation {
         Objects.requireNonNull(type, "type");
@@ -77,6 +96,28 @@ public record StoreLocation(String type, String url, Map<String, String> options
             throw new IllegalArgumentException("Unknown store [" + url + "]: expected jdbc:..., redis://, rediss://, mongodb://, mongodb+srv:// or zookeeper://");
         }
         return new StoreLocation(type, url, options);
+    }
+
+    /**
+     * This location with its options checked and spelled as the tool reads them (R2-mig-02): case, {@code -} and
+     * {@code _} do not count, as in the 5.0 stores ({@code range-table} is {@code rangeTable}), and any other key is
+     * refused, so a misspelt table name cannot send the data to the default table.
+     *
+     * @param side   the command line option the options came from, for the message ({@code --to-option})
+     * @param target true for a 5.0 target, false for a 4.x source
+     * @return the location
+     * @throws IllegalArgumentException for an unknown or repeated option
+     */
+    public StoreLocation checked(String side, boolean target) {
+        Set<String> known = (target ? TARGET_OPTIONS : SOURCE_OPTIONS).getOrDefault(type, Set.of());
+        List<String> problems = new ArrayList<>();
+        Map<String, Object> resolved = StoreOptions.resolve(side, type, known, new LinkedHashMap<>(options), problems);
+        if (!problems.isEmpty()) {
+            throw new IllegalArgumentException(String.join("; ", problems));
+        }
+        Map<String, String> spelled = new TreeMap<>();
+        resolved.forEach((name, value) -> spelled.put(name, String.valueOf(value)));
+        return new StoreLocation(type, url, spelled);
     }
 
     /**
@@ -165,6 +206,24 @@ public record StoreLocation(String type, String url, Map<String, String> options
             redacted = redacted.substring(0, parameter.start()) + keep + redacted.substring(parameter.end());
         }
         return redacted;
+    }
+
+    /**
+     * A failure of a connection to a url, without the secrets of the url: drivers quote it, as {@code DriverManager}'s
+     * {@code "No suitable driver found for <url>"} does (R2-mig-05).
+     *
+     * @param failure the failure
+     * @param url     the url it may quote
+     * @return the failure, or a copy whose message quotes {@link #redactUrl} of the url, with no cause
+     */
+    public static SQLException redacted(SQLException failure, String url) {
+        String message = failure.getMessage();
+        if (message == null || redactUrl(url).equals(url) || !message.contains(url)) {
+            return failure;
+        }
+        SQLException copy = new SQLException(message.replace(url, redactUrl(url)), failure.getSQLState(), failure.getErrorCode());
+        copy.setStackTrace(failure.getStackTrace());
+        return copy;
     }
 
     /** The type and the url without its password ({@link #redactUrl}): messages and logs carry this. */

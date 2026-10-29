@@ -32,3 +32,6 @@ The attributes of `@AsString` were renamed:
 | `timestampBit`, `machineBit`, `sequenceBit` | `timeBits`, `nodeBits`, `seqBits` (all three or none) |
 | `epoch` | `epoch` (unset: the epoch of `layout`) |
 | — | `generator`, `radix` (62 by default), `layout`, `zone` |
+
+The friendly text changed its default: 4.x `FRIENDLY_ID` did not pad the node and the sequence (`…-1-5`), 5.0
+`Codec.FRIENDLY` pads them (`…-0001-0005`). To keep the 4.x text, write `padStart = false`. Both forms decode.

@@ -298,6 +298,68 @@ public final class Legacy4x {
         return extra;
     }
 
+    /**
+     * A namespace of its own that 4.x distributes the machine ids of time-based generators in, apart from
+     * {@link #namespace()}: the shared {@code cosid.generator.namespace} of an enabled CosIdGenerator (D37) and the
+     * namespace of a snowflake definition ({@code provider.<name>.namespace}, R2-parity-01). 5.0 gives each a named
+     * machine ({@code cosid.machines.<machine>}), its namespace migrated once on its own (api-freeze.md §2.7).
+     *
+     * @param machine   the 5.0 machine name: {@value Legacy4x#GENERATOR_MACHINE} for the CosIdGenerator's
+     * @param namespace the namespace
+     * @param nodeBits  the fewest node bits of the generators on it: the slot offset and the slots fit them
+     * @param owners    the 4.x definitions on it, as key prefixes ({@code cosid.generator},
+     *                  {@code cosid.snowflake.provider.<name>})
+     */
+    public record MachineNamespace(String machine, String namespace, int nodeBits, List<String> owners) {
+        /**
+         * The 4.x keys that name the namespace, for messages: {@code cosid.generator.namespace = global}.
+         *
+         * @return the text
+         */
+        public String label() {
+            return String.join(", ", owners.stream().map(owner -> owner + ".namespace").toList()) + " = " + namespace;
+        }
+    }
+
+    /**
+     * Every namespace of its own of the time-based generators, each a named machine of 5.0.
+     *
+     * @return namespace to its machine, the CosIdGenerator's first
+     */
+    public Map<String, MachineNamespace> machineNamespaces() {
+        Map<String, MachineNamespace> namespaces = new LinkedHashMap<>();
+        sharedGeneratorNamespace().ifPresent(namespace -> namespaces.put(namespace,
+            new MachineNamespace(GENERATOR_MACHINE, namespace, cosidLayout().nodeBits(), List.of("cosid.generator"))));
+        snowflakes().forEach((name, prefix) -> ownNamespace(prefix).ifPresent(namespace -> {
+            int nodeBits = snowflakeLayout(prefix).nodeBits();
+            MachineNamespace existing = namespaces.get(namespace);
+            if (existing == null) {
+                Set<String> taken = new TreeSet<>();
+                namespaces.values().forEach(machine -> taken.add(machine.machine()));
+                namespaces.put(namespace, new MachineNamespace(machineName(namespace, taken), namespace, nodeBits, List.of(prefix)));
+            } else {
+                List<String> owners = new ArrayList<>(existing.owners());
+                owners.add(prefix);
+                namespaces.put(namespace, new MachineNamespace(existing.machine(), namespace, Math.min(existing.nodeBits(), nodeBits), List.copyOf(owners)));
+            }
+        }));
+        return namespaces;
+    }
+
+    /** The machine name of a namespace, a {@code cosid.machines} key that binds without brackets: letters, digits and {@code -}. */
+    private static String machineName(String namespace, Set<String> taken) {
+        String base = namespace.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]+", "-").replaceAll("^-+|-+$", "");
+        if (base.isEmpty()) {
+            base = "machine";
+        }
+        String name = base;
+        // "default" is the default machine's, "generator" the CosIdGenerator's.
+        for (int i = 2; taken.contains(name) || GENERATOR_MACHINE.equals(name) || "default".equals(name); i++) {
+            name = base + "-" + i;
+        }
+        return name;
+    }
+
     private Optional<String> ownNamespace(String prefix) {
         String namespace = config.get(prefix + ".namespace");
         return namespace == null || namespace.isBlank() || namespace.equals(namespace()) ? Optional.empty() : Optional.of(namespace);

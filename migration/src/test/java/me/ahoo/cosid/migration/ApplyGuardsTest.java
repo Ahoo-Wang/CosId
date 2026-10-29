@@ -106,7 +106,7 @@ class ApplyGuardsTest extends MigrationScenarioTest {
     }
 
     private Plan plan(Path layout, StoreLocation machineFrom, StoreLocation machineTo, Map<String, String> renames) {
-        return migration().plan(new Migration.PlanOptions(source.location(), target.location(), machineFrom, machineTo, namespace, layout, null, null,
+        return migration().plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), machineFrom, machineTo, namespace, layout, null, null,
             Duration.ofSeconds(1), Duration.ZERO, renames, Map.of(), dir.resolve("plan.json")));
     }
 
@@ -173,10 +173,10 @@ class ApplyGuardsTest extends MigrationScenarioTest {
     void theShareNeedsTheLayoutConfig() {
         writer.segment(namespace, "__share__", 0, 10, 1);
         MigrationAbortedException refused = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
-            source.location(), target.location(), namespace, null, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
+            source.sourceLocation(), target.location(), namespace, null, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
             dir.resolve("plan.json"))));
         assertThat(refused.getMessage(), containsString("--layout-config"));
-        Plan plan = migration().plan(new Migration.PlanOptions(source.location(), target.location(), namespace, null, null, null, Duration.ofSeconds(1),
+        Plan plan = migration().plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), namespace, null, null, null, Duration.ofSeconds(1),
             Duration.ZERO, Map.of("__share__", "segment-share"), Map.of(), dir.resolve("plan.json")));
         assertThat(plan.segments().get(0).targetKey(), is(namespace + "/segment-share"));
     }
@@ -202,14 +202,14 @@ class ApplyGuardsTest extends MigrationScenarioTest {
             """);
         MigrationAbortedException noMachineFrom = assertThrows(MigrationAbortedException.class, () -> plan(layout, null, null, Map.of()));
         assertThat(noMachineFrom.getMessage(), containsString("--machine-from"));
-        MigrationAbortedException noMachineTo = assertThrows(MigrationAbortedException.class, () -> plan(layout, machines.location(), null, Map.of()));
+        MigrationAbortedException noMachineTo = assertThrows(MigrationAbortedException.class, () -> plan(layout, machines.sourceLocation(), null, Map.of()));
         assertThat(noMachineTo.getMessage(), containsString("--machine-to"));
         MigrationAbortedException wrongFrom = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
-            machines.location(), target.location(), null, null, namespace, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
+            machines.sourceLocation(), target.location(), null, null, namespace, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
             dir.resolve("plan.json"))));
         assertThat(wrongFrom.getMessage(), containsString("--from is zookeeper"));
 
-        Plan plan = plan(layout, machines.location(), machines.location(), Map.of());
+        Plan plan = plan(layout, machines.sourceLocation(), machines.location(), Map.of());
         assertThat("T4 comes from the machine store", plan.machines().maxTimestamp(), greaterThanOrEqualTo((Long) written.get("maxTimestamp")));
         ApplyResult result = migration().apply(apply(layout));
         try (TargetAdmin slots = Targets.open(machines.location()); TargetAdmin ranges = Targets.open(target.location())) {
@@ -306,7 +306,7 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         // 1. The shared namespace, once: machine records only, the slot offset above every 4.x machine id.
         Path sharedPlan = dir.resolve("shared-plan.json");
         Path sharedResult = dir.resolve("shared-result.json");
-        Plan shared = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
+        Plan shared = migration().plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), null, null, global, layout, null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), sharedPlan));
         assertThat(shared.segments(), empty());
         long headroom = offset - (maxMachineId + 1L);
@@ -352,14 +352,14 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         Path layout = generatorLayout(true, global);
         Path planned = dir.resolve("shared-plan.json");
         // The default: the top of the 2^20 nodes (cosid.generator.machine-bit), below the 4.x hard cap 2^20, so not guaranteed.
-        Plan top = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
+        Plan top = migration().plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), null, null, global, layout, null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned));
         assertThat(top.slots().slotOffset(), is((1 << 20) - 1024));
         assertThat(top.shared().headroom(), is((1L << 20) - 1024 - (maxMachineId + 1)));
         assertThat(top.shared().guaranteed(), is(false));
         // M + 1 a power of two: M + 1 is the least offset, with no headroom at all; M is refused.
         assertThat(Integer.bitCount(maxMachineId + 1), is(1));
-        Plan least = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
+        Plan least = migration().plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), null, null, global, layout, null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, maxMachineId + 1));
         assertThat(least.slots().slotOffset(), is(maxMachineId + 1));
         assertThat(least.shared().headroom(), is(0L));
@@ -367,24 +367,24 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         assertThat(least.warnings(), hasItem(startsWith("LOW HEADROOM: [" + global + "]")));
         // Not above the 4.x machine ids: their nodes would collide.
         MigrationAbortedException low = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
-            source.location(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
+            source.sourceLocation(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
             planned, maxMachineId)));
         assertThat(low.getMessage(), containsString("is not above the 4.x machine ids"));
         // Beyond the node bits of the CosIdGenerator: 2^20 nodes hold no 2^10 slots above 2^20 - 1.
         MigrationAbortedException high = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
-            source.location(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
+            source.sourceLocation(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
             planned, (1 << 20) - 512)));
         assertThat(high.getMessage(), containsString("exceeds the 2^20 nodes"));
         assertThat(high.getMessage(), containsString("--slot-bits 9"));
         // Offset 0: migrated at once, every service stopped, so apply wants --confirm-stopped.
-        Plan atOnce = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
+        Plan atOnce = migration().plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), null, null, global, layout, null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, 0));
         assertThat(atOnce.shared().rolling(), is(false));
         assertThat(atOnce.shared().guaranteed(), is(true));
         assertThrows(MigrationAbortedException.class, () -> migration().apply(new Migration.ApplyOptions(planned, false, Duration.ZERO, 0,
             Duration.ZERO, true, Migration.DEFAULT_SEAL_GAP, dir.resolve("shared-result.json"), Map.of(), Map.of(), layout, null)));
         // --slot-offset belongs to the shared namespace only.
-        assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(source.location(), target.location(), null,
+        assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), null,
             null, namespace, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, 4)));
     }
 
@@ -486,7 +486,7 @@ class ApplyGuardsTest extends MigrationScenarioTest {
                   layout: SNOWFLAKE_MS
                   epoch: 2030-01-01T00:00:00Z
             """);
-        Plan plan = migration().plan(new Migration.PlanOptions(source.location(), target.location(), namespace, layout(), target5, null,
+        Plan plan = migration().plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), namespace, layout(), target5, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), dir.resolve("plan.json")));
         assertThat(plan.layoutsOk(), is(false));
         MigrationAbortedException aborted = assertThrows(MigrationAbortedException.class, () -> migration().apply(apply(Duration.ZERO, true)));

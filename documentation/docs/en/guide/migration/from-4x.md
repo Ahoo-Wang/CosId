@@ -79,6 +79,9 @@ layout checks and the warnings. Fix what it asks for and plan again:
   converted 4.x layouts.
 - Account options: `--from-option user=…` / `--to-option user=…`, or `username`, as the 5.0 JDBC store names it;
   `password` (or `COSID_MIGRATION_FROM_PASSWORD` / `_TO_PASSWORD`), which `plan.json` never keeps.
+- Store options such as `--to-option rangeTable=ids_range` are checked as the 5.0 stores check theirs: case, `-` and `_`
+  do not count (`range-table` is `rangeTable`), and an unknown or misspelt key is refused, so the data cannot end up in a
+  default table 5.0 does not read.
 
 All options and what they guard: the [tool's README](https://github.com/Ahoo-Wang/CosId/blob/main/migration/README.md#commands).
 
@@ -135,6 +138,21 @@ The 4.x `cosid.*` configuration becomes the 5.0 model. **Everything it could not
 top of the output: review them.** It fails unless each segment generator has its key in the result; a generator 4.x
 never issued from is named with `--allow-new <generator>`. A static slot gets `not-before: W` from the result. A 4.x proxy configuration becomes
 a `remote` store (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`).
+
+- **The stores are those `apply` wrote to**, `target` and `machineTarget` of the result: their type, the JDBC table
+  options (`rangeTable`, `slotTable`, `namespaceTable`), the Mongo `database`, Redis `cluster` and the ZooKeeper connect
+  string, never a password. After a migration to another type (Redis to JDBC, say) the application needs the module and
+  client of that store (a `DataSource` for `jdbc`), not the 4.x one; the report says so, and drops the 4.x options of
+  the old type. Each migrated plain segment also gets `initial-offset`, its migrated next value: should 5.0 still open
+  a store without the migrated keys, they start past every 4.x id instead of at 1.
+- **4.x store options** carry over where 5.0 has them: `redis.wait-replicas: N` becomes `wait: N` (WAIT for N
+  replicas), `jdbc.fetch-plan` `fetchPlan`, `mongo.write-concern` `writeConcern`, and the Curator retry of
+  `cosid.zookeeper.retry` (`base-sleep-time-ms`, `max-retries`, `max-sleep-ms`) `retry.baseSleepTime`,
+  `retry.maxRetries` and `retry.maxSleep`.
+- **Friendly text.** The 4.x `snowflake_friendly` converter and `@AsString(FRIENDLY_ID)` did not pad the node and the
+  sequence (`…-1-5`); the 5.0 `friendly` codec does by default (`…-0001-0005`). `config` writes `pad-start: false`, so
+  the text stays as it was; in code, give `@AsString` `padStart = false`. Both forms decode.
+- **A snowflake in a namespace of its own** gets a named machine ([below](#a-shared-cosidgenerator-namespace)).
 
 The CosIdGenerator keys map as follows (`config` writes them):
 
@@ -308,6 +326,16 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
      `cosid.machines.generator` and `machine: generator` on its cosid80.
   Every service sharing the namespace uses the same `bits`, `tolerance` and `slot-offset`. (5.0.0-alpha.1 refused such a
   configuration.)
+- **A snowflake in a namespace of its own migrates the same way.** A 4.x snowflake definition with a `namespace` other
+  than `cosid.namespace` (`cosid.snowflake.provider.<name>.namespace`, or the share's) had its machine id distributed
+  there, with its own `machine-bit`, often so that several services issue apart. 5.0 gives each such namespace a named
+  machine, `cosid.machines.<namespace>` (characters other than letters, digits and `-` become `-`), and the snowflake
+  `machine: <that name>`. Migrate the namespace once, as above, before each service: `plan --namespace <it>
+  --layout-config <a service's yaml>`, then `apply`. Its slot bits default to the snowflake's `machine-bit`, which leaves
+  no room for an offset: it migrates at once, every 4.x instance using it stopped (fewer `--slot-bits` leave room for
+  `--slot-offset`). Each service's `apply` then refuses until it is done, and `config` writes the machine with the
+  migrated slot parameters. (`config` of 5.0.0-rc.1 dropped such a namespace, and services that shared it issued the
+  same ids.)
 
 ## Ids in static code
 

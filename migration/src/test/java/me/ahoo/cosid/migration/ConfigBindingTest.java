@@ -37,6 +37,8 @@ import me.ahoo.cosid.spring.autoconfigure.CosIdProperties;
 import me.ahoo.cosid.spring.autoconfigure.CosIdSpecs;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
+import me.ahoo.cosid.store.StoreOptions;
+import me.ahoo.cosid.store.StoreProvider;
 import me.ahoo.cosid.store.remote.RemoteStoreProvider;
 import me.ahoo.cosid.store.tck.InMemoryStore;
 import me.ahoo.cosid.store.tck.ManualClock;
@@ -62,6 +64,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.Set;
 
 /**
  * Every {@code config} golden binds as a 5.0 application binds it: Spring Boot's YAML loader and {@link Binder} into
@@ -82,6 +86,8 @@ class ConfigBindingTest {
         RuntimeSpec spec = CosIdSpecs.toSpec(properties, ZoneId.of("UTC"));
         assertThat(spec.namespace(), is(properties.namespace()));
         assertThat(spec.generators().keySet(), is(properties.generators().keySet()));
+        // Every store's options are its provider's (R2-mig-04), as the runtime checks them at the start.
+        spec.stores().forEach((name, store) -> StoreOptions.resolve(name, provider(store.type()), store.options()));
         // Every store opens through its real provider config; only the remote one opens without a server behind it.
         spec.stores().forEach((name, store) -> {
             if (RemoteStoreProvider.TYPE.equals(store.type())) {
@@ -242,6 +248,103 @@ class ConfigBindingTest {
         assertThat(machine.bits(), is(8));
     }
 
+    private static StoreProvider provider(String type) {
+        for (StoreProvider provider : ServiceLoader.load(StoreProvider.class)) {
+            if (provider.type().equals(type)) {
+                return provider;
+            }
+        }
+        throw new AssertionError("No store provider of type " + type);
+    }
+
+    @Test
+    void theStoreOptionsOf4xKeepTheirMeaning(@TempDir Path dir) throws IOException {
+        // R2-mig-04: wait-replicas N waits for N replicas (not WAIT 1), the write concern and the fetch plan carry over.
+        Path redis = dir.resolve("redis.yaml");
+        Files.writeString(redis, """
+            cosid:
+              namespace: shop
+              machine:
+                enabled: true
+                distributor: { type: mongo, mongo: { database: ids, write-concern: w2 } }
+              snowflake: { enabled: true }
+              segment:
+                enabled: true
+                distributor: { type: redis, redis: { wait-replicas: 2, wait-timeout: 1s } }
+            """);
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("UTC")).convert(FlatConfig.load(redis), null);
+        assertThat(conversion.report(), hasItem(containsString("wait-timeout = 1s: 5.0 waits for the replicas within the store timeout")));
+        assertThat(conversion.report(), not(hasItem(containsString("write-concern"))));
+        Path output = dir.resolve("redis-5.yaml");
+        conversion.write(output);
+        RuntimeSpec spec = specOf(output);
+        assertThat(spec.stores().get("redis").options().get("wait"), is("2"));
+        assertThat(spec.stores().get("mongo").options(), is(Map.of("database", "ids", "writeConcern", "w2")));
+        spec.stores().forEach((name, store) -> StoreOptions.resolve(name, provider(store.type()), store.options()));
+
+        Path jdbc = dir.resolve("jdbc.yaml");
+        Files.writeString(jdbc, """
+            cosid:
+              namespace: shop
+              segment:
+                enabled: true
+                distributor: { type: jdbc, jdbc: { fetch-plan: transaction, query-timeout: 3s } }
+            """);
+        conversion = new ConfigConverter(ZoneId.of("UTC")).convert(FlatConfig.load(jdbc), null);
+        assertThat(conversion.report(), not(hasItem(containsString("fetch-plan"))));
+        output = dir.resolve("jdbc-5.yaml");
+        conversion.write(output);
+        spec = specOf(output);
+        assertThat(spec.stores().get("jdbc").options(), is(Map.of("fetchPlan", "transaction")));
+        StoreOptions.resolve("jdbc", provider("jdbc"), spec.stores().get("jdbc").options());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void snowflakesOfOneNamespaceOfTheirOwnShareANamedMachine(@TempDir Path dir) throws IOException {
+        // R2-parity-01: each namespace of its own is one named machine, its bits those of the fewest node bits.
+        Path input = dir.resolve("application.yaml");
+        Files.writeString(input, """
+            cosid:
+              namespace: orders
+              machine: { enabled: true, distributor: { type: manual, manual: { machine-id: 3 } } }
+              snowflake:
+                enabled: true
+                share: { namespace: global.ids }
+                provider:
+                  trace: { namespace: global.ids, machine-bit: 8, sequence-bit: 14 }
+                  local: { namespace: orders }
+            """);
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("UTC")).convert(FlatConfig.load(input), null);
+        Map<String, Object> cosid = (Map<String, Object>) conversion.model().get("cosid");
+        Map<String, Object> machines = (Map<String, Object>) cosid.get("machines");
+        assertThat(machines.keySet(), is(Set.of("global-ids")));
+        Map<String, Object> named = (Map<String, Object>) machines.get("global-ids");
+        assertThat(named.get("namespace"), is("global.ids"));
+        assertThat(named.get("static"), is(Map.of("bits", 8, "slot", "${COSID_GLOBAL_IDS_SLOT}")));
+        Map<String, Object> generators = (Map<String, Object>) cosid.get("generators");
+        assertThat(((Map<String, Object>) generators.get(Legacy4x.DEFAULT)).get("machine"), is("global-ids"));
+        assertThat(((Map<String, Object>) generators.get("trace")).get("machine"), is("global-ids"));
+        // The namespace of the service itself is the default machine.
+        assertThat(((Map<String, Object>) generators.get("local")).containsKey("machine"), is(false));
+        assertThat(conversion.report(), hasItem(containsString("cosid.snowflake.share.namespace, cosid.snowflake.provider.trace.namespace = global.ids")));
+        assertThat(conversion.report(), not(hasItem(containsString("cosid.snowflake.provider.trace.namespace = global.ids: no 5.0 counterpart"))));
+        Path output = dir.resolve("application-5.yaml");
+        conversion.write(output);
+        StandardEnvironment environment = new StandardEnvironment();
+        for (PropertySource<?> source : new YamlPropertySourceLoader().load("named", new FileSystemResource(output))) {
+            environment.getPropertySources().addFirst(source);
+        }
+        environment.getPropertySources().addLast(new MapPropertySource("slots", Map.of("COSID_SLOT", "5", "COSID_GLOBAL_IDS_SLOT", "9")));
+        RuntimeSpec spec = CosIdSpecs.toSpec(Binder.get(environment).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class)),
+            ZoneId.of("UTC"));
+        MachineSpec.Static machine = (MachineSpec.Static) spec.machines().get("global-ids");
+        assertThat(machine.namespace(), is(java.util.Optional.of("global.ids")));
+        assertThat(machine.bits(), is(8));
+        assertThat(machine.slot(), is(9));
+        assertThat(((GeneratorSpec.Snowflake) spec.generators().get("trace")).machine(), is(java.util.Optional.of("global-ids")));
+    }
+
     private static GroupedCodecSpec codecOf(RuntimeSpec spec, String generator) {
         return ((GeneratorSpec.PeriodicSegment) spec.generators().get(generator)).codec();
     }
@@ -261,7 +364,8 @@ class ConfigBindingTest {
         return specOf(MigrationScenarioTest.resource("config/" + golden + "/expected.yaml"));
     }
 
-    private static RuntimeSpec specOf(Path yaml) throws IOException {
+    /** Binds a YAML file as a 5.0 application does, the slot placeholders set. */
+    static RuntimeSpec specOf(Path yaml) throws IOException {
         StandardEnvironment environment = new StandardEnvironment();
         for (PropertySource<?> source : new YamlPropertySourceLoader().load(yaml.getFileName().toString(), new FileSystemResource(yaml))) {
             environment.getPropertySources().addFirst(source);

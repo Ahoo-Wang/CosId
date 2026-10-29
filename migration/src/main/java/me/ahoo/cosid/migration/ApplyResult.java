@@ -43,12 +43,15 @@ import java.util.Map;
  * @param shared             the plan's {@link Plan#shared()}: this result prepared a shared namespace; null otherwise
  * @param generatorNamespace the shared namespace of the service's CosIdGenerator as apply found it prepared, for
  *                           {@code config} ({@code cosid.machines.generator}); null when the service has none
+ * @param machineNamespaces  every namespace of its own of the service's time-based generators as apply found it
+ *                           prepared, by machine name, for {@code config} ({@code cosid.machines.<machine>}); null in
+ *                           results of 5.0.0-rc.1
  */
 public record ApplyResult(String format, String planSha256, String namespace, StoreLocation source, StoreLocation target, StoreLocation machineTarget,
                           Map<String, String> renames, List<String> allowedUnmigrated, long appliedAt,
                           long sourceMaxTimestamp, long sourceSkewMillis, long w, String notBefore, long gap, boolean sealed, long sealGap,
                           long observedMillis, Plan.Slots slots, List<SegmentResult> segments, List<String> warnings, Plan.Shared shared,
-                          Plan.GeneratorNamespace generatorNamespace) {
+                          Plan.GeneratorNamespace generatorNamespace, Map<String, Plan.GeneratorNamespace> machineNamespaces) {
     public static final String FORMAT = "cosid-migration-result/1";
 
     /**

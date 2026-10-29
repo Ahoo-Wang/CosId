@@ -96,6 +96,18 @@ public final class RedisConnection implements AutoCloseable {
     }
 
     /**
+     * The synchronous commands of the connection a write of {@code key} goes over, which {@link #replicated} waits on:
+     * in a cluster the connection to the primary of the key's slot (R2-mig-03). {@code WAIT} counts the writes of its
+     * own connection only, and the routing connection of {@link #commands()} is another one there.
+     *
+     * @param key the key to write
+     * @return the commands
+     */
+    public RedisClusterCommands<String, String> commandsFor(String key) {
+        return nodeOf.apply(key);
+    }
+
+    /**
      * Whether this is a Redis Cluster connection.
      *
      * @return true for a cluster

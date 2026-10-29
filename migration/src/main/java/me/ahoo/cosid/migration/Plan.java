@@ -37,14 +37,20 @@ import java.util.Map;
  * @param machines      the machine records and the W estimate
  * @param layouts       the layout validation (M3)
  * @param warnings      everything else the operator should read
- * @param shared        the plan of a shared {@code cosid.generator.namespace} itself (api-freeze.md §2.7); null otherwise
+ * @param shared        the plan of a namespace of its own itself (api-freeze.md §2.7), the shared
+ *                      {@code cosid.generator.namespace} or a snowflake's ({@link me.ahoo.cosid.migration.config.Legacy4x#machineNamespaces()}); null
+ *                      otherwise
  * @param generatorNamespace the shared namespace the CosIdGenerator of this service uses, as the target records it;
- *                      null when the service has none
+ *                      null when the service has none; also in {@code machineNamespaces}
+ * @param machineNamespaces the namespaces of their own of this service's time-based generators, as the target records
+ *                      them, by the name of their 5.0 machine ({@link me.ahoo.cosid.migration.config.Legacy4x#machineNamespaces()}); null in plans of
+ *                      5.0.0-rc.1, which know {@code generatorNamespace} only
  */
 public record Plan(String format, String createdAt, String namespace, StoreLocation source, StoreLocation target, StoreLocation machineSource,
                    StoreLocation machineTarget, Map<String, List<String>> extraNamespaces, Slots slots,
                    Map<String, String> renames, Map<String, String> groupPatterns, List<SegmentPlan> segments, List<String> unrecognized,
-                   Machines machines, List<LayoutCheck> layouts, List<String> warnings, Shared shared, GeneratorNamespace generatorNamespace) {
+                   Machines machines, List<LayoutCheck> layouts, List<String> warnings, Shared shared, GeneratorNamespace generatorNamespace,
+                   Map<String, GeneratorNamespace> machineNamespaces) {
     public static final String FORMAT = "cosid-migration-plan/1";
 
     /**
@@ -101,8 +107,8 @@ public record Plan(String format, String createdAt, String namespace, StoreLocat
     }
 
     /**
-     * The shared namespace of a service's CosIdGenerator, which {@code config} writes as the named machine
-     * {@code generator}.
+     * A namespace of its own of a service's time-based generators, which {@code config} writes as a named machine: the
+     * shared namespace of the CosIdGenerator ({@code generator}) or a snowflake's.
      *
      * @param namespace       the namespace
      * @param limit           its recorded slot limit; 0 when not prepared yet
@@ -111,7 +117,7 @@ public record Plan(String format, String createdAt, String namespace, StoreLocat
      */
     public record GeneratorNamespace(String namespace, int limit, long toleranceMillis, int slotOffset) {
         /**
-         * Whether the shared namespace was migrated (prepared in the target) before.
+         * Whether the namespace was migrated (prepared in the target) before.
          *
          * @return true if it has metadata
          */

@@ -327,6 +327,13 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
     4. 在 Central、Docker Hub 和站点上核对;
     5. main 改回 `5.0.0-SNAPSHOT`。
     RC1 仍需用户确认。
+  - ✅ **`v5.0.0-alpha.2` 已发布**(2026-10-29,pre-release,目标 `f3c80934` = #1400):
+    - Packages Deploy、Docker Image Deploy、document-deploy 全部成功;
+    - Central 在 06:13 可以解析(core、bom、starter、各 store);`cosid-store-zookeeper` 的 POM 中是具体版本(Curator 5.9.0、ZooKeeper 3.9.6、Guava 33.7.2),没有 BOM import;
+    - Docker Hub 上有 `5.0.0-alpha.2`,没有打 `latest`;
+    - 文档站和 Kubernetes 指南页面返回 200;
+    - release 附件中有 `cosid-migration.jar`;
+    - main 已经改回 `5.0.0-SNAPSHOT`(#1403 `074fdddd`)。
   - **发布前插入 WP-deps**:WP-ci 加入 Gradle 依赖图提交后,Dependabot 新增 55 条告警(2 critical:netty-handler;high 涉及 netty、jackson 2/3、zookeeper、httpcore5、snappy、guava、mybatis 3.5.6 等)。这些告警全部记在 `settings.gradle.kts` 名下，来源不明。处理:
     1. 按来源归类：发布模块的 runtime、server 镜像、测试、benchmark(含 4.x 基线)、构建插件;
     2. 修复发布物和 server 镜像中的告警;

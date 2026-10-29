@@ -56,7 +56,7 @@ public final class JdbcTarget implements TargetAdmin {
             }
             this.connection = DriverManager.getConnection(location.url(), properties);
         } catch (SQLException e) {
-            SQLException failure = StoreLocation.redacted(e, location.url());
+            SQLException failure = StoreLocation.withoutPassword(e, location.url());
             throw new IllegalStateException("Connecting to the 5.0 JDBC store " + StoreLocation.redactUrl(location.url()) + " failed: " + failure.getMessage(),
                 failure);
         }

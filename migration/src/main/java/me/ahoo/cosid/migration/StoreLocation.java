@@ -216,7 +216,7 @@ public record StoreLocation(String type, String url, Map<String, String> options
      * @param url     the url it may quote
      * @return the failure, or a copy whose message quotes {@link #redactUrl} of the url, with no cause
      */
-    public static SQLException redacted(SQLException failure, String url) {
+    public static SQLException withoutPassword(SQLException failure, String url) {
         String message = failure.getMessage();
         if (message == null || redactUrl(url).equals(url) || !message.contains(url)) {
             return failure;

@@ -115,7 +115,7 @@ class StoreLocationTest {
             () -> new JdbcSource(StoreLocation.parse(url, Map.of())).read("app"));
         assertThat(source.getMessage(), not(containsString("s3cret")));
         assertThat(String.valueOf(source.getCause()), not(containsString("s3cret")));
-        assertThat(StoreLocation.redacted(new java.sql.SQLException("No suitable driver found for " + url), url).getMessage(),
+        assertThat(StoreLocation.withoutPassword(new java.sql.SQLException("No suitable driver found for " + url), url).getMessage(),
             is("No suitable driver found for jdbc:nosuchdriver://db/cosid?user=cosid"));
     }
 }

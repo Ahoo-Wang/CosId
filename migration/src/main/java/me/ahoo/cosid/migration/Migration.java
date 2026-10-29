@@ -358,19 +358,6 @@ public final class Migration {
         checkSlotOffset(namespace, maxMachineId, slotOffset, bits, nodeBits, "the CosIdGenerator (cosid.generator.machine-bit = " + nodeBits + ")");
     }
 
-    /** What a namespace of its own is, for messages. */
-    private static String whatOf(Legacy4x.MachineNamespace own) {
-        return Legacy4x.GENERATOR_MACHINE.equals(own.machine()) && own.owners().size() == 1 ? "the shared cosid.generator.namespace"
-            : "the namespace of its own of " + String.join(", ", own.owners());
-    }
-
-    /** Whose nodes the slots of a namespace of its own fit in, for messages. */
-    private static String nodesOf(Legacy4x.MachineNamespace own) {
-        return Legacy4x.GENERATOR_MACHINE.equals(own.machine()) && own.owners().size() == 1
-            ? "the CosIdGenerator (cosid.generator.machine-bit = " + own.nodeBits() + ")"
-            : String.join(", ", own.owners()) + " (the fewest node bits, " + own.nodeBits() + ")";
-    }
-
     /** {@link #checkSlotOffset(String, int, int, int, int)} with the generators whose nodes they are. */
     static void checkSlotOffset(String namespace, int maxMachineId, int slotOffset, int bits, int nodeBits, String nodes) {
         if (slotOffset > 0 && slotOffset <= maxMachineId) {
@@ -386,6 +373,19 @@ public final class Migration {
                 + (fitting >= 1 && (long) slotOffset + (1L << fitting) <= 1L << nodeBits ? ": take --slot-bits " + fitting + " or fewer" : ": no slots fit above it")
                 + ", or migrate at once with --slot-offset 0 and every service stopped");
         }
+    }
+
+    /** What a namespace of its own is, for messages. */
+    private static String whatOf(Legacy4x.MachineNamespace own) {
+        return Legacy4x.GENERATOR_MACHINE.equals(own.machine()) && own.owners().size() == 1 ? "the shared cosid.generator.namespace"
+            : "the namespace of its own of " + String.join(", ", own.owners());
+    }
+
+    /** Whose nodes the slots of a namespace of its own fit in, for messages. */
+    private static String nodesOf(Legacy4x.MachineNamespace own) {
+        return Legacy4x.GENERATOR_MACHINE.equals(own.machine()) && own.owners().size() == 1
+            ? "the CosIdGenerator (cosid.generator.machine-bit = " + own.nodeBits() + ")"
+            : String.join(", ", own.owners()) + " (the fewest node bits, " + own.nodeBits() + ")";
     }
 
     private static void checkStores(Legacy4x legacy, PlanOptions options) {

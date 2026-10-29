@@ -20,12 +20,37 @@ key 与命名空间放在请求体中,不放在路径里,避免 `/` 需要编码
 |---|---|---|---|
 | POST | `/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`;封存为 `410` |
 | POST | `/ranges:seal` | `{key}` | `204` |
-| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, slotOffset?, preferredSlot?}`(`slotOffset` 默认 0,记入命名空间元数据,api-freeze §2.5.1) | `SlotLease`,或 `409 {earliestExpiresAt}` |
-| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | `SlotLease` 或 `409 lease_lost` |
-| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204` 或 `409 lease_lost` |
+| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, slotOffset?, preferredSlot?}`(`slotOffset` 默认 0,记入命名空间元数据,api-freeze §2.5.1) | `200` 扁平的租约 `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow, reason, duplicateOwnerKey}`,或 `409 slots_exhausted` 带 `earliestExpiresAt` |
+| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, ttlMs, toleranceMs}` | `200` 扁平的租约 `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`,或 `409 lease_lost` |
+| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, lastIssued}` | `204` 或 `409 lease_lost` |
 | GET | `/ids/{generator}?count=n` | — | `{ids: [...]}`(可选) |
 | GET | `/ids/{generator}/strings?count=n` | — | `{ids: ["..."]}`(可选,使用生成器的 codec) |
 | GET | `/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`(可选) |
+
+renew / release 的窗口字段(`expiresAt`、`floor`、`ceiling`、`storeNow`)由客户端原样带回租约里的值;服务端缺省时按 0 处理(`ceiling` 小于 `floor` 时取 `floor`)。
+
+错误体统一为 `{code, message}`(`slots_exhausted` 另带 `earliestExpiresAt`)。服务端可能返回的状态码与 `code`(以 `RemoteApi` 常量为准):
+
+| 状态码 | `code` | 含义 |
+|---|---|---|
+| 400 | `bad_request` | 参数缺失、超出限制或类型错误;请求体不是 JSON;路径含 `.` / `..` 段;底层存储拒绝请求(`IllegalArgumentException`) |
+| 401 | `unauthorized` | 没有 token 或 token 未知 |
+| 403 | `forbidden` | token 无权使用该命名空间或 key;client token 访问非 client 路径 |
+| 404 | `not_found` | 没有这个路径或生成器 |
+| 405 | `method_not_allowed` | 该路径不接受此方法 |
+| 409 | `slots_exhausted` | acquire:limit 以下的槽都已被持有,带 `earliestExpiresAt` |
+| 409 | `lease_lost` | renew / release:owner 或 fence 不再匹配 |
+| 409 | `namespace_mismatch` | 命名空间首次使用时的 limit、tolerance 或 slotOffset 不同 |
+| 409 | `generator_disabled` | `/ids/**`:生成器已被禁用 |
+| 410 | `range_sealed` | reserve:区间 key 已封存 |
+| 422 | `range_exhausted` | reserve:区间会超过 `Long.MAX_VALUE` |
+| 429 | `too_many_keys` | 该 client 在此命名空间中的 key 数已达上限 |
+| 429 | `too_many_namespaces` | 该 client 使用的命名空间数已达上限 |
+| 500 | `store_error` | 底层存储失败,细节只写日志 |
+| 501 | `seal_unsupported` | seal:底层存储不能封存(客户端返回 false) |
+| 501 | `unsupported` | 底层存储缺少该原语(`UnsupportedOperationException`) |
+| 503 | `busy` | 阻塞池已满,带 `Retry-After: 1` |
+| 504 | `store_timeout` | 底层存储超时(客户端以 `StoreTimeoutException` 为 cause 报告) |
 
 - 未指定 `{generator}` 的路径 `/ids`、`/ids/strings` 使用名为 `default` 的生成器(4.x 的 share)。
 - 服务端限制(`cosid.server.limits.*`):`ttlMs ∈ [min-ttl, max-ttl]`(默认 100ms、1h)、`size ≤ max-reserve`(默认 1e12)、`count ≤ max-count`(默认 1000);key 与命名空间做长度与字符集校验。

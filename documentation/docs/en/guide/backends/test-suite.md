@@ -29,8 +29,61 @@ class MySlotLeaseStoreTest extends SlotLeaseStoreContract {
 
 Also in the module:
 
-- `InMemoryStore` passes every contract; the core and Spring tests use it, and so can yours (a `memory` provider).
+- `InMemoryStore` passes every contract; the core and Spring tests use it, and so can yours. It is not registered as a
+  `StoreProvider`: create it directly, or return it from your own provider passed to `RuntimeOptions.storeProvider(...)`.
 - `ManualClock` drives the store clock in tests.
 - Fault injection wrappers add latency, timeouts, and lost responses that are replayed.
 - `ContractsRan` reads JUnit XML reports and fails when contract cases were skipped. Every CosId backend runs it in
   `check`, so a CI job without its database cannot pass silently.
+
+## Checking that the contracts ran
+
+`ContractsRan` takes the directory of the JUnit XML reports (`TEST-*.xml`), then optionally the contract classes to
+check (by default `RangeStoreContract` and `SlotLeaseStoreContract`). Run it on the test runtime classpath after the
+tests. For every contract, some test class extending it must report every case as passed; a case marked
+`@OptionalCapability` may be skipped. Otherwise it lists the missing cases and exits with status 1.
+
+Gradle, as the CosId backends register it:
+
+```kotlin
+val checkContractsRan by tasks.registering(JavaExec::class) {
+    group = "verification"
+    val reports = layout.buildDirectory.dir("test-results/test")
+    dependsOn(tasks.test)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("me.ahoo.cosid.store.tck.ContractsRan")
+    argumentProviders.add(CommandLineArgumentProvider { listOf(reports.get().asFile.absolutePath) })
+}
+tasks.check {
+    dependsOn(checkContractsRan)
+}
+```
+
+Maven, with the Surefire reports and the `exec` goal (a separate JVM, so the exit status fails the build):
+
+```xml
+<plugin>
+    <groupId>org.codehaus.mojo</groupId>
+    <artifactId>exec-maven-plugin</artifactId>
+    <version>3.5.0</version>
+    <executions>
+        <execution>
+            <id>check-contracts-ran</id>
+            <phase>verify</phase>
+            <goals>
+                <goal>exec</goal>
+            </goals>
+            <configuration>
+                <executable>java</executable>
+                <classpathScope>test</classpathScope>
+                <arguments>
+                    <argument>-classpath</argument>
+                    <classpath/>
+                    <argument>me.ahoo.cosid.store.tck.ContractsRan</argument>
+                    <argument>${project.build.directory}/surefire-reports</argument>
+                </arguments>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```

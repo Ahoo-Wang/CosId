@@ -78,6 +78,11 @@ reports the segment as grown. It cannot keep its time-based ids apart, which is 
 | `mongodb://`, option `database` (`cosid_db`) | `cosid {_id: '{ns}.{name}', lastMaxId}`, `cosid_machine` | `cosid_range`, `cosid_namespace`, `cosid_slot` (+ its indexes) |
 | `zookeeper://host:port[/chroot]` | `/cosid/{ns}.{name}` (8-byte counter), `/cosid/{ns}/__itc_idx`, `__revert`, `__counter`, `__stable` | `/cosid/range/{key}`, `/cosid/slot/{ns}` and its slot nodes |
 
+Redis writes (the 4.x seal, the 5.0 raise, the slot preparation) wait for a replica: when the written node has a
+connected replica, each write is followed by `WAIT 1`, and the step stops with an error if no replica acknowledges
+within 5 s, since a failover would lose the write. Check the replication and run the step again. A node without
+replicas is not waited for.
+
 Key mapping (09 §4.1): `{ns}.{name}` → `{ns}/{name}`; grouped `{ns}.{name}@{groupKey}` → `{ns}/{name}/{period}`, every
 period, past ones included. A group key must be a 5.0 preset (`yyyy`, `yyyyMM`, `yyyyMMdd`), or its 4.x pattern is named
 (`group.pattern` of `--layout-config`, or `--group-pattern name=yyyy-MM-dd`) and the key is reformatted to the preset of

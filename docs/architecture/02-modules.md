@@ -27,7 +27,7 @@ extras/
 migration/                  cosid-migration                  4.x → 5.0 离线迁移 CLI(fat jar)
 bom/                        cosid-bom
 benchmark/                  (不发布)                         JMH:baseline-4x/ 与 v5/ 两个工程,见 10
-examples/                   (不发布)                         segment-jdbc、snowflake-redis、server
+examples/                   (不发布)                         segment-jdbc、snowflake-redis、server、plain-stores(仅测试:纯 Java classpath 上的 store/redis 与 store/zookeeper,L14)
 documentation/              文档站(VitePress)
 docs/                       设计与路线图
 ```

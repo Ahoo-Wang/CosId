@@ -91,6 +91,7 @@ public final class RedisTarget implements TargetAdmin {
             throw new IllegalArgumentException("next must not be negative: " + next);
         }
         List<Object> reply = commands().eval(RAISE, ScriptOutputType.MULTI, new String[]{rangeKey(key), rangeKey(key) + ":sealed"}, Long.toString(next));
+        redis.replicated(rangeKey(key));
         return new RangeState(key, Long.parseLong(String.valueOf(reply.get(0))), "1".equals(String.valueOf(reply.get(1))));
     }
 
@@ -159,6 +160,7 @@ public final class RedisTarget implements TargetAdmin {
         List<Object> reply = commands().eval(PREPARE, ScriptOutputType.MULTI,
             new String[]{nsKey(namespace, "meta"), nsKey(namespace, "slot"), nsKey(namespace, "free"), nsKey(namespace, "live")},
             Integer.toString(limit), Long.toString(toleranceMillis), Long.toString(nextFloor), Integer.toString(slotOffset));
+        redis.replicated(nsKey(namespace, "meta"));
         String status = String.valueOf(reply.get(0));
         if ("mismatch".equals(status)) {
             NamespaceState recorded = new NamespaceState(Integer.parseInt(String.valueOf(reply.get(1))), Long.parseLong(String.valueOf(reply.get(2))),

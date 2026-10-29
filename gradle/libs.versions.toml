@@ -37,6 +37,10 @@ springdoc = "3.2.0"
 # R4-B: integrations (all compileOnly in integrations; the application brings them)
 mybatis = "3.6.0"
 activiti = "7.0.0.SR1"
+# R2-dep-01: above the MyBatis 3.4.2 Activiti 7.0.0.SR1 brings (GHSA-qq48-m4jx-xqh8, fixed in 3.5.6), the latest 3.5:
+# Activiti calls TypeHandlerRegistry.register(Class, JdbcType, TypeHandler), which 3.6 no longer has. Until an Activiti
+# after 7.0.0.SR1 brings MyBatis >= 3.5.6.
+mybatis-activiti = "3.5.19"
 flowable = "8.0.0"
 # Axon 5 has no IdentifierFactory; 4.x is the line the integration serves.
 axon = "4.13.2"
@@ -104,6 +108,7 @@ baseline4x-mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", v
 baseline4x-spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
 # R4-B: integrations
 mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
+mybatis-activiti = { module = "org.mybatis:mybatis", version.ref = "mybatis-activiti" }
 activiti-engine = { module = "org.activiti:activiti-engine", version.ref = "activiti" }
 activiti-spring = { module = "org.activiti:activiti-spring", version.ref = "activiti" }
 activiti-spring-boot-starter = { module = "org.activiti:activiti-spring-boot-starter", version.ref = "activiti" }

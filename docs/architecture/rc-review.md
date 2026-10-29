@@ -329,7 +329,13 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
     alpha.2 等 WP-deps 合入后再发，原因是不想发布一个带已知 critical 的 server 镜像。
     ✅ WP-deps [#1401](https://github.com/Ahoo-Wang/CosId/pull/1401) `3a76f1de`:Lettuce 7.9.0(Netty 4.2.17),store-zookeeper 显式声明 ZooKeeper 3.9.5 和 Guava 33.7.2,支持的 Boot 下限 4.0.9,依赖图只提交发布物。剩余 1 条(MyBatis 3.4.2,来自 Activiti 7.0),写进文档。
     → 合入后在 main 上提交依赖图，告警从 55 条降到 **1 条**(mybatis 3.4.2,来自 Activiti 7.0),与预期一致。
-    → 按 D45 先做依赖全面升级 PR,再发布 alpha.2。
+    → ✅ D45 依赖升级 [#1402](https://github.com/Ahoo-Wang/CosId/pull/1402) `9290f371`:
+      - 所有模块在构建期导入 Spring Boot 4.1.2 BOM,版本目录只保留 BOM 不管理的依赖;
+      - Lettuce 7.9.0 为安全修复高于 BOM,写明了移除条件;
+      - Checkstyle 升到 14.3.0,删掉 #1401 留下的 5 条工具链约束，只保留 Guava 一条;
+      - cosid4 基线升到 4.1.1,并入 #1367,Renovate 会自动关闭它;
+      - 发布 POM 中没有 BOM import,版本都是具体值(Mongo driver 回到 BOM 的 5.8.1)。
+      CI 全绿,dry-run 40822764071 通过。下一步发布 alpha.2。
 - [x] GA 前审查第 1 轮完成,BLOCKER/MAJOR 已修复或经用户裁定(2026-10-29:BLOCKER 1、MAJOR 19 已修;RC 前要修的 25 条 MINOR 已修，#1396/#1397/#1399)(见 §6;涉及 API、配置、存储格式的改动必须在 RC 冻结前完成)
 
 ## 6. GA 前两轮全面审查(D35)

@@ -38,6 +38,7 @@ import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.PlaceholdersResolver;
+import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import java.nio.file.Path;
@@ -531,6 +532,41 @@ class CosIdSpecsTest {
             "cosid.flowable.enabled=false", "cosid.axon.generator-name=b", "cosid.metrics.generated.enabled=true");
         assertEquals("1", properties.stores().get("db").options().get("anything"));
         assertTrue(properties.metrics().generated().enabled());
+    }
+
+    @Test
+    void aDottedGeneratorNameBindsInBrackets() {
+        // Wow names a generator per aggregate, <context>.<aggregate>: StoreKeys allows the dot, Spring needs brackets.
+        RuntimeSpec spec = spec("cosid.namespace=shop", "cosid.stores.mem.type=memory",
+            "cosid.generators[eshop-ordering.order].strategy=segment", "cosid.generators[eshop-ordering.order].store=mem");
+        assertEquals(List.of("eshop-ordering.order"), List.copyOf(spec.generators().keySet()));
+        assertThat(spec.generators().get("eshop-ordering.order"), instanceOf(GeneratorSpec.Segment.class));
+    }
+
+    @Test
+    void aDottedGeneratorNameWithoutBracketsIsAnUnknownKeyWithTheBracketedOne() {
+        Exception unbracketed = assertThrows(Exception.class, () -> bind("cosid.stores.mem.type=memory",
+            "cosid.generators.eshop-ordering.order.strategy=segment", "cosid.generators.eshop-ordering.order.store=mem"));
+        String message = rootMessage(unbracketed);
+        assertThat(message, containsString("cosid.generators.eshop-ordering.order.strategy"));
+        assertThat(message, containsString("a name with a dot goes in brackets, such as [cosid.generators[eshop-ordering.order].store,"
+            + " cosid.generators[eshop-ordering.order].strategy]"));
+        // A typo after an ordinary name needs no brackets.
+        Exception typo = assertThrows(Exception.class, () -> bind("cosid.generators.order.strategy=segment", "cosid.generators.order.codec[0].radx=10"));
+        assertThat(rootMessage(typo), org.hamcrest.Matchers.not(containsString("brackets")));
+    }
+
+    @Test
+    void theBracketedFormOfAnUnknownKeyEndsTheNameWhereAPropertyBegins() {
+        assertEquals(Optional.of("cosid.machines[global.ids].static.slot"),
+            CosIdSpecs.bracketed(ConfigurationPropertyName.of("cosid.machines.global.ids.static.slot")));
+        assertEquals(Optional.of("cosid.generators[a.b.c].codec[0].radix.radix"),
+            CosIdSpecs.bracketed(ConfigurationPropertyName.of("cosid.generators.a.b.c.codec[0].radix.radix")));
+        assertEquals(Optional.of("cosid.stores[db.main].options.url"),
+            CosIdSpecs.bracketed(ConfigurationPropertyName.of("cosid.stores.db.main.options.url")));
+        assertEquals(Optional.empty(), CosIdSpecs.bracketed(ConfigurationPropertyName.of("cosid.generators.order.stpe")));
+        assertEquals(Optional.empty(), CosIdSpecs.bracketed(ConfigurationPropertyName.of("cosid.generators.a.b.nothing")));
+        assertEquals(Optional.empty(), CosIdSpecs.bracketed(ConfigurationPropertyName.of("cosid.metrics.generated.enabled.x")));
     }
 
     private static String rootMessage(Throwable error) {

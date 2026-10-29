@@ -4,6 +4,10 @@
 `default` 为主 `IdGenerator` Bean（即 4.x 的 share）。生成器名与 machine 名只能是每个后端都能存的：不含 `/`、空白，
 不是 `.` 或 `..`，不含控制字符或私用区字符；号段的键 `namespace/name[/period]` 至多 255 个字符。其他名字会让启动失败。
 
+名字可以带点，例如 `eshop-ordering.order`（每个聚合一个生成器）。在 Spring 配置中要写在方括号里，否则点会把名字拆开：
+YAML 写作 `cosid.generators."[eshop-ordering.order]"`，properties 写作 `cosid.generators[eshop-ordering.order].strategy=segment`。
+不加方括号时，启动会因未知键失败，报错信息中给出加方括号的写法。
+
 ## 所有策略
 
 | 属性 | 默认值 | 含义 |

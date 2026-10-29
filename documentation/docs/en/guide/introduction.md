@@ -48,7 +48,7 @@ The [recipes](recipes.md) give the configuration of each.
 - **No global state.** Time source, executor, listeners and stores are injected; a JVM may run several independent
   runtimes.
 - **Performance and features not below 4.x** (D21): every 4.x capability has a 5.0 counterpart, and each benchmark
-  scenario is compared with 4.1.0 as a release gate ([benchmarks](../reference/performance/benchmark.md)).
+  scenario is compared with 4.1.1 as a release gate ([benchmarks](../reference/performance/benchmark.md)).
 
 ## Core metrics of an id scheme
 

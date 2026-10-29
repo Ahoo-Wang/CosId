@@ -40,6 +40,7 @@ checkstyle {
 }
 
 spotbugs {
+    toolVersion.set(version("spotbugs-tool"))
     excludeFilter.set(rootProject.layout.projectDirectory.file("config/spotbugs/exclude.xml"))
 }
 
@@ -64,15 +65,9 @@ dependencies {
     testImplementation(library("hamcrest"))
     testRuntimeOnly(library("junit-platform-launcher"))
     testRuntimeOnly(library("logback-classic"))
-    // Checkstyle's own tool chain (doxia, xmlresolver) is old; these are the patched versions of what it brings. Build
-    // only: nothing of it is published.
     constraints {
-        "checkstyle"("com.google.guava:guava:33.7.2-jre")
-        "checkstyle"("org.apache.commons:commons-lang3:3.20.0")
-        "checkstyle"("org.apache.httpcomponents.client5:httpclient5:5.6.5")
-        "checkstyle"("org.apache.httpcomponents.core5:httpcore5:5.4.4")
-        "checkstyle"("org.apache.httpcomponents.core5:httpcore5-h2:5.4.4")
-        "checkstyle"("org.codehaus.plexus:plexus-utils:3.6.1")
+        // Checkstyle 14.3.0 brings Guava 33.7.1 (a security advisory); until a Checkstyle after 14.3.0 brings >= 33.7.2.
+        "checkstyle"("com.google.guava:guava:${version("guava")}")
     }
 }
 

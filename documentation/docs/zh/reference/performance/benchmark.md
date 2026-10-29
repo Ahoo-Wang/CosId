@@ -1,6 +1,6 @@
 # 基准测试
 
-**5.0 不得比 4.x 慢**（D21）。这是发布门槛，而不是目标。每个场景都分别在已发布的 4.1.0 jar 和 5.0 上运行，由对比结果决定。
+**5.0 不得比 4.x 慢**（D21）。这是发布门槛，而不是目标。每个场景都分别在已发布的 4.1.1 jar 和 5.0 上运行，由对比结果决定。
 
 ## 测量方式
 
@@ -9,7 +9,7 @@
 
 ```
 benchmark/
-  baseline-4x/   me.ahoo.cosid:*:4.1.0
+  baseline-4x/   me.ahoo.cosid:*:4.1.1
   v5/            the 5.0 modules
   scenarios.md   the scenarios: parameters, threads, warm-up, iterations
   compare        reads both JMH JSON results and prints PASS / FAIL per row

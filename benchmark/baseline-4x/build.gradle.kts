@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-// The 4.1.0 baseline (D21, 10-performance-and-parity.md §1.1): the scenarios of benchmark/scenarios.md on the released
+// The 4.1.1 baseline (D21, 10-performance-and-parity.md §1.1): the scenarios of benchmark/scenarios.md on the released
 // 4.x jars. It shares the package me.ahoo.cosid with 5.x, so it must never depend on a project of this build.
 plugins {
     id("cosid.benchmark")

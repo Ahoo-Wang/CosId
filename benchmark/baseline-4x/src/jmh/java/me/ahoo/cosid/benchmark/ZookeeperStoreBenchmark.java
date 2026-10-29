@@ -36,7 +36,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * P10 (ZooKeeper): the store primitives on 4.1.0 {@code cosid-zookeeper}, average and sampled latency, one thread.
+ * P10 (ZooKeeper): the store primitives on 4.1.1 {@code cosid-zookeeper}, average and sampled latency, one thread.
  *
  * <ul>
  *     <li>{@code reserve}: {@code ZookeeperIdSegmentDistributor.nextMaxId(100)}, without a call timeout (its fastest

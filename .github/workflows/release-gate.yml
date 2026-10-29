@@ -11,7 +11,7 @@
 # limitations under the License.
 #
 
-# The release gate of D21 (10-performance-and-parity.md §1.3): every scenario P1..P12, 4.1.0 against 5.x. Each scenario
+# The release gate of D21 (10-performance-and-parity.md §1.3): every scenario P1..P12, 4.1.1 against 5.x. Each scenario
 # group is a job of its own; within a job benchmark/run-release runs both sides on the same runner, interleaved per
 # scenario, and re-runs a failed row once in fresh forks (runners are shared machines). The report job joins the groups:
 # the verdict and every group's comparison go to the job summary, the full report with the raw JMH JSON to the

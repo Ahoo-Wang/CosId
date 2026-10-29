@@ -1,37 +1,36 @@
 [versions]
 # toolchain and code quality
 java = "21"
-checkstyle = "10.26.1"
+checkstyle = "14.3.0"
 # libraries
-slf4j = "2.0.18"
-logback = "1.5.38"
+slf4j = "2.0.20"
+logback = "1.6.6"
 junit = "6.1.3"
 hamcrest = "3.0"
 jmh = "1.37"
-# The 4.x release the benchmarks compare against (D21, docs/architecture/10-performance-and-parity.md).
-cosid4 = "4.1.0"
+# The 4.x release the benchmarks compare against: the latest 4.x (D21, D45; docs/architecture/10-performance-and-parity.md).
+cosid4 = "4.1.1"
 # R2-JDBC: the drivers and containers of store/jdbc tests and the P7 / P10 benchmarks.
-mysql-connector = "9.7.0"
-mariadb-client = "3.5.11"
+mysql-connector = "26.10.0"
+mariadb-client = "4.0.0"
 postgresql = "42.7.14"
-mssql-jdbc = "13.4.0.jre11"
-h2 = "2.4.240"
-hikari = "7.0.2"
+mssql-jdbc = "13.6.1.jre11"
+h2 = "2.5.252"
+hikari = "7.1.0"
 # R2-Mongo: the MongoDB store and its integration tests.
-mongodb = "5.13.0"
+mongodb = "5.14.0"
 testcontainers = "2.0.5"
 # R2-Redis: the Redis store (testcontainers above)
-# 7.9 brings Netty 4.2.17 (the fix of the netty-handler, -resolver-dns and -codec-dns advisories of 4.2.13).
 lettuce = "7.9.0.RELEASE"
 # benchmark/v5 only: one Netty for Lettuce and ZooKeeper, as the Spring Boot BOM gives applications.
-netty = "4.2.13.Final"
-# the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.0 brings, for benchmark/baseline-4x
+netty = "4.2.19.Final"
+# the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.1 brings, for benchmark/baseline-4x
 lettuce4 = "6.8.2.RELEASE"
 # store/zookeeper (R2-ZK)
 curator = "5.9.0"
-# Curator 5.9.0 brings ZooKeeper 3.9.3 and Guava 32.0.0: store/zookeeper declares the patched ones (3.9.5, 33.7.2) so that
-# Maven and Gradle consumers alike resolve them.
-zookeeper = "3.9.5"
+# Curator 5.9.0 (the latest) brings ZooKeeper 3.9.3 and Guava 32.0.0: store/zookeeper declares patched ones so that
+# Maven and Gradle consumers alike resolve them, until a Curator after 5.9.0 brings ZooKeeper >= 3.9.5 and Guava >= 33.7.2.
+zookeeper = "3.9.6"
 guava = "33.7.2-jre"
 # R3-S: spring/* builds and tests on this Spring Boot; -PspringBootVersion swaps it (02-modules.md §5). The published
 # metadata requires the versions of spring-boot-minimum, the lowest Boot the compatibility matrix tests.
@@ -42,7 +41,7 @@ spring-cloud-commons = "5.0.4"
 # R4-A: the OpenAPI document and Swagger UI of server/ (springdoc 3.x is the Spring Boot 4 line)
 springdoc = "3.2.0"
 # R4-B: integrations (all compileOnly in integrations; the application brings them)
-mybatis = "3.5.19"
+mybatis = "3.6.0"
 activiti = "7.0.0.SR1"
 flowable = "8.0.0"
 # Axon 5 has no IdentifierFactory; 4.x is the line the integration serves.
@@ -55,6 +54,7 @@ test-retry = "1.6.6"
 publish-plugin = "2.0.0"
 jmh-plugin = "0.7.3"
 spotbugs = "6.5.13"
+spotbugs-tool = "4.10.5"
 
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }

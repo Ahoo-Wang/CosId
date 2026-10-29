@@ -19,28 +19,37 @@ import io.lettuce.core.ScanArgs;
 import io.lettuce.core.ScanIterator;
 import io.lettuce.core.StaticCredentialsProvider;
 import io.lettuce.core.api.StatefulRedisConnection;
+import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.cluster.SlotHash;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.api.sync.RedisClusterCommands;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * One Lettuce connection of the migration, standalone or Redis Cluster ({@code cluster=true}), shared by the 4.x
  * reader and the 5.0 target.
  */
 public final class RedisConnection implements AutoCloseable {
+    /** How long a write waits for a replica to acknowledge it ({@link #replicated}). */
+    public static final Duration WAIT_TIMEOUT = Duration.ofSeconds(5);
     private final AutoCloseable client;
     private final AutoCloseable connection;
     private final RedisClusterCommands<String, String> commands;
     private final boolean cluster;
+    private final Function<String, RedisCommands<String, String>> nodeOf;
 
-    private RedisConnection(AutoCloseable client, AutoCloseable connection, RedisClusterCommands<String, String> commands, boolean cluster) {
+    RedisConnection(AutoCloseable client, AutoCloseable connection, RedisClusterCommands<String, String> commands, boolean cluster,
+                            Function<String, RedisCommands<String, String>> nodeOf) {
         this.client = client;
         this.connection = connection;
         this.commands = commands;
         this.cluster = cluster;
+        this.nodeOf = nodeOf;
     }
 
     /**
@@ -58,7 +67,9 @@ public final class RedisConnection implements AutoCloseable {
             RedisClusterClient client = RedisClusterClient.create(uri);
             try {
                 StatefulRedisClusterConnection<String, String> connection = client.connect();
-                return new RedisConnection(client::shutdown, connection, connection.sync(), true);
+                // A cluster write goes over the connection to the primary of the key's slot, which WAIT must use too.
+                return new RedisConnection(client::shutdown, connection, connection.sync(), true,
+                    key -> connection.getConnection(connection.getPartitions().getPartitionBySlot(SlotHash.getSlot(key)).getNodeId()).sync());
             } catch (RuntimeException e) {
                 client.shutdown();
                 throw e;
@@ -67,7 +78,8 @@ public final class RedisConnection implements AutoCloseable {
         RedisClient client = RedisClient.create(uri);
         try {
             StatefulRedisConnection<String, String> connection = client.connect();
-            return new RedisConnection(client::shutdown, connection, connection.sync(), false);
+            RedisCommands<String, String> sync = connection.sync();
+            return new RedisConnection(client::shutdown, connection, sync, false, key -> sync);
         } catch (RuntimeException e) {
             client.shutdown();
             throw e;
@@ -90,6 +102,41 @@ public final class RedisConnection implements AutoCloseable {
      */
     public boolean cluster() {
         return cluster;
+    }
+
+    /**
+     * Waits until a replica holds the writes of this connection to the node of {@code key} ({@code WAIT 1}), as the
+     * 5.0 runtime does with {@code wait=auto} (R1-mig-02): a seal or a raise that a failover lost would let 5.0 issue
+     * values that 4.x issued. Nothing to wait for when the node has no replica.
+     *
+     * @param key the key just written
+     * @throws IllegalStateException if the node has a replica and none acknowledged within {@link #WAIT_TIMEOUT}
+     */
+    public void replicated(String key) {
+        RedisCommands<String, String> node = nodeOf.apply(key);
+        if (connectedReplicas(node.info("replication")) == 0) {
+            return;
+        }
+        long acknowledged = node.waitForReplication(1, WAIT_TIMEOUT.toMillis());
+        if (acknowledged < 1) {
+            throw new IllegalStateException("The write of [" + key + "] reached no replica within " + WAIT_TIMEOUT
+                + ": the migration stops, since a failover now would lose it; check the replication and run the step again");
+        }
+    }
+
+    /**
+     * The {@code connected_slaves} of an {@code INFO replication} reply.
+     *
+     * @param info the reply
+     * @return the connected replicas, 0 when the reply has none
+     */
+    static int connectedReplicas(String info) {
+        for (String line : info.split("\\R")) {
+            if (line.startsWith("connected_slaves:")) {
+                return Integer.parseInt(line.substring("connected_slaves:".length()).trim());
+            }
+        }
+        return 0;
     }
 
     /**

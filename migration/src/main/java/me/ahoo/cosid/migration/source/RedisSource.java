@@ -118,7 +118,9 @@ public final class RedisSource implements SourceReader {
             throw new IllegalStateException("Segment [" + key + "] does not exist");
         }
         SourceReader.sealed(key, Long.parseLong(value), increment);
-        return commands.incrby(key, increment);
+        long sealed = commands.incrby(key, increment);
+        redis.replicated(key);
+        return sealed;
     }
 
     @Override

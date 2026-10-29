@@ -66,6 +66,8 @@ class StoreLocationTest {
         StoreLocation location = StoreLocation.parse("mongodb://cosid:s3cret@db/cosid_db", Map.of("password", "s3cret"));
         assertThat(location.redacted().url(), is("mongodb://cosid@db/cosid_db"));
         assertThat(location.redacted().options(), is(Map.of()));
+        // R1-mig-01: what messages print.
+        assertThat(location.toString(), is("mongo mongodb://cosid@db/cosid_db"));
     }
 
     @Test

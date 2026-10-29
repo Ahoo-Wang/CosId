@@ -167,8 +167,9 @@ public record StoreLocation(String type, String url, Map<String, String> options
         return redacted;
     }
 
+    /** The type and the url without its password ({@link #redactUrl}): messages and logs carry this. */
     @Override
     public String toString() {
-        return type + " " + url;
+        return type + " " + redactUrl(url);
     }
 }

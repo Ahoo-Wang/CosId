@@ -125,7 +125,7 @@ public final class JdbcSource implements SourceReader {
                 // A deployment of segments only has no machine table.
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("Reading the 4.x JDBC store " + location.url() + " failed: " + e.getMessage(), e);
+            throw new IllegalStateException("Reading the 4.x JDBC store " + StoreLocation.redactUrl(location.url()) + " failed: " + e.getMessage(), e);
         }
         return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized, maxMachineId);
     }

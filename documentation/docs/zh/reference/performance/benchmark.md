@@ -22,6 +22,7 @@ benchmark/
 | P3 | Snowflake + Radix62 文本、+ Friendly 文本 | 吞吐量、内存分配 |
 | P4 | 80 位 CosId Radix62 / Friendly | 吞吐量、内存分配 |
 | P5 | 基于内存存储的号段，1 / 4 / 16 / 64 线程 | 吞吐量、p99 / p99.9 |
+| P5 参照 | 一个共享的 `AtomicLong`，1 / 4 / 16 / 64 线程（只在 5.x 侧运行，不判定）：报告 P5 两侧相对它的比例 | 吞吐量 |
 | P6 | 号段，step 1，不预取 | 吞吐量 |
 | P7 | 基于 MySQL / Redis / MongoDB / ZooKeeper 的号段 | 吞吐量、p99 / p99.9 |
 | P8 | 跨周期切换的周期号段（按天） | 吞吐量、切换时的 p99.9 |

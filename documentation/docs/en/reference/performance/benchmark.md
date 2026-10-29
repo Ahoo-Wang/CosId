@@ -23,6 +23,7 @@ benchmark/
 | P3 | Snowflake + Radix62 text, + Friendly text | throughput, allocation |
 | P4 | 80-bit CosId Radix62 / Friendly | throughput, allocation |
 | P5 | segment on an in-memory store, 1 / 4 / 16 / 64 threads | throughput, p99 / p99.9 |
+| P5 reference | one shared `AtomicLong`, 1 / 4 / 16 / 64 threads (5.x side only, not judged): P5 on both sides as a share of it | throughput |
 | P6 | segment, step 1, no prefetch | throughput |
 | P7 | segment on MySQL / Redis / MongoDB / ZooKeeper | throughput, p99 / p99.9 |
 | P8 | periodic segment (daily) across period switches | throughput, p99.9 at the switch |

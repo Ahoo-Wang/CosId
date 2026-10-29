@@ -25,6 +25,7 @@ benchmark/
 | P3 | Snowflake + Radix62 字符串、+ Friendly 字符串 | `StringSnowflakeId` / `SnowflakeFriendlyId` | 吞吐、每次分配字节 | 端到端 |
 | P4 | CosIdGenerator 80 位 Radix62 / Friendly 字符串 | `Radix62CosIdGenerator` / `FriendlyCosIdGenerator` | 吞吐、每次分配字节 | 端到端 |
 | P5 | 号段,内存存储,1 / 4 / 16 / 64 线程 | `SegmentChainId` + 内存分发器 | 吞吐、p99 / p999 延迟 | 端到端 |
+| P5 参照 | 一个共享 `AtomicLong` 的 `incrementAndGet`,1 / 4 / 16 / 64 线程,只在 5.x 侧 | — | 吞吐 | 参照(不判定;`compare` 报告 P5 两侧在同线程数下相对它的比例,同组同 runner 运行) |
 | P6 | 号段,step = 1(无预取) | `DefaultSegmentId` | 吞吐 | 端到端 |
 | P7 | 号段,真实 MySQL / Redis / MongoDB / ZooKeeper;5.x 一律走生产路径(`CosIdRuntime` 发出的生成器,运行时打开并包装的存储) | `MySqlChainIdBenchmark` / `RedisChainIdBenchmark` / `MongoChainIdBenchmark` / `ZookeeperChainIdBenchmark` | 吞吐、p99 / p999 延迟 | 端到端 |
 | P8 | 周期号段(按天)含跨期 | grouped `SegmentChainId` | 吞吐、跨期 p999 延迟 | 端到端 |

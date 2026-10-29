@@ -48,7 +48,7 @@ class_of() {
         P2) echo SnowflakeSecondsBenchmark ;;
         P3) echo SnowflakeStringBenchmark ;;
         P4) echo CosId80Benchmark ;;
-        P5) echo SegmentBenchmark ;;
+        P5) echo SegmentBenchmark AtomicLongBenchmark ;;
         P6) echo SegmentNoPrefetchBenchmark ;;
         P8) echo PeriodicSegmentBenchmark ;;
         P9) echo CodecBenchmark ;;
@@ -68,6 +68,16 @@ else
     jmh_args=(-f 3 -wi 5 -w 2s -i 5 -r 2s)
     compare_args=()
 fi
+
+# Reference classes exist on 5.x only: run there, right after their scenario, never compared (compare, REFERENCE).
+references=(AtomicLongBenchmark)
+is_reference() {
+    local reference
+    for reference in "${references[@]}"; do
+        [[ $1 == "$reference" ]] && return 0
+    done
+    return 1
+}
 
 classes=()
 for scenario in "${scenarios[@]}"; do
@@ -114,6 +124,11 @@ for class in "${classes[@]}"; do
     if [[ -n $max_load ]] && awk -v load="$load" -v max="$max_load" 'BEGIN { exit !(load > max) }'; then
         echo "run-smoke: the 1-minute load average is $load, above $max_load, before $class: aborting" >&2
         exit 3
+    fi
+    if is_reference "$class"; then
+        echo "run-smoke: $class (reference) on 5.x (load $load)" >&2
+        run v5 "$class"
+        continue
     fi
     echo "run-smoke: $class on 4.x, then 5.x (load $load)" >&2
     run baseline-4x "$class"

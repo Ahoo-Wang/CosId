@@ -229,6 +229,17 @@ class CompareTest(unittest.TestCase):
                 if name.endswith("Benchmark.java"):
                     self.assertIn(name[:-len(".java")], compare.SCENARIOS, f"{side}/{name}")
 
+    def test_a_reference_row_is_reported_as_a_bound_and_never_judged(self):
+        base = {**row("SegmentBenchmark.generate_t16", threads=16, score=25.0)}
+        cand = {**row("SegmentBenchmark.generate_t16", threads=16, score=42.0),
+                **row("AtomicLongBenchmark.generate_t16", threads=16, score=50.0)}
+        harness = []
+        lines, failed, keys = compare.compare(base, cand, harness=harness)
+        self.assertEqual((0, [], []), (failed, keys, harness))
+        self.assertIn("## Reference (not judged)", lines)
+        self.assertIn("| AtomicLongBenchmark.generate_t16 | 16 | 50.000 | -: 25.000 (50%) | -: 42.000 (84%) |", lines)
+        self.assertFalse(any(line.startswith("Only in 5.x") for line in lines))
+
     def test_rows_match_by_threads(self):
         harness = []
         compare.compare(row("P.a", threads=4), row("P.a", threads=1), harness=harness)

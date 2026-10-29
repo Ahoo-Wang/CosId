@@ -33,6 +33,8 @@ are judged by the rules above, failing past them. Component rows (P9 codecs, P10
 rules above, WARN up to throughput 0.80 x / average time 1.20 x / p99 and p99.9 1.30 x / allocation max(1.25 x, +64 B)
 of 4.x (each also allowing 4.x's error), and fail beyond. Only failed rows re-run and fail the comparison; WARN rows get
 a section of their own, and the summary reads PASS (n WARN). A class not in the table is judged as end-to-end.
+Reference rows (5.x only, such as AtomicLongBenchmark for P5) are never judged: a section of their own reports each and
+the scenario it bounds, 4.x and 5.x, as a share of it at the same threads.
 --smoke (PR smoke runs): throughput >= 0.9 x 4.x, latency and time <= 4.x / 0.9, allocation as above; no WARN.
 Harness errors (exit 4) are not results: a row of the baseline missing from the candidate (or from a re-run), and,
 with --logs DIR, a JMH <failure> in any DIR/*.log (a benchmark that threw, such as a setup that found no store). The
@@ -72,6 +74,7 @@ WARN_PERCENTILE_TOLERANCE = 0.30
 WARN_ALLOC_TOLERANCE = 0.25
 END_TO_END = "end-to-end"
 COMPONENT = "component"
+REFERENCE = "reference"
 # D44: every benchmark class of benchmark/scenarios.md, its scenario and whether it measures ID generation end to end
 # or one component of it. Kept in this one place for review; a class missing here is judged as end-to-end.
 SCENARIOS = {
@@ -80,6 +83,7 @@ SCENARIOS = {
     "SnowflakeStringBenchmark": ("P3", END_TO_END),
     "CosId80Benchmark": ("P4", END_TO_END),
     "SegmentBenchmark": ("P5", END_TO_END),
+    "AtomicLongBenchmark": ("P5", REFERENCE),
     "SegmentNoPrefetchBenchmark": ("P6", END_TO_END),
     "MySqlChainIdBenchmark": ("P7", END_TO_END),
     "RedisChainIdBenchmark": ("P7", END_TO_END),
@@ -94,6 +98,8 @@ SCENARIOS = {
     "SpringStartBenchmark": ("P11", END_TO_END),
     "IdFillerBenchmark": ("P12", END_TO_END),
 }
+# A reference class (5.x only, never judged) and the scenario class whose throughput is reported as a share of it.
+REFERENCE_OF = {"AtomicLongBenchmark": "SegmentBenchmark"}
 PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
 HARNESS = "HARNESS ERROR"
 # The lines of a JMH <failure> shown in the report: the exception and where it was thrown.
@@ -214,7 +220,7 @@ def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC, sta
     ]
     warnings, missing = [], []
     failed = table(lines, baseline, candidate, sorted(baseline), smoke, pattern, startup_pattern, warnings, missing)
-    extra = sorted(set(candidate) - set(baseline))
+    extra = sorted(k for k in set(candidate) - set(baseline) if kind(k[0]) != REFERENCE)
     if extra:
         lines += ["", "Only in 5.x (not judged): " + ", ".join(f"{k[0]} ({k[1]}, {k[2]} threads)" for k in extra)]
     first = len(failed)
@@ -236,6 +242,7 @@ def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC, sta
         for (name, mode, threads, params), metric, b, c in warnings:
             change = f"{(c - b) / b:+.1%}" if b else "-"
             lines.append(f"| {name} | {mode} | {threads} | {params} | {metric} | {fmt(b)} | {fmt(c)} | {change} |")
+    lines += reference(baseline, candidate)
     if warned is not None:
         warned += list(dict.fromkeys(w[0] for w in warnings))
     if missing or logs:
@@ -256,6 +263,27 @@ def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC, sta
         summary += f" ({first} failed the first run and were re-run)"
     lines += ["", summary + "."]
     return lines, len(failed), failed
+
+
+def reference(baseline, candidate):
+    """The reference rows of candidate (5.x only, never judged): each score, and the throughput of the scenario it
+    bounds, 4.x and 5.x, as a share of it at the same threads (REFERENCE_OF)."""
+    keys = sorted((k for k in candidate if kind(k[0]) == REFERENCE and k[1] == "thrpt"), key=lambda k: (k[0], k[2]))
+    if not keys:
+        return []
+    lines = ["", "## Reference (not judged)", "",
+             "The bound of a scenario on this runner, and each side of the scenario as a share of it at the same threads.", "",
+             "| Reference | Threads | ops/µs | 4.x | 5.x |", "|---|---|---|---|---|"]
+    for name, mode, threads, params in keys:
+        score = candidate[(name, mode, threads, params)]["primaryMetric"]["score"]
+        bounded = REFERENCE_OF[name.split(".", 1)[0]]
+        cells = []
+        for side in (baseline, candidate):
+            shares = [f"{k[3] or '-'}: {fmt(r['primaryMetric']['score'])} ({r['primaryMetric']['score'] / score:.0%})"
+                      for k, r in sorted(side.items()) if k[0].split(".", 1)[0] == bounded and k[1] == "thrpt" and k[2] == threads]
+            cells.append(", ".join(shares) or "-")
+        lines.append(f"| {name} | {threads} | {fmt(score)} | {cells[0]} | {cells[1]} |")
+    return lines
 
 
 def table(lines, baseline, candidate, keys, smoke, pattern, startup_pattern, warnings, missing):

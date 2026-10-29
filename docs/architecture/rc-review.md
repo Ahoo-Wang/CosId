@@ -330,6 +330,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
   - E-N8 CodeQL 路径与 E-N9 `release: published` 已在 main 上;
   - 发布前的手工步骤(版本号、server README)放进 RC1 准备 PR。
 - [ ] D46 UUIDv7 生成器合入(用户 2026-10-29 确认放在 RC1 之前)
+  - 用户 2026-10-29 决定：先发 **`v5.0.0-alpha.3`**(包含 UUIDv7、带点名字的测试、AtomicLong/ABBA,以及第七次门禁 PASS),RC1 之后再说。发布步骤同 alpha.2。
 - [ ] 用户确认发布 RC1
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;

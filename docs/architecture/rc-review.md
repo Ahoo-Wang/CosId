@@ -355,7 +355,41 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
       - 两条 BLOCKER 都出在迁移工具 `config`:R2-mig-01 没有读取 `apply-result.json` 的 `target`;R2-parity-01 丢掉了 4.x snowflake 自带的 namespace。两条都可兼容地修复，因此**不需要 RC2**。
       - 修复分三个 PR 串行进行:WP-migration-r2(包含两条 BLOCKER),然后 WP-core-spring-r2,最后 WP-docs-r2。
       - ✅ WP-migration-r2 [#1415](https://github.com/Ahoo-Wang/CosId/pull/1415) `c6ce99ec`:`config` 按 `apply-result.json` 记录的目标生成 store;自带 namespace 的 4.x snowflake 迁成命名 machine,单独迁移一次;`--*-option` 键名做归一化并校验;`wait-replicas`/`fetch-plan`/`writeConcern`/Curator retry 都正确转换;Redis Cluster 写入走 key 所在主节点的连接;报错与日志中的 URL 隐去密码。新增"用 `config` 的输出启动 5.0"端到端测试(`ConfigRuntimeTest`)。**第 2 轮的两条 BLOCKER 已清零。**
-      - ✅ D49 [#1416](https://github.com/Ahoo-Wang/CosId/pull/1416) `d8434b4d`:只支持 Spring Boot 4.1.2+。删除了 `spring-boot-minimum`/`minimumVersions` 机制;CI 矩阵改为 Boot 4.1.2 × Java 21/25;发布 POM 里 spring-boot-autoconfigure 和 spring-data-jdbc 都是 4.1.2,没有 BOM import。下一步:WP-core-spring-r2。完成后在 GA 提交上重跑门禁(R2-perf-01)。
+      - ✅ D49 [#1416](https://github.com/Ahoo-Wang/CosId/pull/1416) `d8434b4d`:只支持 Spring Boot 4.1.2+。删除了 `spring-boot-minimum`/`minimumVersions` 机制;CI 矩阵改为 Boot 4.1.2 × Java 21/25;发布 POM 里 spring-boot-autoconfigure 和 spring-data-jdbc 都是 4.1.2,没有 BOM import。
+      - ✅ WP-core-spring-r2 [#1418](https://github.com/Ahoo-Wang/CosId/pull/1418) `8c34d5ed`:
+        - uuidv7 的计数、禁用和关闭都走它的 `TimeSource`(每个 id 只读一次时间，有测试固定);
+        - `onBatchResized` 改在锁外触发;
+        - StoreConfig/StoreSpec 打印时隐去密钥;
+        - R2-core-03 只补 javadoc 约定，构造器不动;R2-spring-02 只打 WARN;
+        - 未知键检查理解 profile 对整个列表的覆盖;
+        - server 的 JDBC 连接池配置修正;
+        - **R2-dep-01**:cosid-activiti 钉 MyBatis 3.5.19。3.6.0 与 Activiti 7 不兼容(`NoSuchMethodError`),CI 中的 Activiti 测试在 3.5.19 上通过;
+        - 新增 CI job `published-jars`:用发布出去的 jar,分别以 Maven 和 Gradle 配 Boot 4.1.2 启动冒烟应用。它当场发现一个**发布缺陷**:`cosid-spring-boot-starter`(rc.1 也受影响)没有依赖 `spring-boot-starter`,只引入 CosId starter 的应用用 YAML 时缺 snakeyaml。已补上依赖，要写进 GA release notes;
+        - P8 改走生产路径,dry-run 40875468905 通过。
+        - 未做：`cosid.server.*` 和各集成的配置键还没有未知键检查;各存储页的驱动版本说明。并入 WP-docs-r2 或之后再做。
+      - ✅ WP-docs-r2 [#1419](https://github.com/Ahoo-Wang/CosId/pull/1419) `be35de36`:
+        - 文档：uuidv7 进入所有策略清单;README 改为 RC 状态并写明 Boot 4.1.2+;迁移指南写明默认文本从 radix62 改为十进制(R2-doc-03);skills 更新;SPI 补上方法级契约;SQL Server 的升级 SQL 修正;
+        - 对照表 11:proxy 与 metrics 两项对照，38 个行号锚点重新生成;
+        - 说明：`/ids` 在 JS 中的精度问题;remote 协议的 javadoc;
+        - 性能页改为 CI 模型，并填入 RC1 门禁结果;scenarios.md 列出门禁未覆盖的路径;
+        - Redis/Mongo 页写明驱动版本(Maven 经 Boot BOM 得到 Lettuce 7.5.2 和 Netty 4.2.19);
+        - 新增 GA release notes 草稿 `docs/release/5.0.0.md`;AGENTS.md 中 starter 一行已修正。
+      - **第 2 轮修复全部完成(#1415、#1416、#1418、#1419)。**
+      - **用户 2026-10-29 授权发布 GA**("授权你发布 GA")。前提按 D35:GA 候选提交上的正式门禁 PASS。门禁不通过就不发，先向用户汇报。
+        - 发布步骤：
+          1. 发布 PR(版本号 `5.0.0`、release notes 定稿、门禁报告存入 `docs/jmh/5.0.0/`、站点和 README 去掉 RC 提示);
+          2. 合入;
+          3. 在合入提交上创建**正式 release**(非 pre-release)`v5.0.0`:package-deploy 发布到 Central;docker-deploy 打 `5.0.0`、`5.0` 和 `latest`;document-deploy 因 `released` 事件自动触发;
+          4. 核对 Central、Docker Hub(含 `latest`)和文档站;
+          5. main 改为下一个 SNAPSHOT;
+          6. 通知 Wow。
+      - 第八次正式门禁 [run 40887469149](https://github.com/Ahoo-Wang/CosId/actions/runs/40887469149) @ `be35de36`:**FAIL 3/8,每组只有 1 行，全是尾延迟;所有吞吐、平均和分配行 PASS。按约定 GA 暂不发布，交用户决定。**
+        - `SegmentBenchmark.generate_t1` step=100,p99.9(端到端):4.x 50/71 ns,5.x 90/110 ns(两次运行)。
+        - `RedisChainIdBenchmark.generate_t1` step=100,p99.9(端到端):4.x 91/151 ns,5.x 110/170 ns。
+        - `MySqlStoreBenchmark.acquire_t1` p99.9(组件，只在启动时调用):4.x 2.7/2.4 ms,5.x 4.0/3.4 ms(超出 D44 的 30% 软上限);同一行的平均延迟(1239 vs 1326 µs)、p99(1595 vs 1642 µs)和分配都是 5.x 更好。
+        - **runner 因素**:这次跑在 EPYC 9V45 上，那里 AtomicLong 本身只有 214 ops/µs(第七次在 7763 上是 420)。5.x 号段仍是 AtomicLong 的 101–102%,4.x 则从 33% 升到 73%,所以 5.x 没有回退，是 4.x 在这颗 CPU 上相对变快了。
+        - **测量因素**:失败的两行端到端数据都在 50–170 ns,采样值以约 10–20 ns 为一档跳变;10% 容差只有 5–9 ns,低于一档，判定实际上由量化噪声决定。5.x 自身在各次门禁中的这项数据很稳定(70–120 ns),4.x 则在 50 到 1282 ns 之间波动。
+        - ✅ 用户已决定(2026-10-29):采纳 D50(分位延迟 +100 ns 绝对下限),MySQL acquire p99.9 作为例外，然后发布 GA。原建议:① 给 D34 补一条：采样分位延迟的容差另加 +100 ns 的绝对下限，与分配的 +64 B 下限同理;② MySQL acquire p99.9 作为有数据的例外，由用户裁定;③ 不靠"换个 runner 重跑"来求通过。完成后在 GA 提交上重跑门禁(R2-perf-01)。
       - 协调会话按推荐做的两项决定(§4.3 第 18 项):R2-spring-02 对不适用策略的键只打 WARN,不改为启动失败;R2-core-03 的公开构造器保留，约定今后新增参数只通过 builder 或静态工厂。
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;

@@ -214,6 +214,23 @@ class JdbcSupportTest {
         dataSource.setLoginTimeout(global + 7);
         assertEquals(global + 7, dataSource.getLoginTimeout());
         assertEquals(global, java.sql.DriverManager.getLoginTimeout());
+        java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.StringWriter());
+        dataSource.setLogWriter(writer);
+        assertSame(writer, dataSource.getLogWriter());
+    }
+
+    @Test
+    void dialectsAreLoadedFromTheContextClassLoaderElseThisModule() {
+        // R1-jdbc-08.
+        Thread thread = Thread.currentThread();
+        ClassLoader context = thread.getContextClassLoader();
+        try {
+            assertSame(context, JdbcDialects.classLoader());
+            thread.setContextClassLoader(null);
+            assertSame(JdbcDialects.class.getClassLoader(), JdbcDialects.classLoader());
+        } finally {
+            thread.setContextClassLoader(context);
+        }
     }
 
     @Test

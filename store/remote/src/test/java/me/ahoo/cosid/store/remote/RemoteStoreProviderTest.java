@@ -46,6 +46,11 @@ class RemoteStoreProviderTest {
         assertFalse(RemoteStoreProvider.plainToRemote(URI.create("http://localhost:8688")));
         assertFalse(RemoteStoreProvider.plainToRemote(URI.create("http://127.0.0.1:8688")));
         assertFalse(RemoteStoreProvider.plainToRemote(URI.create("http://[::1]:8688")));
+        assertFalse(RemoteStoreProvider.plainToRemote(URI.create("HTTP://cosid.localhost:8688")));
+        assertTrue(RemoteStoreProvider.plainToRemote(URI.create("http:cosid-server")));
+        try (Store store = new RemoteStoreProvider().open(config(Map.of("baseUrl", "http://cosid-server.cosid.svc:8688", "token", "t")))) {
+            assertEquals(URI.create("http://cosid-server.cosid.svc:8688"), assertInstanceOf(RemoteStore.class, store).baseUrl());
+        }
     }
 
     @Test

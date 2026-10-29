@@ -75,7 +75,13 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D42 | `MachineSpec.Leased.acquireTimeout`(默认 ttl,`cosid.machine.leased.acquire-timeout`)(R1-core-03) | 已定(按推荐) |
 | D43 | 其余冻结面 MINOR:R1-core-11/12/17、R1-spring-03/05/06、`cosid.metrics.generated.enabled` 在 RC 前改;R1-x-02(静态入口)只做文档;R1-int-01 随 PR3 | 已定(按推荐) |
 | D44 | 性能门槛以**端到端发号**为最终指标(用户 2026-10-28;修订 D21/D34 的判定口径):**端到端行**=应用视角的 ID 生产,即 P1–P8、P11(启动到第一个 ID)、P12(字段填充),按 D34 容差硬判(FAIL 阻塞)。**组件行**=P9 编解码、P10 存储原语(reserve/acquire/renew),只要求"不过度退化":在 D34 内为 PASS;超出 D34 但吞吐/平均延迟 ≤ 20%、p99/p99.9 ≤ 30%、分配 ≤ max(25%, +64 B) 为 WARN(报告列出,不阻塞);超出即 FAIL。端到端场景须覆盖每个存储后端:P7 补 Mongo、ZooKeeper 的号段链基准(4.x 与 5.x 两侧)。阈值按协调会话推荐 | 已定(用户提出原则,阈值按推荐) |
-| D45 | **依赖保持最新稳定版,代码保持清洁**(用户 2026-10-29):所有依赖(Spring Boot、驱动/客户端、Curator、Gradle 与插件、Checkstyle 等)升级到最新稳定版。优先通过升级上游消除告警，不要钉住传递依赖;只有上游尚无修复时，才显式声明传递依赖，并在声明处注明原因和移除条件。被升级取代的约束、排除项要删掉。Spring Boot:构建用最新 4.1.x;支持下限取 4.0.x 线的最新补丁(协调会话推荐，保留对 4.0 的支持),CI 矩阵覆盖这两端。4.x 基线 cosid4 也升到最新(4.1.1,覆盖 §4.3 第 12 项的暂缓),之后的门槛以 4.1.1 为基线 | 已定(用户提出原则，下限按推荐) |
+| D45 | **依赖保持最新稳定版,代码保持清洁**(用户 2026-10-29):所有依赖(Spring Boot、驱动/客户端、Curator、Gradle 与插件、Checkstyle 等)升级到最新稳定版。优先通过升级上游消除告警，不要钉住传递依赖;只有上游尚无修复时，才显式声明传递依赖，并在声明处注明原因和移除条件。被升级取代的约束、排除项要删掉。Spring Boot:构建用最新 4.1.x;支持下限取 4.0.x 线的最新补丁(协调会话推荐，保留对 4.0 的支持),CI 矩阵覆盖这两端。4.x 基线 cosid4 也升到最新(4.1.1,覆盖 §4.3 第 12 项的暂缓),之后的门槛以 4.1.1 为基线。**补充(用户 2026-10-29):依赖版本以最新 Spring Boot BOM 为准**:
+  - 所有模块(非 Spring 模块也一样)在构建期导入 `spring-boot-dependencies` 作为不发布的 platform,与 spring 模块现有的 `managedVersions` 做法相同;
+  - BOM 管理的依赖(驱动、Lettuce、Mongo、Hikari、Jackson、Netty、SLF4J/Logback、Testcontainers、JUnit 等)不再在 `libs.versions.toml` 中声明版本;
+  - BOM 不管理的依赖(Curator、ZooKeeper、Guava、springdoc、spring-cloud-commons、JMH 等)才显式声明，取最新稳定版;
+  - 安全修复需要高于 BOM 的版本时才显式覆盖，并注明移除条件;
+  - 发布的 POM 写入解析后的具体版本，不带 BOM import,不把 Spring Boot 的版本强加给非 Spring 用户;
+  - `benchmark/baseline-4x` 不受影响 | 已定(用户提出原则，下限按推荐) |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

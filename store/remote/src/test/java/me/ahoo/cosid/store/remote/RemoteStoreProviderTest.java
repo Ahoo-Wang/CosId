@@ -16,6 +16,7 @@ package me.ahoo.cosid.store.remote;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,6 +35,17 @@ import java.util.ServiceLoader;
 class RemoteStoreProviderTest {
     private static StoreConfig config(Map<String, Object> options) {
         return StoreConfig.builder("remote", RemoteStoreProvider.TYPE).timeout(Duration.ofSeconds(3)).options(options).build();
+    }
+
+    @Test
+    void aTokenOverPlainHttpToAnotherHostIsWarnedAbout() {
+        // R1-remote-03: judged by the url alone, no DNS.
+        assertTrue(RemoteStoreProvider.plainToRemote(URI.create("http://cosid-server.cosid.svc:8688")));
+        assertTrue(RemoteStoreProvider.plainToRemote(URI.create("http://10.0.0.5:8688")));
+        assertFalse(RemoteStoreProvider.plainToRemote(URI.create("https://cosid-server:8688")));
+        assertFalse(RemoteStoreProvider.plainToRemote(URI.create("http://localhost:8688")));
+        assertFalse(RemoteStoreProvider.plainToRemote(URI.create("http://127.0.0.1:8688")));
+        assertFalse(RemoteStoreProvider.plainToRemote(URI.create("http://[::1]:8688")));
     }
 
     @Test

@@ -82,7 +82,7 @@ public final class JdbcStore implements Store {
      * @throws IllegalArgumentException if no dialect supports the database
      */
     public static JdbcStore of(DataSource dataSource, Duration timeout) {
-        return new JdbcStore(dataSource, detect(dataSource, JdbcStore.class.getClassLoader()), JdbcTables.DEFAULT, timeout);
+        return new JdbcStore(dataSource, detect(dataSource, JdbcDialects.classLoader()), JdbcTables.DEFAULT, timeout);
     }
 
     static JdbcDialect detect(DataSource dataSource, ClassLoader classLoader) {

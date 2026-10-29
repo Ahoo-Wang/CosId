@@ -33,6 +33,17 @@ import java.util.OptionalLong;
  * next_floor_ms)} and {@code cosid_namespace(namespace, slot_limit, tolerance_ms, slot_offset)}, under the names of
  * {@link JdbcSession#tables()}. Tables of 5.0.0-alpha.1 have no {@code cosid_namespace.slot_offset}: a missing value
  * reads as 0, and {@code options.initSchema} adds the column ({@link #addColumn}).
+ *
+ * <p>Two kinds of method, with different promises (R1-jdbc-07):
+ * <ul>
+ *   <li>The <b>operations</b> ({@link #reserve}, {@link #insertNamespaceIfAbsent}, {@link #provisionSlots}, {@link #nowMillis},
+ *   {@link #schema}, {@link #checkKey} and the error classification) are the contract a dialect implements: their
+ *   meaning does not change in 5.x.</li>
+ *   <li>The <b>SQL hooks</b> ({@link #firstRows}, {@link #createIndex}, {@link #addColumn}, {@link #selectNowMillis})
+ *   only spell a piece of SQL the store builds its own statements from. The store may stop calling one or start
+ *   calling a new one in a minor version; a new hook always has a default that suits most databases. Override a hook
+ *   only where the database's syntax differs.</li>
+ * </ul>
  */
 public interface JdbcDialect {
     /**

@@ -811,7 +811,7 @@ public sealed interface GeneratorSpec {
     }
 
     /**
-     * UUIDv7 ids (D46, RFC 9562 §5.7, a 26-bit counter): {@link me.ahoo.cosid.time.UuidV7Generator}, ordered within
+     * UUIDv7 ids (D46, RFC 9562 §5.7, a 16-bit counter): {@link me.ahoo.cosid.time.UuidV7Generator}, ordered within
      * the instance and unique without coordination. It needs no store, machine slot nor lease. Its text is the canonical 36-character form
      * (other text codecs may come later); the runtime hands it out by {@code get(name, UuidV7Generator.class)} and its
      * text by {@code text(name)}, and {@code describe()} names its strategy {@code uuidv7}.

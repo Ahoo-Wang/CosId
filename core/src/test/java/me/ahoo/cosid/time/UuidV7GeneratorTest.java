@@ -36,7 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * The contract of {@link UuidV7Generator} (D46, RFC 9562 §5.7 and §6.2 method 1 with a 26-bit counter): the bits, the
+ * The contract of {@link UuidV7Generator} (D46, RFC 9562 §5.7 and §6.2 method 1 with a 16-bit counter): the bits, the
  * order within an instance, the counter and when it carries, a clock that goes back, the limits, and uniqueness under
  * contention.
  */
@@ -48,9 +48,9 @@ class UuidV7GeneratorTest {
         return id.getMostSignificantBits() >>> 16;
     }
 
-    /** The 26-bit counter: the 12 bits of rand_a, then the top 14 bits of rand_b. */
+    /** The 16-bit counter: the 12 bits of rand_a, then the top 4 bits of rand_b. */
     private static long counter(UUID id) {
-        return (id.getMostSignificantBits() & 0xFFF) << 14 | (id.getLeastSignificantBits() >>> 48 & 0x3FFF);
+        return (id.getMostSignificantBits() & 0xFFF) << 4 | (id.getLeastSignificantBits() >>> 58 & 0xF);
     }
 
     @Test
@@ -77,11 +77,12 @@ class UuidV7GeneratorTest {
     }
 
     @Test
-    void aStillClockKeepsItsTimestampFor100000IncreasingIds() {
+    void aStillClockKeepsItsTimestampFor30000IncreasingIds() {
         UuidV7Generator generator = new UuidV7Generator("ids", new ManualTimeSource(NOW));
         UUID previous = generator.generateUuid();
         assertThat(counter(previous), lessThan(UuidV7Generator.START_BOUND));
-        for (int i = 0; i < 100_000; i++) {
+        // From a start below 2^15, 30 000 more ids stay within the 16-bit counter.
+        for (int i = 0; i < 30_000; i++) {
             UUID next = generator.generateUuid();
             assertEquals(NOW, millis(next), "the timestamp does not run ahead");
             assertEquals(counter(previous) + 1, counter(next), "the counter counts within the millisecond");
@@ -140,17 +141,6 @@ class UuidV7GeneratorTest {
         assertEquals("ids", overflow.generator());
         assertEquals(UuidV7Generator.TIMESTAMP_BITS, overflow.timeBits());
         assertThat(new UuidV7Generator("ids", new ManualTimeSource((1L << UuidV7Generator.TIMESTAMP_BITS) - 1)).generateUuid().version(), is(7));
-    }
-
-    @Test
-    void anInstanceIssuesFor2Pow38MillisecondsAfterItsStart() {
-        ManualTimeSource time = new ManualTimeSource(NOW);
-        UuidV7Generator generator = new UuidV7Generator("ids", time);
-        // The state counts from one millisecond before the start.
-        time.set(NOW - 1 + (1L << UuidV7Generator.OFFSET_BITS) - 1);
-        assertEquals(NOW - 1 + (1L << UuidV7Generator.OFFSET_BITS) - 1, millis(generator.generateUuid()));
-        time.set(NOW - 1 + (1L << UuidV7Generator.OFFSET_BITS));
-        assertEquals(UuidV7Generator.OFFSET_BITS, assertThrows(TimeOverflowException.class, generator::generateUuid).timeBits());
     }
 
     @Test

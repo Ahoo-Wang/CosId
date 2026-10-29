@@ -658,7 +658,7 @@ bom:16 个发布模块与 `settings.gradle.kts` 一致,`checkBom` 会守住,无�
 
 **结论:通过(PASS),附 2 条文档/留档发现(R2-perf-01、R2-perf-02)。** 证据:
 
-1. **第七次正式门槛**([run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823),`457c7266`,release 设置 3 fork × 5 × 2 s,D34 容差 + D44 端到端/组件口径,4.x 基线 4.1.1,存储组 ABBA):8 组 0 组失败,123 个判定行中 1 行首轮失败、重跑通过,3 个组件行 WARN。逐行读了 `release-gate-summary` 的 `report.md`,5.x 比 4.x 差 5% 以上的行只有下面这些,均已有解释:
+1. **第七次正式门槛**([run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823),`457c7266`,release 设置 3 fork × 5 × 2 s,D34 容差 + D44 端到端/组件口径,4.x 基线 4.1.1,存储组 ABBA):8 组 0 组失败;112 个基准行(每行按吞吐或延迟、分配分别判定)中 1 行首轮失败、重跑通过,3 个组件行 WARN。逐行读了 `release-gate-summary` 的 `report.md`,5.x 比 4.x 差 5% 以上的行只有下面这些,均已有解释:
 
 | 行 | 4.x | 5.x | 判定 | 解释 |
 |---|---|---|---|---|
@@ -677,4 +677,4 @@ bom:16 个发布模块与 `settings.gradle.kts` 一致,`checkBom` 会守住,无�
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 冻结面 |
 |---|---|---|---|---|---|---|
 | R2-perf-01 | MINOR | 文档(性能证据) | `documentation/docs/{en,zh}/reference/performance/benchmark.md:41,54-61` / `:36,48-55`;`docs/jmh/`(无 `5.0*`、无 `4.1.1/`) | 文档站的"5.0 results"一节仍是 R5-A 的占位("Pending",结果"由专用机器产出"),并写"发布数据只来自一台固定、安静的物理机",与 D31/D34(CI 共享 runner 上 ABBA 交替、按容差判定)矛盾。RC1 的性能依据(第七次门槛)只在 Actions artifact 里,`release-gate-summary` 将于 **2027-01-27** 过期;10 §1.3 与 `scenarios.md:110-112` 要求的留档(`report.md` → `docs/jmh/5.0/`,`baseline-4x.md` → `docs/jmh/4.1.1/release-ci.md`)没有做 | GA 前把 GA 提交的门槛摘要提交到 `docs/jmh/5.0.0/`(和 4.1.1 基线),中英文"5.0 results"一节改为摘要表加链接,删掉"专用物理机"的说法,改写成 D31/D34/D44 的口径;rc.1 的第七次门槛摘要也可以先留档 | 无 |
-| R2-perf-02 | MINOR | 高性能(门槛覆盖) | `benchmark/scenarios.md`(P1–P13);`server/.../IdController.java` | 下面这些发布的热路径不在任何门槛场景里:cosid-server 的 `/ids/**`(4.x proxy 也没有基准,无法对照);Jackson `@AsString` 序列化、MyBatis/Spring Data JDBC 的填充(P12 只测 `IdFiller.fill` 本身);`runtime.text(name)` 对 cosid80/periodic 的文本视图(P3/P4 测的是 codec 直接调用,是否经过 `text()` 由 harness 决定)。都不是回退证据,只是 D21 的覆盖面 | 不阻塞 GA。在 `scenarios.md` 列出"不在门槛内的路径"及理由;若要补,优先 server `/ids`(5.x 趋势行,与 P13 同样只报告) | 无 |
+| R2-perf-02 | MINOR | 高性能(门槛覆盖) | `benchmark/scenarios.md`(P1–P13);`server/.../IdController.java` | 下面这些发布的热路径不在任何门槛场景里:cosid-server 的 `/ids/**`(4.x proxy 也没有基准,无法对照);Jackson `@AsString` 序列化、MyBatis/Spring Data JDBC 的填充(P12 只测 `IdFiller.fill` 本身);`cosid.metrics.generated=true` 时每个 id 的 `LongAdder` 计数(`GeneratorEntry.java:109-140`)。P1–P4 直接构造 `TimeBasedGenerator`(`benchmark/v5/.../V5.java:62-64`),不经过 `CosIdRuntime`;不计数时运行时交出的就是同一个对象(`GeneratorEntry.java:109-112,156`),`text(name)` 也只是 `codec.encode(...)` 的一层 lambda,所以测到的仍是生产路径。以上都不是回退证据,只是 D21 的覆盖面 | 不阻塞 GA。在 `scenarios.md` 列出"不在门槛内的路径"及理由;若要补,优先 server `/ids`(5.x 趋势行,与 P13 同样只报告) | 无 |

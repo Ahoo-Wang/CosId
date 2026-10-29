@@ -88,7 +88,7 @@ SQL Server 用 `nvarchar` / `nchar` 加 `collate Latin1_General_100_BIN2`,`seale
 
 | 方言 | 语句 |
 |---|---|
-| MySQL / MariaDB | `insert into cosid_range (range_key, next_value) values (?, last_insert_id(? + ?)) on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))`(`? = Long.MAX_VALUE − size`,溢出检查),从该语句自己的 OK 包(generated key)读取。各分支都设置 `last_insert_id`,不会读到连接池中残留的旧值;generated key 为空或 0 时只读该行确认已封存或已满,**不再**在连接上 `select last_insert_id()`(SQL 代理可能从另一个后端连接回答,R1-jdbc-06) |
+| MySQL / MariaDB | 先 `update cosid_range set next_value = last_insert_id(next_value + ?) where range_key = ? and not sealed`(2 个参数,与 4.x 相同,常规 reserve 只有这一条);匹配 0 行(新 key 或已封存)或溢出(MySQL/MariaDB 在任何 SQL 模式下都以错误 1690 拒绝 BIGINT 溢出,不会回绕)时,才执行 `insert into cosid_range (range_key, next_value) values (?, last_insert_id(? + ?)) on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))`(`? = Long.MAX_VALUE − size`,溢出检查),从该语句自己的 OK 包(generated key)读取。各分支都设置 `last_insert_id`,不会读到连接池中残留的旧值;generated key 为空或 0 时只读该行确认已封存或已满,**不再**在连接上 `select last_insert_id()`(SQL 代理可能从另一个后端连接回答,R1-jdbc-06) |
 | PostgreSQL | `insert into cosid_range as r … values (?, ? + ?) on conflict (range_key) do update set next_value = r.next_value + ? where not r.sealed and r.next_value <= ? returning next_value` |
 | SQL Server | `merge … with (holdlock) … when matched and r.sealed = 0 and r.next_value <= ? then update … output inserted.next_value` |
 | H2 | `merge into … using (values (?)) … when matched and not r.sealed and r.next_value <= ? then update … when not matched then insert …`,随后在同一事务内读取该行 |
@@ -163,7 +163,7 @@ public interface RedisScripts {
 | `/cosid/slot/{ns}/.clock` | 每次 acquire 都写入,它的 `mtime` 就是过期判断用的 `now` |
 | `/cosid/owner/{ns}/{ownerKey}` | owner 索引:最近持有者为该 key 的槽位(如 `3,7`),与每次 acquire 在同一个 `multi` 中写入;key 经 URL 编码,`.` 与 `*` 也转义 |
 
-- 区间:用版本化 `setData` 实现 CAS,不存在时 `create`,遇到 `NodeExists` 重试。
+- 区间:用版本化 `setData` 实现 CAS,不存在时 `create`,遇到 `NodeExists` 重试。store 记住自己上次写入的值与版本,下一次 reserve 先直接在该版本上 `setData`(一次往返);版本已变(别的实例 reserve 过或已封存)则失败,改为先读后写,并在其后 8 次 reserve 中先读。版本校验保证这与先读后写同样安全。
 - **fence 存在数据里**,版本化 `setData` 只用来实现 CAS,所以节点被重建也不会让 fence 回退(运行时从不删除槽位节点)。
 - 租约时间取自产生它的那次写入的 `Stat.mtime`:`expiresAt = max(expiresMin, mtime + ttl)`,`ceiling = max(ceilingMin, expiresAt + tolerance)`;
   下界取自被替换的那次写入,任期内二者不回退。`storeNow` 与 `expiresAt` 取自**同一次写入**。安全性不依赖它(05 §3)。

@@ -67,9 +67,10 @@ let it share the row of the key without it.
 
 ## How it works
 
-- **reserve**: one upsert per reservation that also returns the new value, so one round trip on MySQL / MariaDB
-  (`insert … values (?, last_insert_id(? + ?)) on duplicate key update next_value = last_insert_id(…)`, read from the
-  statement's own OK packet; every branch sets `last_insert_id`, so a value left on a pooled connection is never read;
+- **reserve**: one statement per reservation that also returns the new value, so one round trip on MySQL / MariaDB
+  (`update … set next_value = last_insert_id(next_value + ?)` on an open key; for a new, sealed or full one
+  `insert … values (?, last_insert_id(? + ?)) on duplicate key update next_value = last_insert_id(…)`; each read from
+  the statement's own OK packet; every branch sets `last_insert_id`, so a value left on a pooled connection is never read;
   without a generated key the store checks the row is sealed or full and otherwise fails, rather than ask the connection),
   PostgreSQL (`on conflict … returning`) and SQL Server (`merge … with (holdlock) … output`); H2 merges and reads in a
   transaction. The update branch stops at `Long.MAX_VALUE` (`RangeExhaustedException`) and at a sealed key
@@ -84,7 +85,10 @@ let it share the row of the key without it.
   ? and fence = ? and next_floor_ms = ? and (free by the store clock)`; 0 rows moves on to the next candidate. After
   losing the lowest free slot to a concurrent acquire, the store picks a random one of the other candidates. Two round
   trips for a new owner.
-- **renew / release**: read the row of the lease, then a compare-and-set on incarnation, fence, expiry and ceiling.
+- **renew**: one read of the store clock (`JdbcDialect.selectNowMillis()`), then a compare-and-set on incarnation, fence
+  and the expiry and ceiling the lease holds; if the row moved since (a renewal whose response was lost), the row is read
+  in full and the compare-and-set retried.
+- **release**: read the row of the lease, then a compare-and-set on incarnation, fence, expiry and ceiling.
 - **store clock**: UTC epoch milliseconds from the database (`utc_timestamp(6)`, `clock_timestamp()`,
   `sysutcdatetime()`, `current_timestamp`); uniqueness does not depend on it (05 §3).
 

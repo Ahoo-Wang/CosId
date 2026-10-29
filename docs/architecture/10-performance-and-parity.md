@@ -33,6 +33,7 @@ benchmark/
 | P10 | 存储原语延迟:reserve、acquire、renew(各后端) | 4.x 对应操作 | 平均与 p99 延迟 | 组件 |
 | P11 | 启动:Spring 上下文启动到第一个 ID | 4.x starter | 耗时 | 端到端 |
 | P12 | 字段填充 `IdFiller.fill` | `CosIdAccessorRegistry.ensureId` | 吞吐、每次分配字节 | 端到端 |
+| P13 | UUIDv7(D46),1 / 4 / 16 线程,`UUID` 与规范文本 | —(4.x 没有对应实现) | 吞吐 | 5.x 趋势(只报告不判定) |
 
 ### 1.3 判定规则
 

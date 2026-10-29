@@ -535,6 +535,23 @@ class CosIdSpecsTest {
     }
 
     @Test
+    void aUuidV7GeneratorNeedsNoMachineAndRefusesTheKeysOfOtherStrategies() {
+        // D46.
+        RuntimeSpec spec = spec("cosid.namespace=app", "cosid.generators.order.strategy=uuidv7");
+        assertEquals(GeneratorSpec.UuidV7.builder().build(), spec.generators().get("order"));
+        assertTrue(spec.machine().isEmpty());
+        String message = invalid("cosid.namespace=app", "cosid.machine.static.slot=1", "cosid.generators.order.strategy=uuidv7",
+            "cosid.generators.order.machine=default", "cosid.generators.order.layout=SNOWFLAKE_MS", "cosid.generators.order.store=db",
+            "cosid.generators.order.codec[0].prefix=O").getMessage();
+        assertThat(message, containsString("cosid.generators.order.machine: only a snowflake or cosid80 generator chooses a machine"));
+        assertThat(message, containsString("cosid.generators.order.layout: a uuidv7 generator has no layout"));
+        assertThat(message, containsString("cosid.generators.order.store: a uuidv7 generator has no store"));
+        assertThat(message, containsString("cosid.generators.order.codec: a uuidv7 generator has no codec"));
+        assertThat(invalid("cosid.generators.order.strategy=uuid").getMessage(),
+            containsString("one of snowflake, cosid80, segment, periodic-segment, custom, uuidv7, not [uuid]"));
+    }
+
+    @Test
     void aDottedGeneratorNameBindsInBrackets() {
         // Wow names a generator per aggregate, <context>.<aggregate>: StoreKeys allows the dot, Spring needs brackets.
         RuntimeSpec spec = spec("cosid.namespace=shop", "cosid.stores.mem.type=memory",

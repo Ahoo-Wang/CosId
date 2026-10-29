@@ -31,6 +31,7 @@ import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.time.IdParts;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
+import me.ahoo.cosid.time.UuidV7Generator;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -55,6 +56,7 @@ public final class GeneratorEntry {
     public static final String SEGMENT = "segment";
     public static final String PERIODIC_SEGMENT = "periodic-segment";
     public static final String CUSTOM = "custom";
+    public static final String UUIDV7 = "uuidv7";
 
     private final String name;
     private final String strategy;
@@ -245,6 +247,16 @@ public final class GeneratorEntry {
      * @param store    the store it would use, empty for none
      * @return the entry
      */
+    public static GeneratorEntry uuidV7(UuidV7Generator generator, LongAdder counter) {
+        Supplier<String> text = counter == null ? generator::generate : () -> {
+            String id = generator.generate();
+            counter.increment();
+            return id;
+        };
+        return new GeneratorEntry(generator.name(), UUIDV7, "", generator, true, null, null, text, List.of(),
+            () -> Map.of("version", 7, "text", "canonical"), counter);
+    }
+
     public static GeneratorEntry disabled(String name, String strategy, String store) {
         return new GeneratorEntry(name, strategy, store, null, false, null, null, null, List.of(), () -> Map.of("disabled", true), null);
     }

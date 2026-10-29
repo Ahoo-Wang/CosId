@@ -210,6 +210,9 @@ public final class RuntimePlan {
                         codec = codecs.ids(instance.codec(), Optional.empty());
                         ids = instance.ids();
                     }
+                    case GeneratorSpec.UuidV7 uuidV7 -> {
+                        // D46: unique without coordination, so no store, machine nor codec to check.
+                    }
                     case GeneratorSpec.Disabled disabled -> throw new IllegalStateException("handled above");
                 }
             } catch (IllegalArgumentException e) {

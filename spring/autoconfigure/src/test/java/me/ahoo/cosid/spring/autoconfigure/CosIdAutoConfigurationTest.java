@@ -44,6 +44,7 @@ import me.ahoo.cosid.runtime.HostResolver;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.time.TimeBasedGenerator;
+import me.ahoo.cosid.time.UuidV7Generator;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -148,6 +149,21 @@ class CosIdAutoConfigurationTest {
             MemoryStores stores = context.getBean(MemoryStores.class);
             assertEquals(List.of("open mem", "open other"), stores.events);
             assertTrue(stores.configs.stream().allMatch(config -> config.client().isEmpty()));
+        });
+    }
+
+    @Test
+    void aContextOfUuidV7GeneratorsAloneStartsWithoutAMachine() {
+        // D46: no cosid.machine.*, no store.
+        RUNNER.withPropertyValues("cosid.namespace=app", "cosid.generators.order.strategy=uuidv7").run(context -> {
+            assertNull(context.getStartupFailure());
+            CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+            assertTrue(runtime.machines().isEmpty());
+            UuidV7Generator order = context.getBean("order", UuidV7Generator.class);
+            assertSame(runtime.get("order", UuidV7Generator.class), order);
+            assertEquals(7, order.generateUuid().version());
+            assertEquals(7, java.util.UUID.fromString(runtime.text("order").get()).version());
+            assertEquals("uuidv7", runtime.describe().get("order").strategy());
         });
     }
 

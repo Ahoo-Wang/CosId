@@ -17,8 +17,8 @@
 #
 #   benchmark/run-smoke [--release] [--out DIR] [--max-load N] [SCENARIO...]
 #
-# SCENARIO is P1..P12 (P7 and P10 stand for their store classes, see benchmark/scenarios.md) or a class name such as
-# SegmentBenchmark; the default is the PR smoke set P1 P3 P5 P9. --release uses the release-gate JMH settings and
+# SCENARIO is P1..P13 (P7 and P10 stand for their store classes, P13 runs on 5.x only, see benchmark/scenarios.md)
+# or a class name such as SegmentBenchmark; the default is the PR smoke set P1 P3 P5 P9. --release uses the release-gate JMH settings and
 # release compare rules instead of the smoke ones. A store scenario (P7, P10: the MySql*, Redis*, Mongo* and Zookeeper*
 # classes) runs each side twice in ABBA order, 4.x 5.x 5.x 4.x, with half the forks each (rounded up), so that neither
 # side always runs right after the other on the store (benchmark/merge-results joins the two runs of a side).
@@ -59,6 +59,7 @@ class_of() {
         P10) echo MySqlStoreBenchmark RedisStoreBenchmark MongoStoreBenchmark ZookeeperStoreBenchmark ;;
         P11) echo SpringStartBenchmark ;;
         P12) echo IdFillerBenchmark ;;
+        P13) echo UuidV7Benchmark ;;
         P*) echo "run-smoke: unknown scenario $1" >&2; return 1 ;;
         *) echo "$1" ;;
     esac
@@ -82,12 +83,13 @@ is_store() {
     [[ $1 =~ ^(MySql|Redis|Mongo|Zookeeper) ]]
 }
 
-# Reference classes exist on 5.x only: run there, right after their scenario, never compared (compare, REFERENCE).
-references=(AtomicLongBenchmark)
-is_reference() {
-    local reference
-    for reference in "${references[@]}"; do
-        [[ $1 == "$reference" ]] && return 0
+# Classes on 5.x only, never compared: references (compare, REFERENCE), run right after their scenario, and trend rows
+# without a 4.x counterpart (compare, TREND).
+v5_only=(AtomicLongBenchmark UuidV7Benchmark)
+is_v5_only() {
+    local class
+    for class in "${v5_only[@]}"; do
+        [[ $1 == "$class" ]] && return 0
     done
     return 1
 }
@@ -142,8 +144,8 @@ for class in "${classes[@]}"; do
         echo "run-smoke: the 1-minute load average is $load, above $max_load, before $class: aborting" >&2
         exit 3
     fi
-    if is_reference "$class"; then
-        echo "run-smoke: $class (reference) on 5.x (load $load)" >&2
+    if is_v5_only "$class"; then
+        echo "run-smoke: $class (5.x only) on 5.x (load $load)" >&2
         run v5 "$class"
         continue
     fi

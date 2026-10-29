@@ -338,7 +338,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
     - release 附件中有 `cosid-migration.jar`;
     - 文档站 generators 页已有 uuidv7 一节;
     - main 已改回 SNAPSHOT(#1410 `b73c9e0e`)。
-- [ ] 用户确认发布 RC1
+- [x] 用户确认发布 RC1(2026-10-29,用户在协调会话中:"Release RC1")
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;
     2. 在合入提交上创建 pre-release,会触发 package-deploy 和 docker-deploy(不打 `latest`);

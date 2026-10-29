@@ -297,6 +297,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | 13 | WP-ci 完成后把 branch protection 的必需检查设为汇总检查 `CI`(加上现有的 `Conventional Commits title`),由 GitHub 强制"全绿才能合并"。仓库设置的改动须由用户本人操作或明确授权 | ✅ 用户已决定(2026-10-28):由用户本人在 GitHub 设置中把 `CI` 设为 main 的必需检查。之后协调会话合并 PR 时以 `CI` 为准(skipped 视为通过) | — |
 | 14 | MINOR 分诊 §9.4 的三项:① R1-spi-03 RC 前只写异常契约，不加 `StoreException` 基类(以后在现有层次中插入基类是兼容的);② R1-mongo-01 RC 前修:不再创建 `ns_ownerKey` 索引(属于存储格式，冻结前清掉);已有库保留这个无用索引不影响正确性，文档说明可手动删除;③ server readiness 贡献者 `cosIdServerStore` 改名为 `cosidServerStore`,与 R1-spring-05 的 `cosid` 一致，不保留别名(alpha.1 无兼容承诺,D33),K8s 指南和 release notes 同步 | 协调会话按推荐 | 保留 `cosIdServerStore` 或加别名 |
 | 16 | 门禁对存储组(P7/P10)的 4.x/5.x 运行顺序改为 ABBA 交替(依据 P5:先后顺序会让 p99.9 差 2 倍);容差和判定规则不变。不在 GA 前做分条带;游标字段填充(伪共享)列为可选项，先测量 | 协调会话按推荐 | 保持 4.x→5.x 固定顺序，则 MySQL reserve p99.9 这一行交用户裁定 |
+| 17 | D46 UUIDv7 生成器(`strategy: uuidv7`)**进 5.0,在 RC1 之前完成**。它自包含、不依赖存储，在 RC1 冻结前定型，就能一并纳入兼容承诺 | 协调会话按推荐 | 改为 5.1:RC1 不必等它，按 D40 以后作为新增变体追加 |
 
 ## 4.2 审查不通过登记
 

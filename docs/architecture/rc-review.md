@@ -302,6 +302,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | 14 | MINOR 分诊 §9.4 的三项:① R1-spi-03 RC 前只写异常契约，不加 `StoreException` 基类(以后在现有层次中插入基类是兼容的);② R1-mongo-01 RC 前修:不再创建 `ns_ownerKey` 索引(属于存储格式，冻结前清掉);已有库保留这个无用索引不影响正确性，文档说明可手动删除;③ server readiness 贡献者 `cosIdServerStore` 改名为 `cosidServerStore`,与 R1-spring-05 的 `cosid` 一致，不保留别名(alpha.1 无兼容承诺,D33),K8s 指南和 release notes 同步 | 协调会话按推荐 | 保留 `cosIdServerStore` 或加别名 |
 | 16 | 门禁对存储组(P7/P10)的 4.x/5.x 运行顺序改为 ABBA 交替(依据 P5:先后顺序会让 p99.9 差 2 倍);容差和判定规则不变。不在 GA 前做分条带;游标字段填充(伪共享)列为可选项，先测量 | 协调会话按推荐 | 保持 4.x→5.x 固定顺序，则 MySQL reserve p99.9 这一行交用户裁定 |
 | 17 | D46 UUIDv7 生成器(`strategy: uuidv7`)**进 5.0,在 RC1 之前完成**。它自包含、不依赖存储，在 RC1 冻结前定型，就能一并纳入兼容承诺 | ✅ 用户已确认(2026-10-29) | 改为 5.1:RC1 不必等它，按 D40 以后作为新增变体追加 |
+| 18 | 第 2 轮中触及冻结面的两项都按兼容方式处理:① R2-spring-02:写在不适用策略上的键改为打 WARN,不改为启动失败(RC1 后校验不能收紧);② R2-core-03:具体生成器与租约类的公开构造器继续留在兼容承诺内，约定今后新增参数只走 builder 或静态工厂，不再增加位置参数重载。结论：不需要 RC2 | 协调会话按推荐 | ① 改为启动失败需要发 RC2;② 把构造器移出兼容承诺等于收窄 RC1 的冻结面 |
 
 ## 4.2 审查不通过登记
 
@@ -349,6 +350,11 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
   - 已通知 Wow。
   **兼容承诺从本版开始。** 下一阶段：RC 期间进行 GA 前审查第 2 轮(D35),并按 §4.3 第 12 项在 RC 期间以 4.1.1 复跑门禁(第七次运行已经用的是 4.1.1,此项视为已满足)。
   - **GA 前审查第 2 轮**(D35,用户 2026-10-29 要求开始):由独立的新会话 `ga-review-round-2` 进行，避免受前面实现上下文的影响。只出发现表，不改代码，结果追加到 ga-review.md。审查要明确给出 D35 的三项结论(性能、特性、文档);触及冻结面的问题须标明能否兼容地修复，需要不兼容改动的标 RC2-BREAKING,交用户决定。
+    - ✅ 第 2 轮报告 [#1413](https://github.com/Ahoo-Wang/CosId/pull/1413) 已合入(ga-review.md §10)。共 41 条:BLOCKER 2、MAJOR 4、MINOR 35;RC2-BREAKING 的候选只有 1 条(可选做法)。
+      - D35 三项结论：性能 PASS(第七次门禁);特性方面运行时 PASS,但迁移工具 `config` 有缺口;文档 PASS,有缺口。
+      - 两条 BLOCKER 都出在迁移工具 `config`:R2-mig-01 没有读取 `apply-result.json` 的 `target`;R2-parity-01 丢掉了 4.x snowflake 自带的 namespace。两条都可兼容地修复，因此**不需要 RC2**。
+      - 修复分三个 PR 串行进行:WP-migration-r2(包含两条 BLOCKER),然后 WP-core-spring-r2,最后 WP-docs-r2。完成后在 GA 提交上重跑门禁(R2-perf-01)。
+      - 协调会话按推荐做的两项决定(§4.3 第 18 项):R2-spring-02 对不适用策略的键只打 WARN,不改为启动失败;R2-core-03 的公开构造器保留，约定今后新增参数只通过 builder 或静态工厂。
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;
     2. 在合入提交上创建 pre-release,会触发 package-deploy 和 docker-deploy(不打 `latest`);

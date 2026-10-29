@@ -635,3 +635,21 @@ bom:16 个发布模块与 `settings.gradle.kts` 一致,`checkBom` 会守住,无�
 1. **R1-spi-03**:RC 前只写异常契约,不加 `StoreException` 基类;以后在现有异常层次中插入基类是兼容的。
 2. **R1-mongo-01**:RC 前修,因为它属于存储格式,冻结前清掉。`initSchema` 不再创建 `ns_ownerKey`;已有库保留这个无用索引不影响正确性,Mongo 后端文档给出手动删除的命令 `db.cosid_slot.dropIndex("ns_ownerKey")`。
 3. **9.3 server readiness 贡献者**:`cosIdServerStore` 改为 `cosidServerStore`,与 `cosid` 一致,**不保留别名**(alpha.1 不承诺兼容,D33);同步 K8s 指南(中英文)、server 文档、rc.1 release notes 的升级说明以及引用它的测试。放在 core-javadoc + spring-config 的 PR 中。
+
+## 10. 第 2 轮(RC 观察期,D35)
+
+> 状态:**进行中**(2026-10-29,基于 `main` @ `8ebde66d`,即 `v5.0.0-rc.1` 之后回到 `5.0.0-SNAPSHOT`)。
+> 范围:整个 `main`,重点是第 1 轮之后合入的 #1365–#1412。方法与严重度同 §0;"冻结面"一列改为 RC1 之后的口径(api-freeze.md §0):
+> **兼容**(可在 5.0.x/5.x 内兼容修复)/ **RC2-BREAKING**(必须破坏冻结面,交用户决定)/ **无**(不触及冻结面)。
+> 中断后从 §10.0 的进度表继续。
+
+### 10.0 进度
+
+| 部分 | 状态 |
+|---|---|
+| #1365–#1412 逐 PR 审查 | 进行中 |
+| 各模块六个维度 | 待做 |
+| D35 结论 1:性能 | 待做 |
+| D35 结论 2:特性 | 待做 |
+| D35 结论 3:文档 | 待做 |
+| 第 1 轮"已修复"抽查 | 待做 |

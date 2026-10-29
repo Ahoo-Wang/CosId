@@ -33,6 +33,7 @@ import org.springframework.boot.context.properties.bind.AbstractBindHandler;
 import org.springframework.boot.context.properties.bind.BindContext;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.bind.Name;
 import org.springframework.boot.context.properties.bind.PlaceholdersResolver;
 import org.springframework.boot.context.properties.source.ConfigurationProperty;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
@@ -45,6 +46,8 @@ import org.springframework.core.convert.converter.ConditionalGenericConverter;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
+import java.lang.reflect.Parameter;
+import java.lang.reflect.RecordComponent;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -155,21 +158,86 @@ public final class CosIdSpecs {
         public void onFinish(ConfigurationPropertyName name, Bindable<?> target, BindContext context, Object result) throws Exception {
             if (context.getDepth() == 0) {
                 Set<String> unknown = new TreeSet<>();
+                Set<String> bracketed = new TreeSet<>();
                 for (ConfigurationPropertySource source : sources) {
                     if (source instanceof IterableConfigurationPropertySource iterable && !isSystem(source)) {
                         iterable.filter(name::isAncestorOf).forEach(key -> {
                             if (!bound.contains(key) && !boundElsewhere(key) && !isEmpty(source, key)) {
                                 unknown.add(key.toString());
+                                bracketed(key).ifPresent(bracketed::add);
                             }
                         });
                     }
                 }
                 if (!unknown.isEmpty()) {
-                    throw new CosIdException("Unknown " + CosIdProperties.PREFIX + ".* keys " + unknown + ": they bind to nothing; check their spelling");
+                    throw new CosIdException("Unknown " + CosIdProperties.PREFIX + ".* keys " + unknown + ": they bind to nothing; check their spelling"
+                        + (bracketed.isEmpty() ? "" : "; a name with a dot goes in brackets, such as " + bracketed
+                            + " (in YAML the key \"[name]\")"));
                 }
             }
             super.onFinish(name, target, context, result);
         }
+    }
+
+    /** The entry type of each map of named entries under {@code cosid.*}, whose names may contain a dot (StoreKeys). */
+    private static final Map<String, Class<? extends Record>> NAMED_ENTRIES = Map.of(
+        "generators", CosIdProperties.Generator.class,
+        "machines", CosIdProperties.NamedMachine.class,
+        "stores", CosIdProperties.Store.class);
+
+    /**
+     * An unknown key under a map of named entries as it reads with a dotted name in brackets:
+     * {@code cosid.generators.eshop-ordering.order.strategy} is {@code cosid.generators[eshop-ordering.order].strategy}.
+     * The name ends where a property of the entry type begins; empty when none does, or when the name is one element
+     * (a typo after an ordinary name, such as {@code cosid.generators.order.codec[0].radx}, needs no brackets).
+     */
+    static Optional<String> bracketed(ConfigurationPropertyName key) {
+        int elements = key.getNumberOfElements();
+        Class<? extends Record> entry = elements > 4 ? NAMED_ENTRIES.get(key.getElement(1, ConfigurationPropertyName.Form.DASHED)) : null;
+        if (entry == null) {
+            return Optional.empty();
+        }
+        Set<String> properties = properties(entry);
+        if (properties.contains(key.getElement(3, ConfigurationPropertyName.Form.DASHED))) {
+            return Optional.empty();
+        }
+        for (int at = 4; at < elements; at++) {
+            if (!key.isNumericIndex(at) && properties.contains(key.getElement(at, ConfigurationPropertyName.Form.DASHED))) {
+                StringBuilder text = new StringBuilder(CosIdProperties.PREFIX).append('.').append(key.getElement(1, ConfigurationPropertyName.Form.DASHED))
+                    .append('[');
+                for (int part = 2; part < at; part++) {
+                    text.append(part > 2 ? "." : "").append(key.getElement(part, ConfigurationPropertyName.Form.ORIGINAL));
+                }
+                text.append(']');
+                for (int part = at; part < elements; part++) {
+                    String element = key.getElement(part, ConfigurationPropertyName.Form.ORIGINAL);
+                    text.append(key.isNumericIndex(part) ? "[" + element + "]" : "." + element);
+                }
+                return Optional.of(text.toString());
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** The property names of a record bound by its constructor: each component's, dashed, or its {@link Name}. */
+    private static Set<String> properties(Class<? extends Record> type) {
+        RecordComponent[] components = type.getRecordComponents();
+        Class<?>[] types = new Class<?>[components.length];
+        for (int at = 0; at < components.length; at++) {
+            types[at] = components[at].getType();
+        }
+        Parameter[] parameters;
+        try {
+            parameters = type.getDeclaredConstructor(types).getParameters();
+        } catch (NoSuchMethodException e) {
+            throw new IllegalStateException("A record without its canonical constructor: " + type, e);
+        }
+        Set<String> properties = new HashSet<>();
+        for (int at = 0; at < components.length; at++) {
+            Name renamed = parameters[at].getAnnotation(Name.class);
+            properties.add(renamed != null ? renamed.value() : components[at].getName().replaceAll("([A-Z])", "-$1").toLowerCase(Locale.ROOT));
+        }
+        return properties;
     }
 
     /**

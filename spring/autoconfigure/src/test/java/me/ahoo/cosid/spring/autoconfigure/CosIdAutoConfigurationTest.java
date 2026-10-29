@@ -57,6 +57,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -66,8 +67,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.PropertySource;
+import org.springframework.core.io.ByteArrayResource;
 import org.testcontainers.mongodb.MongoDBContainer;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -142,6 +148,41 @@ class CosIdAutoConfigurationTest {
             MemoryStores stores = context.getBean(MemoryStores.class);
             assertEquals(List.of("open mem", "open other"), stores.events);
             assertTrue(stores.configs.stream().allMatch(config -> config.client().isEmpty()));
+        });
+    }
+
+    @Test
+    void aDottedGeneratorNameInBracketsInYamlIsTheGeneratorOfThatName() {
+        // Wow's <context>.<aggregate>: the YAML key "[eshop-ordering.order]" keeps the dot, and the unknown-key check passes.
+        String yaml = """
+            cosid:
+              namespace: shop
+              stores:
+                mem:
+                  type: memory
+              generators:
+                "[eshop-ordering.order]":
+                  strategy: segment
+                  store: mem
+            """;
+        withStores().withInitializer(context -> {
+            try {
+                for (PropertySource<?> source : new YamlPropertySourceLoader().load("dotted", new ByteArrayResource(yaml.getBytes(StandardCharsets.UTF_8)))) {
+                    context.getEnvironment().getPropertySources().addFirst(source);
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }).run(context -> {
+            assertNull(context.getStartupFailure());
+            CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+            assertEquals(List.of("eshop-ordering.order"), List.copyOf(runtime.describe().keySet()));
+            IdGenerator order = runtime.generator("eshop-ordering.order");
+            assertSame(order, runtime.get("eshop-ordering.order", IdGenerator.class));
+            assertSame(order, context.getBean("eshop-ordering.order", IdGenerator.class));
+            long first = order.generate();
+            assertThat(order.generate(), greaterThan(first));
+            assertFalse(runtime.stringGenerator("eshop-ordering.order").generate().isEmpty());
         });
     }
 

@@ -5,6 +5,11 @@ depends on the strategy. `default` is the primary `IdGenerator` bean (4.x's shar
 what every backend stores: no `/`, no whitespace, not `.` or `..`, and no control or private-use characters; a segment's
 key `namespace/name[/period]` is at most 255 characters. Other names fail the start.
 
+A name may contain a dot, such as `eshop-ordering.order` (one generator per aggregate). In Spring configuration it goes
+in brackets, or the dot splits it: YAML `cosid.generators."[eshop-ordering.order]"`, properties
+`cosid.generators[eshop-ordering.order].strategy=segment`. Without the brackets the start fails on the unknown keys,
+and the message shows the bracketed form.
+
 ## All strategies
 
 | Property | Default | Meaning |

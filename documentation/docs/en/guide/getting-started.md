@@ -2,10 +2,10 @@
 
 CosId 5 needs **Java 21** or later. With Spring Boot it supports Boot 4.0 and later.
 
-::: warning Preview
-`5.0.0-alpha.x` is a preview with no compatibility promise. The API, configuration, storage format and cosid-server
-HTTP API may change between alphas and before GA, and no data migration is provided between alphas. Do not use it in
-production: stay on 4.x there ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
+::: warning Release candidate
+`5.0.0-rc.x` is a release candidate. From RC1 on, the Java API, the `cosid.*` configuration and the storage formats
+and protocols are frozen: later 5.x releases only add to them. Production use should still wait for GA; until then,
+stay on 4.x there ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
 :::
 
 ## 1. Add the dependencies

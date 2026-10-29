@@ -28,8 +28,8 @@ compare = importlib.util.module_from_spec(_spec)
 _loader.exec_module(compare)
 
 
-def row(benchmark, mode="thrpt", threads=1, score=100.0, error=10.0, percentiles=None, alloc=None):
-    primary = {"score": score, "scoreError": error, "scoreUnit": "ops/ms"}
+def row(benchmark, mode="thrpt", threads=1, score=100.0, error=10.0, percentiles=None, alloc=None, unit="ops/ms"):
+    primary = {"score": score, "scoreError": error, "scoreUnit": unit}
     if percentiles:
         primary["scorePercentiles"] = percentiles
     secondary = {compare.ALLOC: {"score": alloc, "scoreError": 0.0}} if alloc is not None else {}
@@ -62,6 +62,34 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(0, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 2.2, "99.9": 5.5})))
         self.assertEqual(1, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 2.21, "99.9": 5.0})))
         self.assertEqual(1, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 2.0, "99.9": 5.51})))
+
+    def test_d50_a_latency_percentile_may_grow_by_100_ns(self):
+        # The eighth gate's P5 p99.9 at one thread: 4.x 50 ns, 5.x 90 ns, within 4.x + 100 ns.
+        name = "SegmentBenchmark.generate_t1"
+        base = row(name, mode="sample", score=20.0, error=0.0, percentiles={"99.0": 40.0, "99.9": 50.0}, unit="ns/op")
+        self.assertEqual(0, self.failed(base, row(name, mode="sample", percentiles={"99.0": 140.0, "99.9": 150.0}, unit="ns/op")))
+        self.assertEqual(1, self.failed(base, row(name, mode="sample", percentiles={"99.0": 40.0, "99.9": 150.01}, unit="ns/op")))
+        # The same in microseconds.
+        micros = row(name, mode="sample", score=0.02, error=0.0, percentiles={"99.0": 0.04, "99.9": 0.05}, unit="us/op")
+        self.assertEqual(0, self.failed(micros, row(name, mode="sample", percentiles={"99.0": 0.14, "99.9": 0.15}, unit="us/op")))
+        self.assertEqual(1, self.failed(micros, row(name, mode="sample", percentiles={"99.0": 0.1401, "99.9": 0.05}, unit="us/op")))
+        # Above a microsecond the 10% rules: 2000 ns + 10% = 2200 > 2000 + 100.
+        long = row(name, mode="sample", score=1000.0, error=0.0, percentiles={"99.0": 2000.0, "99.9": 3000.0}, unit="ns/op")
+        self.assertEqual(0, self.failed(long, row(name, mode="sample", percentiles={"99.0": 2200.0, "99.9": 3300.0}, unit="ns/op")))
+        self.assertEqual(1, self.failed(long, row(name, mode="sample", percentiles={"99.0": 2200.01, "99.9": 3000.0}, unit="ns/op")))
+        # Milliseconds: 100 ns is 0.0001 ms, nothing at the eighth gate's MySQL acquire (2.7 ms to 4.0 ms still fails).
+        store = "MySqlStoreBenchmark.acquire_t1"
+        acquire = row(store, mode="sample", score=1.0, error=0.0, percentiles={"99.0": 2.0, "99.9": 2.7}, unit="ms/op")
+        self.assertEqual(1, self.failed(acquire, row(store, mode="sample", percentiles={"99.0": 2.0, "99.9": 4.0}, unit="ms/op")))
+        # A component row's WARN limit has the floor too: 100 ns + 30% = 130 < 100 + 100.
+        component = row(store, mode="sample", score=50.0, error=0.0, percentiles={"99.0": 100.0, "99.9": 100.0}, unit="ns/op")
+        self.assertEqual(0, self.failed(component, row(store, mode="sample", percentiles={"99.0": 200.0, "99.9": 200.0}, unit="ns/op")))
+        self.assertEqual(1, self.failed(component, row(store, mode="sample", percentiles={"99.0": 200.01, "99.9": 100.0}, unit="ns/op")))
+        # Smoke runs keep their ratio; a unit that is no time per operation has no floor.
+        self.assertEqual(1, self.failed(base, row(name, mode="sample", percentiles={"99.0": 40.0, "99.9": 60.0}, unit="ns/op"), smoke=True))
+        self.assertEqual(0.0, compare.percentile_floor("ops/ms"))
+        self.assertEqual(100.0, compare.percentile_floor("ns/op"))
+        self.assertAlmostEqual(0.1, compare.percentile_floor("\u00b5s/op"))
 
     def test_latency_error_above_ten_percent_rules(self):
         base = row("P.a", mode="sample", score=1.0, error=1.0, percentiles={"99.0": 2.0, "99.9": 5.0})

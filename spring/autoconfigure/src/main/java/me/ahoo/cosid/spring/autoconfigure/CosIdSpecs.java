@@ -522,6 +522,12 @@ public final class CosIdSpecs {
                 set++;
             }
         }
+        if (set == 0) {
+            // R1-spring-10: an item of its own with nothing in it ("- {}"); "- friendly: {}" is a friendly item with defaults.
+            problems.add(at + ": an empty item: write one of radix, friendly, prefix, suffix, date-prefix, custom, period, such as"
+                + " \"- friendly: {}\" (its defaults) or \"- radix: { radix: 62 }\"");
+            return false;
+        }
         if (set != 1) {
             problems.add(at + ": set exactly one of radix, friendly, prefix, suffix, date-prefix, custom, period (" + set + " set)");
             return false;

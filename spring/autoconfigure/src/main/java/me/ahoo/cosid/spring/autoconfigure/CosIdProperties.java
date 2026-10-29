@@ -63,8 +63,8 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
     /**
      * A store.
      *
-     * @param type    the store type: {@code jdbc}, {@code redis}, {@code mongo}, {@code zookeeper} or a {@code StoreProvider}
-     *                bean's
+     * @param type    the store type: {@code jdbc}, {@code redis}, {@code mongo}, {@code zookeeper}, {@code remote} (cosid-server)
+     *                or a {@code StoreProvider} bean's
      * @param timeout the operation timeout; default 2s, at most the segment {@code reserve-timeout}
      * @param client  the name of the bean to use as the client; without it the single bean of the store type's client
      *                type in the context ({@code DataSource}, Lettuce or {@code RedisConnectionFactory}, {@code MongoClient},

@@ -189,7 +189,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
      - 实现交给子会话:WP-perf P4 = `benchmark/compare` 的行分类与 WARN 档 + Mongo/ZK 号段链基准(两侧)+ 10 §1.2/§1.3。
      - 第四次运行的结论按 D44 口径解读;P4 合入后在 main 上正式重跑。✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
   6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
-  7. **依赖与 MINOR**(进行中,2026-10-28 派发):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml` → ✅ [#1384](https://github.com/Ahoo-Wang/CosId/pull/1384) `b2e40694`(pnpm overrides:vite 6.4.5、esbuild 0.25.12、source-map-js 1.2.2、vue 3.5.44;73 页渲染与 main 对比一致);剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
+  7. **依赖与 MINOR**(进行中;MINOR 分诊 ✅ [#1395](https://github.com/Ahoo-Wang/CosId/pull/1395) `feb0edd5`,ga-review §9:75 条中已修 32、本次修 25(stores 9 / core-javadoc+spring-config 8 / docs+migration 8,分 3 个 PR 串行)、GA 后 16、不修 2。协调会话对 §9.4 待定 3 项的决定见 §4.3 第 14 项):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml` → ✅ [#1384](https://github.com/Ahoo-Wang/CosId/pull/1384) `b2e40694`(pnpm overrides:vite 6.4.5、esbuild 0.25.12、source-map-js 1.2.2、vue 3.5.44;73 页渲染与 main 对比一致);剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
   8. ✅ **WP-ci 重构 CI(工程质量、执行效率)**([#1385](https://github.com/Ahoo-Wang/CosId/pull/1385) `157eb656`;试验 PR #1386–#1390 验证后已关闭)。实测:
      - 改 core:75.1 → 约 35–38 runner·分钟(缓存预热后),`check` 由 3 遍变为 1 遍,关键路径约 6 分钟;
      - 只改单个 store:约 67 → 约 20–29;
@@ -261,6 +261,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | 11 | RC 版本号写法:`5.0.0-rc.1`(与 `5.0.0-alpha.1` 同为 SemVer 点分预发布标识,`alpha.1 < rc.1` 在 SemVer 与 Maven 中都成立;大写 `RC1` 在 SemVer ASCII 排序中会排在 `alpha` 之前)。roadmap 中 `5.0.0-RC1` 指同一版本 | 协调会话按推荐(PR6 #1377 的草稿 release notes 已用 `rc.1`) | 改用 `5.0.0-RC1` |
 | 12 | 门槛 4.x 基线:RC1 门槛按已文档化的 4.1.0 判定(本轮 run 40772963183);Renovate #1367(cosid4 → 4.1.1,4.x 分支只含 bug 修复)在门槛结论后合入,并在 RC 期间用 4.1.1 复跑一次门槛作为 GA 依据 | 协调会话按推荐 | 立即升 4.1.1 并重跑 |
 | 13 | WP-ci 完成后把 branch protection 的必需检查设为汇总检查 `CI`(加上现有的 `Conventional Commits title`),由 GitHub 强制"全绿才能合并"。仓库设置的改动须由用户本人操作或明确授权 | ✅ 用户已决定(2026-10-28):由用户本人在 GitHub 设置中把 `CI` 设为 main 的必需检查。之后协调会话合并 PR 时以 `CI` 为准(skipped 视为通过) | — |
+| 14 | MINOR 分诊 §9.4 的三项:① R1-spi-03 RC 前只写异常契约，不加 `StoreException` 基类(以后在现有层次中插入基类是兼容的);② R1-mongo-01 RC 前修:不再创建 `ns_ownerKey` 索引(属于存储格式，冻结前清掉);已有库保留这个无用索引不影响正确性，文档说明可手动删除;③ server readiness 贡献者 `cosIdServerStore` 改名为 `cosidServerStore`,与 R1-spring-05 的 `cosid` 一致，不保留别名(alpha.1 无兼容承诺,D33),K8s 指南和 release notes 同步 | 协调会话按推荐 | 保留 `cosIdServerStore` 或加别名 |
 
 ## 4.2 审查不通过登记
 

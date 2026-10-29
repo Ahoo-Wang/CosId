@@ -34,7 +34,16 @@ public final class RedisSource implements SourceReader {
     private final RedisConnection redis;
 
     public RedisSource(StoreLocation location) {
-        this.redis = RedisConnection.open(location);
+        this(RedisConnection.open(location));
+    }
+
+    /**
+     * A reader on a connection of its own.
+     *
+     * @param redis the connection, closed with the reader
+     */
+    public RedisSource(RedisConnection redis) {
+        this.redis = redis;
     }
 
     static String segmentKey(String namespace, String name) {
@@ -112,7 +121,8 @@ public final class RedisSource implements SourceReader {
     @Override
     public long seal(String namespace, String name, long increment) {
         String key = segmentKey(namespace, name);
-        RedisClusterCommands<String, String> commands = redis.commands();
+        // On the connection WAIT then counts (R2-mig-03).
+        RedisClusterCommands<String, String> commands = redis.commandsFor(key);
         String value = commands.get(key);
         if (value == null) {
             throw new IllegalStateException("Segment [" + key + "] does not exist");

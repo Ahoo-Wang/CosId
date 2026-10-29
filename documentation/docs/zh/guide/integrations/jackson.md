@@ -32,3 +32,6 @@
 | `timestampBit`、`machineBit`、`sequenceBit` | `timeBits`、`nodeBits`、`seqBits`（三者都设或都不设） |
 | `epoch` | `epoch`（不设时取 `layout` 的 epoch） |
 | — | `generator`、`radix`（默认 62）、`layout`、`zone` |
+
+friendly 文本的默认值变了：4.x 的 `FRIENDLY_ID` 不给节点号和序列补零（`…-1-5`），5.0 的 `Codec.FRIENDLY` 补零（`…-0001-0005`）。
+要保持 4.x 的文本，请写 `padStart = false`。两种形式都能解析。

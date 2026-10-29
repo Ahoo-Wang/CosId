@@ -78,10 +78,14 @@ reports the segment as grown. It cannot keep its time-based ids apart, which is 
 | `mongodb://`, option `database` (`cosid_db`) | `cosid {_id: '{ns}.{name}', lastMaxId}`, `cosid_machine` | `cosid_range`, `cosid_namespace`, `cosid_slot` (+ its indexes) |
 | `zookeeper://host:port[/chroot]` | `/cosid/{ns}.{name}` (8-byte counter), `/cosid/{ns}/__itc_idx`, `__revert`, `__counter`, `__stable` | `/cosid/range/{key}`, `/cosid/slot/{ns}` and its slot nodes |
 
+The options are checked as the 5.0 stores check theirs: case, `-` and `_` do not count (`range-table` is `rangeTable`),
+and any key the side does not read is refused, so a misspelt table name cannot leave the data in the default table.
+
 Redis writes (the 4.x seal, the 5.0 raise, the slot preparation) wait for a replica: when the written node has a
 connected replica, each write is followed by `WAIT 1`, and the step stops with an error if no replica acknowledges
 within 5 s, since a failover would lose the write. Check the replication and run the step again. A node without
-replicas is not waited for.
+replicas is not waited for. In a cluster the write and its `WAIT` go over the connection to the primary of the key's
+slot: `WAIT` counts the writes of its own connection only.
 
 Key mapping (09 §4.1): `{ns}.{name}` → `{ns}/{name}`; grouped `{ns}.{name}@{groupKey}` → `{ns}/{name}/{period}`, every
 period, past ones included. A group key must be a 5.0 preset (`yyyy`, `yyyyMM`, `yyyyMMdd`), or its 4.x pattern is named
@@ -105,6 +109,8 @@ enabled; `--rename` overrides). 5.0 generator names cannot contain `/`. Keys tha
 | `machines` | `{records, maxTimestamp (T4), targetNow, sourceSkewMillis, estimatedW}` |
 | `layouts[]` | `{generator, source, target, ok, reason}`, M3 per time-based generator |
 | `warnings[]` | everything else to read |
+| `shared` | the plan of a namespace of its own itself (the shared `cosid.generator.namespace`, a snowflake's): `{maxMachineId, recommendedOffset, nodeBits, rolling, legacyCap, headroom, guaranteed}` |
+| `generatorNamespace`, `machineNamespaces` | the namespaces of their own of the service's generators as the target records them, `{namespace, limit, toleranceMillis, slotOffset}`, `machineNamespaces` by 5.0 machine name (`generatorNamespace` is its `generator`; a plan of 5.0.0-rc.1 has that one only) |
 
 ## `apply-result.json`
 
@@ -119,6 +125,8 @@ enabled; `--rename` overrides). 5.0 generator names cannot contain `/`. Keys tha
 | `w`, `notBefore` | W in epoch milliseconds and ISO-8601 (`cosid.machine.static.not-before`) |
 | `slots` | `{bits, limit, toleranceMillis}` |
 | `segments[]` | `{sourceName, targetKey, lastMaxId, next, targetNext, sealedAt}`: `lastMaxId` bounds what 4.x reserved before the seal, `next = lastMaxId + 1 + gap`, `targetNext` the target after the write, `sealedAt` the 4.x value after the seal |
+| `machineTarget` | where the slots went when not in `target` (`--machine-to`) |
+| `generatorNamespace`, `machineNamespaces` | as in the plan, as `apply` found them prepared: `config` writes `cosid.machines.<machine>` from them |
 | `warnings[]` | everything else to read |
 
 ## Commands
@@ -158,6 +166,12 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
   every sharing service stopped. Each service's `apply` then refuses unless the shared namespace is prepared as its plan
   saw it, and `config` writes `cosid.machines.generator` (with that `slot-offset`) and `machine: generator` on cosid80.
   With the CosIdGenerator disabled, the machine records of that namespace count for T4 and the quiet period.
+- **A snowflake in a namespace of its own** (R2-parity-01): 4.x distributed its machine id there with its own
+  `machine-bit`, possibly shared across services. It is migrated the same way, once, before each service; its slot bits
+  default to that `machine-bit` (the fewest of the snowflakes sharing it), so the default offset is 0 and it migrates
+  at once. `config` writes it as the named machine `cosid.machines.<namespace>` (characters other than letters, digits
+  and `-` become `-`) and `machine: <that name>` on each snowflake there; a static default machine gives it a static
+  slot `${COSID_<NAME>_SLOT}`.
 - **CosIdGenerator bits.** `config` keeps the 4.x `timestamp-bit`, `machine-bit`, `sequence-bit` and
   `sequence-reset-threshold` (a threshold beyond the sequence range is taken as its largest value) and the friendly
   `pad-start`; bits whose time and sequence exceed 63 are refused by `plan` and `config`.
@@ -172,6 +186,13 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
 - **`config` continues the migrated keys.** It names the generators as the plan did (`--rename`, the share) and fails
   unless each segment or periodic segment generator has its key in `apply-result.json`; a generator 4.x never issued
   from is named with `--allow-new`. The slot `bits` and `tolerance` come from the result.
+- **`config` points at the stores `apply` wrote to** (R2-mig-01): `cosid.stores` takes the type of the result's `target`
+  (and `machineTarget`), the JDBC table options, the Mongo `database`, Redis `cluster` and the ZooKeeper connect string,
+  never a password; a migration to another type is reported, with the client the application then needs. Each
+  migrated plain segment gets `initial-offset`, its migrated next value, so that a 5.0 store without the migrated keys
+  would still start past every 4.x id. The 4.x store options become their 5.0 ones (`wait-replicas: N` → `wait: N`,
+  `fetch-plan` → `fetchPlan`, `write-concern` → `writeConcern`, the Curator retry), and a 4.x snowflake friendly
+  converter keeps its unpadded text (`pad-start: false`).
 - **Credentials.** `plan.json` keeps no password: the password of a URL's userinfo and `password=` / `pwd=` parameters
   are removed, so give them again with `--from-option password=...` (MongoDB takes `user` / `password` /
   `authSource` options too). The account option is `user`, or `username` as the 5.0 JDBC store names it.
@@ -190,5 +211,7 @@ the check off, the seal keeps its ranges away); and interrupts `apply` before an
 ZooKeeper (curator-test) always run, Redis and MongoDB in Testcontainers when Docker is available; the cross-type cases
 are ZooKeeper → H2, Redis → H2 and MongoDB → ZooKeeper. `config` has goldens under `src/test/resources/config`
 (`-Pcosid.migration.updateGoldens=true` rewrites them; each case has the `apply-result.json` of its keys), and `ConfigBindingTest` binds each golden through Spring Boot's
-YAML loader and `Binder` into the `CosIdProperties` of `spring/autoconfigure` and maps it with `CosIdSpecs.toSpec`. That
+YAML loader and `Binder` into the `CosIdProperties` of `spring/autoconfigure` and maps it with `CosIdSpecs.toSpec`;
+`ConfigRuntimeTest` starts a 5.0 `CosIdRuntime` from `config`'s output after a migration (ZooKeeper → H2, tables and a
+snowflake namespace of their own) and issues past every 4.x id. That
 edge is test scope only (`DependencyRules.TEST_EDGES`); `checkNoSpring` fails the build if the fat jar carries Spring.

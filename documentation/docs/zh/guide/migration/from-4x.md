@@ -71,6 +71,8 @@ java -jar cosid-migration.jar plan \
 - `--target-config application-5.yaml`：已经写好的 5.0 配置；布局检查改用它，而不是转换出来的 4.x 布局。
 - 账号选项：`--from-option user=…` / `--to-option user=…`，也可以写 `username`（与 5.0 JDBC 存储的名字一致）；
   `password`（或环境变量 `COSID_MIGRATION_FROM_PASSWORD` / `_TO_PASSWORD`）不会写入 `plan.json`。
+- `--to-option rangeTable=ids_range` 这类存储选项按 5.0 存储的规则校验：不区分大小写，忽略 `-` 与 `_`（`range-table` 即 `rangeTable`），
+  未知或拼错的键直接拒绝，数据不会落进 5.0 不读的默认表。
 
 全部选项及其防护作用见[工具的 README](https://github.com/Ahoo-Wang/CosId/blob/main/migration/README.md#commands)。
 
@@ -121,6 +123,17 @@ java -jar cosid-migration.jar config --input application.yaml --result apply-res
 4.x 的 `cosid.*` 配置被转换为 5.0 模型。**所有无法原样转换的内容都以注释形式放在输出文件顶部：请逐条审阅。**
 每个号段生成器都必须在结果文件中有对应的 key，否则失败；4.x 从未发过号的生成器用 `--allow-new <generator>` 指定。
 静态槽位会从结果中得到 `not-before: W`。4.x 的 proxy 配置变为一个 `remote` 存储（`baseUrl`、`token`、`connectTimeout`、`requestTimeout`）。
+
+- **存储以 `apply` 实际写入的为准**，即结果中的 `target` 与 `machineTarget`：类型、JDBC 表名选项（`rangeTable`、`slotTable`、
+  `namespaceTable`）、Mongo `database`、Redis `cluster` 与 ZooKeeper 连接串，口令一律不写。迁移到另一种类型（例如 Redis 到 JDBC）后，
+  应用需要那种存储的模块和客户端（`jdbc` 是 `DataSource`），而不是 4.x 的；报告会写明，并丢弃旧类型的 4.x 选项。每个迁移过的普通号段
+  还会写 `initial-offset`，即迁移后的下一个值：万一 5.0 打开的存储里没有迁移过的 key，它们也从所有 4.x 号之后开始，而不是从 1 开始。
+- **4.x 的存储选项**在 5.0 有对应时照转：`redis.wait-replicas: N` 写成 `wait: N`（WAIT N 个副本），`jdbc.fetch-plan` 写成 `fetchPlan`，
+  `mongo.write-concern` 写成 `writeConcern`，`cosid.zookeeper.retry` 的 Curator 重试（`base-sleep-time-ms`、`max-retries`、`max-sleep-ms`）
+  写成 `retry.baseSleepTime`、`retry.maxRetries`、`retry.maxSleep`。
+- **Friendly 文本。** 4.x 的 `snowflake_friendly` 转换器与 `@AsString(FRIENDLY_ID)` 不给节点号和序列补零（`…-1-5`），5.0 的 `friendly`
+  默认补零（`…-0001-0005`）。`config` 会写 `pad-start: false`，文本保持原样；代码中给 `@AsString` 写 `padStart = false`。两种形式都能解析。
+- **独立命名空间的 snowflake** 会得到一个命名 machine（[见下文](#共享的-cosidgenerator-命名空间)）。
 
 CosIdGenerator 的键按下表对应（`config` 会写出）：
 
@@ -273,6 +286,13 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
      `--slot-offset 0` 表示一次性切换，共享它的服务都必须停止。
   2. 照常迁移各服务：在第 1 步完成之前，服务的 `apply` 会拒绝执行；`config` 会写出 `cosid.machines.generator`，并给 cosid80 写 `machine: generator`。
   共享该命名空间的所有服务必须使用相同的 `bits`、`tolerance` 与 `slot-offset`。（5.0.0-alpha.1 会拒绝这样的配置。）
+- **独立命名空间的 snowflake 按同样的方式迁移。** 4.x 的 snowflake 定义若有与 `cosid.namespace` 不同的 `namespace`
+  （`cosid.snowflake.provider.<name>.namespace` 或共享 snowflake 的），它的机器号就在那个命名空间按自己的 `machine-bit` 分配，
+  常用来让多个服务的号互不重复。5.0 为每个这样的命名空间生成一个命名 machine `cosid.machines.<命名空间>`（字母、数字与 `-` 以外的字符换成 `-`），
+  并给 snowflake 写 `machine: <该名字>`。先按上文单独迁移这个命名空间一次，再迁移各服务：`plan --namespace <它> --layout-config <任一服务的配置>`，
+  再 `apply`。槽位位数默认等于 snowflake 的 `machine-bit`，没有留出偏移的空间，因此是一次性切换，使用它的 4.x 实例都必须停止
+  （`--slot-bits` 取小一些才能用 `--slot-offset`）。在这一步完成之前，各服务的 `apply` 会拒绝执行；`config` 按迁移后的槽位参数写出该 machine。
+  （5.0.0-rc.1 的 `config` 会丢掉这个命名空间，共享它的服务会发出相同的号。）
 
 ## 静态代码中取号
 

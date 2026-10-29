@@ -134,7 +134,7 @@ abstract class MigrationScenarioTest {
     }
 
     Plan plan(Migration migration) {
-        return migration.plan(new Migration.PlanOptions(source.location(), target.location(), namespace, layout(), null, null,
+        return migration.plan(new Migration.PlanOptions(source.sourceLocation(), target.location(), namespace, layout(), null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), dir.resolve("plan.json")));
     }
 

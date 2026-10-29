@@ -43,7 +43,16 @@ public final class RedisTarget implements TargetAdmin {
     private final RedisConnection redis;
 
     public RedisTarget(StoreLocation location) {
-        this.redis = RedisConnection.open(location);
+        this(RedisConnection.open(location));
+    }
+
+    /**
+     * A target on a connection of its own.
+     *
+     * @param redis the connection, closed with the target
+     */
+    public RedisTarget(RedisConnection redis) {
+        this.redis = redis;
     }
 
     static String resource(Class<?> owner, String name) {
@@ -90,7 +99,9 @@ public final class RedisTarget implements TargetAdmin {
         if (next < 0) {
             throw new IllegalArgumentException("next must not be negative: " + next);
         }
-        List<Object> reply = commands().eval(RAISE, ScriptOutputType.MULTI, new String[]{rangeKey(key), rangeKey(key) + ":sealed"}, Long.toString(next));
+        // On the connection WAIT then counts (R2-mig-03).
+        List<Object> reply = redis.commandsFor(rangeKey(key)).eval(RAISE, ScriptOutputType.MULTI, new String[]{rangeKey(key), rangeKey(key) + ":sealed"},
+            Long.toString(next));
         redis.replicated(rangeKey(key));
         return new RangeState(key, Long.parseLong(String.valueOf(reply.get(0))), "1".equals(String.valueOf(reply.get(1))));
     }
@@ -157,7 +168,7 @@ public final class RedisTarget implements TargetAdmin {
 
     @Override
     public NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor) {
-        List<Object> reply = commands().eval(PREPARE, ScriptOutputType.MULTI,
+        List<Object> reply = redis.commandsFor(nsKey(namespace, "meta")).eval(PREPARE, ScriptOutputType.MULTI,
             new String[]{nsKey(namespace, "meta"), nsKey(namespace, "slot"), nsKey(namespace, "free"), nsKey(namespace, "live")},
             Integer.toString(limit), Long.toString(toleranceMillis), Long.toString(nextFloor), Integer.toString(slotOffset));
         redis.replicated(nsKey(namespace, "meta"));

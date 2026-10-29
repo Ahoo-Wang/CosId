@@ -220,6 +220,23 @@ class JdbcSupportTest {
     }
 
     @Test
+    void aFailedConnectionKeepsTheUrlPasswordOut() {
+        // R2-mig-05: DriverManager quotes the url when no driver takes it ("No suitable driver found for <url>").
+        DriverManagerDataSource dataSource = new DriverManagerDataSource("jdbc:nosuchdriver://db/cosid?user=cosid&password=secret", null, null);
+        java.sql.SQLException failure = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, dataSource::getConnection);
+        assertTrue(!failure.getMessage().contains("secret"), failure.getMessage());
+        assertTrue(failure.getMessage().contains("password=***"), failure.getMessage());
+        assertTrue(failure.getCause() == null || !String.valueOf(failure.getCause()).contains("secret"));
+        java.sql.SQLException withAccount = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class,
+            () -> dataSource.getConnection("cosid", "other"));
+        assertTrue(!withAccount.getMessage().contains("secret"), withAccount.getMessage());
+        // A url without a password: the failure as it is.
+        DriverManagerDataSource plain = new DriverManagerDataSource("jdbc:nosuchdriver://db/cosid", null, null);
+        java.sql.SQLException asIs = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, plain::getConnection);
+        assertTrue(asIs.getMessage().contains("jdbc:nosuchdriver://db/cosid"), asIs.getMessage());
+    }
+
+    @Test
     void dialectsAreLoadedFromTheContextClassLoaderElseThisModule() {
         // R1-jdbc-08.
         Thread thread = Thread.currentThread();

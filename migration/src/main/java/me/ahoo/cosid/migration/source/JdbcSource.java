@@ -125,7 +125,8 @@ public final class JdbcSource implements SourceReader {
                 // A deployment of segments only has no machine table.
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("Reading the 4.x JDBC store " + StoreLocation.redactUrl(location.url()) + " failed: " + e.getMessage(), e);
+            SQLException failure = StoreLocation.withoutPassword(e, location.url());
+            throw new IllegalStateException("Reading the 4.x JDBC store " + StoreLocation.redactUrl(location.url()) + " failed: " + failure.getMessage(), failure);
         }
         return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized, maxMachineId);
     }
@@ -182,7 +183,8 @@ public final class JdbcSource implements SourceReader {
                 connection.setAutoCommit(autoCommit);
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("Sealing segment [" + key + "] failed: " + e.getMessage(), e);
+            SQLException failure = StoreLocation.withoutPassword(e, location.url());
+            throw new IllegalStateException("Sealing segment [" + key + "] failed: " + failure.getMessage(), failure);
         }
     }
 

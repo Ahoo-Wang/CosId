@@ -15,6 +15,8 @@ package me.ahoo.cosid.migration.config;
 
 import me.ahoo.cosid.migration.ApplyResult;
 import me.ahoo.cosid.migration.Plan;
+import me.ahoo.cosid.migration.StoreLocation;
+import me.ahoo.cosid.store.StoreOptions;
 import me.ahoo.cosid.time.Layout;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -39,8 +41,10 @@ import java.util.Set;
 
 /**
  * Converts a 4.x {@code cosid.*} configuration to the 5.0 model of 07-runtime-and-spring.md §4.1 (09 §3 {@code config}),
- * as far as it goes; whatever has no 5.0 counterpart, or changes behaviour, goes to the report, one line per key. The
- * StaticSlot {@code not-before} is W from {@code apply-result.json} (09 §4.4).
+ * as far as it goes; whatever has no 5.0 counterpart, or changes behaviour, goes to the report, one line per key. With
+ * {@code apply-result.json}, the stores are those apply wrote to ({@code target}, {@code machineTarget}; R2-mig-01),
+ * each migrated segment starts new keys at its migrated next value, and the StaticSlot {@code not-before} is W
+ * (09 §4.4).
  */
 public final class ConfigConverter {
     private static final YAMLMapper YAML = new YAMLMapper(new YAMLFactory()
@@ -48,6 +52,12 @@ public final class ConfigConverter {
         .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
         .enable(YAMLGenerator.Feature.ALWAYS_QUOTE_NUMBERS_AS_STRINGS));
     private static final Set<String> STORE_TYPES = Set.of("jdbc", "redis", "mongo", "zookeeper");
+    /** The client a 5.0 Spring application gives each store type (CosIdStoreClients), for the report. */
+    private static final Map<String, String> CLIENTS = Map.of("jdbc", "a DataSource", "redis", "a Lettuce client or RedisConnectionFactory",
+        "mongo", "a MongoClient", "zookeeper", "a CuratorFramework or options.connectString");
+    /** The report line of the migrated next values written as {@code initial-offset}. */
+    static final String MIGRATED_OFFSETS = "initial-offset of each migrated segment is its next value from apply-result.json: should 5.0 open another"
+        + " store than apply wrote to, its keys start there, leaving a gap instead of issuing the 4.x ids again";
     private final ZoneId zone;
 
     /**
@@ -152,14 +162,21 @@ public final class ConfigConverter {
         }
 
         Map<String, Map<String, Object>> stores = new LinkedHashMap<>();
-        String segmentStore = legacy.segments().isEmpty() ? null : store(config, "cosid.segment.distributor", "redis", stores, report, handled);
+        // R2-mig-01: the stores apply wrote to, not the 4.x ones; a result of 5.0.0-rc.1 without them keeps the 4.x types.
+        Map<String, StoreLocation> placed = new LinkedHashMap<>();
+        StoreLocation source = result == null ? null : result.source();
+        StoreLocation segmentTarget = result == null ? null : result.target();
+        String segmentStore = legacy.segments().isEmpty() ? null
+            : store(config, "cosid.segment.distributor", "redis", new Placement(segmentTarget, source, placed), stores, report, handled);
+        final Map<String, Legacy4x.MachineNamespace> machineNamespaces = legacy.machineNamespaces();
         Map<String, Object> generators = new LinkedHashMap<>();
-        legacy.snowflakes().forEach((name, prefix) -> generators.put(name, snowflake(legacy, name, prefix, report, handled)));
+        legacy.snowflakes().forEach((name, prefix) -> generators.put(name, snowflake(legacy, name, prefix, machineNamespaces, report, handled)));
         // The names plan and apply gave the migrated keys (--rename, the share): the generators must continue them (D-B2).
         Map<String, String> renames = result == null || result.renames() == null ? Map.of() : result.renames();
         legacy.segments().forEach((name, prefix) -> {
             String renamed = renames.get(prefix.equals("cosid.segment.share") ? Legacy4x.SHARE : name);
-            generators.put(renamed == null ? name : renamed, segment(legacy, name, prefix, segmentStore, report, handled));
+            String generator = renamed == null ? name : renamed;
+            generators.put(generator, segment(legacy, name, prefix, segmentStore, migratedNext(result, generator), report, handled));
         });
         if (legacy.cosidEnabled()) {
             if (generators.containsKey("cosid")) {
@@ -179,7 +196,8 @@ public final class ConfigConverter {
         handled.add("cosid.generator.enabled");
 
         boolean timeBased = !legacy.snowflakes().isEmpty() || legacy.cosidEnabled();
-        final Map<String, Object> machine = timeBased ? machine(legacy, result, stores, report, handled) : null;
+        StoreLocation machineTarget = result == null ? null : result.machineTarget() != null ? result.machineTarget() : result.target();
+        final Map<String, Object> machine = timeBased ? machine(legacy, result, new Placement(machineTarget, source, placed), stores, report, handled) : null;
         if (!timeBased && legacy.machineEnabled()) {
             report.add("cosid.machine: no time-based generator, so 5.0 needs no machine slot; the machine settings are dropped");
             handled.addAll(config.keys("cosid.machine"));
@@ -190,8 +208,11 @@ public final class ConfigConverter {
         }
         if (machine != null) {
             cosid.put("machine", machine);
-            legacy.sharedGeneratorNamespace().ifPresent(shared ->
-                cosid.put("machines", Map.of(Legacy4x.GENERATOR_MACHINE, generatorMachine(shared, machine, result, report))));
+            if (!machineNamespaces.isEmpty()) {
+                Map<String, Object> machines = new LinkedHashMap<>();
+                machineNamespaces.values().forEach(own -> machines.put(own.machine(), namedMachine(legacy, own, machine, result, report)));
+                cosid.put("machines", machines);
+            }
         }
         cosid.put("generators", generators);
         if (config.get("cosid.metrics.generated.enabled") != null) {
@@ -219,15 +240,26 @@ public final class ConfigConverter {
     }
 
     /**
-     * The 5.0 store of a 4.x distributor, named after its type.
+     * Where a store goes: the location apply wrote to, if known, and the 4.x store it came from.
+     *
+     * @param target the 5.0 store apply wrote to; null without an apply result, or one of 5.0.0-rc.1
+     * @param source the 4.x store of the segments; null without an apply result
+     * @param placed the stores written so far, by name
+     */
+    private record Placement(StoreLocation target, StoreLocation source, Map<String, StoreLocation> placed) {
+    }
+
+    /**
+     * The 5.0 store of a 4.x distributor, named after its type: the type apply wrote to when the result has it
+     * (R2-mig-01), and the 4.x options where the type is the same.
      *
      * @return the store name, or null for a type 5.0 has no store for here
      */
-    private static String store(FlatConfig config, String prefix, String defaultType, Map<String, Map<String, Object>> stores, List<String> report,
-                                Set<String> handled) {
-        String type = config.get(prefix + ".type", defaultType).toLowerCase(Locale.ROOT);
+    private static String store(FlatConfig config, String prefix, String defaultType, Placement placement, Map<String, Map<String, Object>> stores,
+                                List<String> report, Set<String> handled) {
+        final String legacyType = config.get(prefix + ".type", defaultType).toLowerCase(Locale.ROOT);
         handled.add(prefix + ".type");
-        if ("proxy".equals(type)) {
+        if ("proxy".equals(legacyType)) {
             // The 4.x proxy becomes the 5.0 remote store (08, store/remote): cosid.proxy.* map to its options.
             stores.computeIfAbsent("remote", name -> {
                 Map<String, Object> created = new LinkedHashMap<>();
@@ -250,31 +282,83 @@ public final class ConfigConverter {
             handled.add(prefix + ".*");
             return "remote";
         }
-        if (!STORE_TYPES.contains(type)) {
-            report.add(prefix + ".type = " + type + ": no 5.0 store converts from it; configure cosid.stores by hand");
+        if (!STORE_TYPES.contains(legacyType)) {
+            report.add(prefix + ".type = " + legacyType + ": no 5.0 store converts from it; configure cosid.stores by hand");
             handled.add(prefix + ".*");
             return null;
         }
-        Map<String, Object> store = stores.computeIfAbsent(type, name -> {
-            Map<String, Object> created = new LinkedHashMap<>();
-            created.put("type", name);
-            return created;
+        StoreLocation target = placement.target();
+        final String type = target == null ? legacyType : target.type();
+        String name = type;
+        if (target != null) {
+            StoreLocation earlier = placement.placed().putIfAbsent(name, target);
+            if (earlier != null && !StoreLocation.redactUrl(earlier.url()).equals(StoreLocation.redactUrl(target.url()))) {
+                // The slots went to another store of the same type than the segments (--machine-to).
+                name = type + "-machine";
+                placement.placed().put(name, target);
+            }
+        }
+        Map<String, Object> store = stores.computeIfAbsent(name, created -> {
+            Map<String, Object> fresh = new LinkedHashMap<>();
+            fresh.put("type", type);
+            return fresh;
         });
-        String timeoutKey = prefix + "." + type + "." + ("jdbc".equals(type) ? "query-timeout" : "timeout");
+        String timeoutKey = prefix + "." + legacyType + "." + ("jdbc".equals(legacyType) ? "query-timeout" : "timeout");
         String timeout = config.get(timeoutKey);
         if (timeout != null) {
             Object existing = store.putIfAbsent("timeout", timeout);
             if (existing != null && !existing.equals(timeout)) {
-                report.add(timeoutKey + " = " + timeout + ": store [" + type + "] keeps the timeout " + existing);
+                report.add(timeoutKey + " = " + timeout + ": store [" + name + "] keeps the timeout " + existing);
             }
         }
         handled.add(timeoutKey);
         Map<String, Object> options = new LinkedHashMap<>();
+        if (type.equals(legacyType)) {
+            legacyOptions(config, prefix, type, options, report, handled);
+        } else {
+            report.add(prefix + ".type = " + legacyType + ": apply wrote to " + target + ", so store [" + name + "] is of type " + type + "; the 5.0"
+                + " application needs cosid-store-" + type + " and " + CLIENTS.get(type) + " on that store, not the 4.x " + legacyType + " client");
+            for (String key : config.keys(prefix + "." + legacyType)) {
+                if (!key.equals(timeoutKey)) {
+                    report.add(key + " = " + config.get(key) + ": an option of the 4.x " + legacyType + " store, not of the " + type + " target; dropped");
+                }
+            }
+            handled.add(prefix + "." + legacyType + ".*");
+            if ("zookeeper".equals(legacyType) && handled.add("cosid.zookeeper.*")) {
+                for (String key : config.keys("cosid.zookeeper")) {
+                    report.add(key + " = " + config.get(key) + ": an option of the 4.x zookeeper store, not of the " + type + " target; dropped");
+                }
+            }
+        }
+        if (target != null) {
+            targetOptions(target, options);
+            StoreLocation source = placement.source();
+            if (type.equals(legacyType) && (source == null || !StoreLocation.redactUrl(source.url()).equals(StoreLocation.redactUrl(target.url())))
+                && !"zookeeper".equals(type)) {
+                report.add("store [" + name + "]: apply wrote to " + target + ", not to the 4.x store; " + CLIENTS.get(type) + " of the 5.0 application"
+                    + " must reach it");
+            }
+        }
+        if (!options.isEmpty()) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> existing = (Map<String, Object>) store.computeIfAbsent("options", created -> new LinkedHashMap<String, Object>());
+            existing.putAll(options);
+        }
+        return name;
+    }
+
+    /** The options of a 4.x store as the 5.0 store of the same type names them (R2-mig-04). */
+    private static void legacyOptions(FlatConfig config, String prefix, String type, Map<String, Object> options, List<String> report, Set<String> handled) {
         switch (type) {
             case "redis" -> {
-                if (config.number(prefix + ".redis.wait-replicas", 0) > 0) {
-                    options.put("wait", "auto");
-                    report.add(prefix + ".redis.wait-replicas: 5.0 waits for the replicas it finds (wait: auto); 4.x wait-timeout is dropped");
+                long replicas = config.number(prefix + ".redis.wait-replicas", 0);
+                if (replicas > 0) {
+                    // WAIT for that many replicas, as 4.x did; auto would wait for one (06 §2.2).
+                    options.put("wait", replicas);
+                }
+                if (config.get(prefix + ".redis.wait-timeout") != null) {
+                    report.add(prefix + ".redis.wait-timeout = " + config.get(prefix + ".redis.wait-timeout") + ": 5.0 waits for the replicas within the"
+                        + " store timeout; dropped");
                 }
                 handled.add(prefix + ".redis.*");
             }
@@ -283,9 +367,7 @@ public final class ConfigConverter {
                 if (database != null && !"cosid_db".equals(database)) {
                     options.put("database", database);
                 }
-                if (config.get(prefix + ".mongo.write-concern") != null) {
-                    report.add(prefix + ".mongo.write-concern: 5.0 always uses majority read and write concerns");
-                }
+                copy(config, prefix + ".mongo.write-concern", "writeConcern", options);
                 handled.add(prefix + ".mongo.*");
             }
             case "zookeeper" -> {
@@ -293,28 +375,87 @@ public final class ConfigConverter {
                 copy(config, "cosid.zookeeper.session-timeout", "sessionTimeout", options);
                 copy(config, "cosid.zookeeper.connection-timeout", "connectionTimeout", options);
                 copy(config, "cosid.zookeeper.block-until-connected-wait", "blockUntilConnectedWait", options);
+                // The Curator retry of 4.x in milliseconds, as the 5.0 options name it (06 §2.4).
+                Map<String, String> retry = new LinkedHashMap<>();
+                retry.put("base-sleep-time-ms", "retry.baseSleepTime");
+                retry.put("max-retries", "retry.maxRetries");
+                retry.put("max-sleep-ms", "retry.maxSleep");
                 for (String key : config.keys("cosid.zookeeper.retry")) {
-                    report.add(key + " = " + config.get(key) + ": set the store option retry." + key.substring("cosid.zookeeper.retry.".length())
-                        + " by hand (Curator retry, 06 §2.4)");
+                    String option = retry.get(key.substring("cosid.zookeeper.retry.".length()));
+                    if (option == null) {
+                        report.add(key + " = " + config.get(key) + ": no 5.0 Curator retry option; dropped");
+                    }
                 }
+                retry.forEach((legacy, option) -> {
+                    String value = config.get("cosid.zookeeper.retry." + legacy);
+                    if (value != null) {
+                        options.put(option, legacy.endsWith("-ms") ? value + "ms" : config.number("cosid.zookeeper.retry." + legacy, 0));
+                    }
+                });
                 handled.add("cosid.zookeeper.*");
                 handled.add(prefix + ".zookeeper.*");
             }
             default -> {
+                copy(config, prefix + ".jdbc.fetch-plan", "fetchPlan", options);
                 for (String key : config.keys(prefix + ".jdbc")) {
-                    if (!key.endsWith("query-timeout")) {
+                    if (!key.endsWith("query-timeout") && !key.endsWith(".fetch-plan")) {
                         report.add(key + ": custom 4.x SQL and table initialization are gone; 5.0 uses JdbcDialect and options.initSchema (06 §2.1)");
                     }
                 }
                 handled.add(prefix + ".jdbc.*");
             }
         }
-        if (!options.isEmpty()) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> existing = (Map<String, Object>) store.computeIfAbsent("options", name -> new LinkedHashMap<String, Object>());
-            existing.putAll(options);
+    }
+
+    /**
+     * The options of the store apply wrote to that the 5.0 store needs to find the migrated data: the JDBC table
+     * names, the Mongo database, Redis Cluster and the ZooKeeper connect string. Accounts and passwords stay out.
+     */
+    private static void targetOptions(StoreLocation target, Map<String, Object> options) {
+        switch (target.type()) {
+            case StoreLocation.JDBC -> {
+                for (String table : List.of("rangeTable", "slotTable", "namespaceTable")) {
+                    String value = targetOption(target, table);
+                    if (value != null) {
+                        options.put(table, value);
+                    }
+                }
+            }
+            case StoreLocation.MONGO -> {
+                String database = targetOption(target, "database");
+                if (database == null || "cosid_db".equals(database)) {
+                    options.remove("database");
+                } else {
+                    options.put("database", database);
+                }
+            }
+            case StoreLocation.REDIS -> {
+                if (Boolean.parseBoolean(targetOption(target, "cluster"))) {
+                    options.put("cluster", true);
+                }
+            }
+            default -> options.put("connectString", target.url().substring("zookeeper://".length()));
         }
-        return type;
+    }
+
+    /** An option of a location, whatever its spelling ({@code range-table}, {@code RANGE_TABLE}). */
+    private static String targetOption(StoreLocation target, String name) {
+        for (Map.Entry<String, String> option : target.options().entrySet()) {
+            if (StoreOptions.canonical(option.getKey()).equals(StoreOptions.canonical(name))) {
+                return option.getValue();
+            }
+        }
+        return null;
+    }
+
+    /** The next value apply gave the key of a plain segment generator; null without one. */
+    private static Long migratedNext(ApplyResult result, String generator) {
+        if (result == null || result.segments() == null) {
+            return null;
+        }
+        String key = result.namespace() + "/" + generator;
+        return result.segments().stream().filter(segment -> segment.targetKey().equals(key)).map(ApplyResult.SegmentResult::targetNext).findFirst()
+            .orElse(null);
     }
 
     private static void copy(FlatConfig config, String key, String option, Map<String, Object> options) {
@@ -323,7 +464,8 @@ public final class ConfigConverter {
         }
     }
 
-    private Map<String, Object> machine(Legacy4x legacy, ApplyResult result, Map<String, Map<String, Object>> stores, List<String> report, Set<String> handled) {
+    private Map<String, Object> machine(Legacy4x legacy, ApplyResult result, Placement placement, Map<String, Map<String, Object>> stores, List<String> report,
+                                        Set<String> handled) {
         FlatConfig config = legacy.config();
         final String type = config.get("cosid.machine.distributor.type", "manual").toLowerCase(Locale.ROOT).replace('-', '_');
         handled.add("cosid.machine.distributor.type");
@@ -371,7 +513,7 @@ public final class ConfigConverter {
             machine.put("static", fixed);
             return machine;
         }
-        String store = store(config, "cosid.machine.distributor", "manual", stores, report, handled);
+        String store = store(config, "cosid.machine.distributor", "manual", placement, stores, report, handled);
         if (store == null) {
             return null;
         }
@@ -390,24 +532,38 @@ public final class ConfigConverter {
     }
 
     /**
-     * The named machine of the shared {@code cosid.generator.namespace} (D37, api-freeze.md §2.7): the store and kind of
-     * the default machine, the slot parameters the shared namespace was migrated with, as this service's apply found
-     * them.
+     * The named machine of a namespace of its own (D37, api-freeze.md §2.7): the shared {@code cosid.generator.namespace}
+     * or a snowflake's (R2-parity-01). The store and kind of the default machine, the slot parameters the namespace
+     * was migrated with, as this service's apply found them.
      */
-    private static Map<String, Object> generatorMachine(String shared, Map<String, Object> machine, ApplyResult result, List<String> report) {
+    private static Map<String, Object> namedMachine(Legacy4x legacy, Legacy4x.MachineNamespace own, Map<String, Object> machine, ApplyResult result,
+                                                    List<String> report) {
+        String shared = own.namespace();
+        String key = "cosid.machines." + own.machine();
         Map<String, Object> named = new LinkedHashMap<>();
         named.put("namespace", shared);
-        Plan.GeneratorNamespace recorded = result == null ? null : result.generatorNamespace();
+        if (!Legacy4x.GENERATOR_MACHINE.equals(own.machine()) || own.owners().size() > 1) {
+            report.add(own.label() + ": 4.x distributed the machine ids of " + String.join(", ", own.owners()) + " in this namespace; written as the"
+                + " named machine " + key + " (D37), each with machine: " + own.machine());
+        }
+        Plan.GeneratorNamespace recorded = null;
+        if (result != null) {
+            recorded = result.machineNamespaces() != null ? result.machineNamespaces().get(own.machine())
+                : Legacy4x.GENERATOR_MACHINE.equals(own.machine()) ? result.generatorNamespace() : null;
+        }
         if (recorded == null || !recorded.namespace().equals(shared)) {
             recorded = null;
-            report.add("cosid.machines.generator: no apply result of this service with the migrated shared namespace [" + shared + "]; written with"
-                + " slot-offset 0 and 10 bits. Migrate [" + shared + "] once (plan and apply --namespace " + shared + "), apply this service, and run"
-                + " config with its apply-result.json");
+        }
+        int bits = recorded == null ? Math.min(legacy.machineBit(), own.nodeBits()) : recorded.bits();
+        if (recorded == null) {
+            report.add(key + ": no apply result of this service with the migrated shared namespace [" + shared + "]; written with"
+                + " slot-offset 0 and " + bits + " bits. Migrate [" + shared + "] once (plan and apply --namespace " + shared + "), apply this service, and"
+                + " run config with its apply-result.json");
         }
         if (machine.get("leased") instanceof Map<?, ?> defaultLeased) {
             Map<String, Object> leased = new LinkedHashMap<>();
             leased.put("store", defaultLeased.get("store"));
-            leased.put("bits", recorded == null ? 10 : recorded.bits());
+            leased.put("bits", bits);
             if (recorded != null && recorded.toleranceMillis() != 1000) {
                 leased.put("tolerance", recorded.toleranceMillis() + "ms");
             }
@@ -415,25 +571,38 @@ public final class ConfigConverter {
                 leased.put("slot-offset", recorded.slotOffset());
             }
             named.put("leased", leased);
-            report.add("cosid.machines.generator: every service sharing [" + shared + "] uses the same bits, tolerance and slot-offset; more peak pods"
+            report.add(key + ": every service sharing [" + shared + "] uses the same bits, tolerance and slot-offset; more peak pods"
                 + " in all (rolling surge included) than 2^bits need more bits, within slot-offset + 2^bits <= 2^node-bits");
         } else {
             Map<String, Object> fixed = new LinkedHashMap<>();
-            fixed.put("slot", "${COSID_GENERATOR_SLOT}");
+            String slot = Legacy4x.GENERATOR_MACHINE.equals(own.machine()) ? "${COSID_GENERATOR_SLOT}"
+                : "${COSID_" + own.machine().toUpperCase(Locale.ROOT).replace('-', '_') + "_SLOT}";
+            if (bits != Legacy4x.DEFAULT_MACHINE_BIT) {
+                fixed.put("bits", bits);
+            }
+            fixed.put("slot", slot);
             if (result != null) {
                 fixed.put("not-before", result.notBefore());
             }
             named.put("static", fixed);
-            report.add("cosid.machines.generator.static.slot is ${COSID_GENERATOR_SLOT}: a slot of [" + shared + "] unique across every service sharing it,"
+            report.add(key + ".static.slot is " + slot + ": a slot of [" + shared + "] unique across every service sharing it,"
                 + " above the 4.x machine ids there");
         }
         return named;
     }
 
-    private Map<String, Object> snowflake(Legacy4x legacy, String name, String prefix, List<String> report, Set<String> handled) {
+    private Map<String, Object> snowflake(Legacy4x legacy, String name, String prefix, Map<String, Legacy4x.MachineNamespace> machineNamespaces,
+                                          List<String> report, Set<String> handled) {
         final FlatConfig config = legacy.config();
         Map<String, Object> generator = new LinkedHashMap<>();
         generator.put("strategy", "snowflake");
+        // A namespace of its own: 4.x distributed this generator's machine id there, 5.0 has its named machine (R2-parity-01).
+        String ownNamespace = config.get(prefix + ".namespace");
+        Legacy4x.MachineNamespace own = ownNamespace == null ? null : machineNamespaces.get(ownNamespace);
+        if (own != null) {
+            generator.put("machine", own.machine());
+        }
+        handled.add(prefix + ".namespace");
         Layout layout = legacy.snowflakeLayout(prefix);
         String preset = Legacy4x.preset(layout);
         if (preset != null) {
@@ -474,7 +643,6 @@ public final class ConfigConverter {
             report.add(prefix + ".clock-sync: replaced by the clock regression policy (borrow 5ms, wait 1s; 03 §4)");
             handled.add(prefix + ".clock-sync");
         }
-        ownNamespace(config, prefix, handled);
         generator.put("codec", codecs(config, prefix + ".converter", true, report, handled));
         handled.add("cosid.snowflake.zone-id");
         return generator;
@@ -486,7 +654,8 @@ public final class ConfigConverter {
         }
     }
 
-    private Map<String, Object> segment(Legacy4x legacy, String name, String prefix, String store, List<String> report, Set<String> handled) {
+    private Map<String, Object> segment(Legacy4x legacy, String name, String prefix, String store, Long migratedNext, List<String> report,
+                                        Set<String> handled) {
         final FlatConfig config = legacy.config();
         Map<String, Object> generator = new LinkedHashMap<>();
         String period = legacy.period(prefix);
@@ -500,7 +669,13 @@ public final class ConfigConverter {
         // 4.x issued offset + 1 first on a new key (a new period too); 5.0 issues initial-offset first, 1 by default (D21).
         // Migrated keys continue from their 4.x values either way: apply writes lastMaxId + 1.
         long offset = config.number(prefix + ".offset", 0);
-        if (offset != 0) {
+        // R2-mig-01: a plain key starts at its migrated next value should 5.0 not find it (another store than apply wrote to).
+        if (period == null && migratedNext != null && migratedNext > offset + 1) {
+            generator.put("initial-offset", migratedNext);
+            if (!report.contains(MIGRATED_OFFSETS)) {
+                report.add(MIGRATED_OFFSETS);
+            }
+        } else if (offset != 0) {
             generator.put("initial-offset", offset + 1);
         }
         handled.add(prefix + ".offset");
@@ -592,9 +767,8 @@ public final class ConfigConverter {
                 if (snowflake) {
                     Map<String, Object> friendly = new LinkedHashMap<>();
                     friendly.put("zone", config.get("cosid.snowflake.zone-id", zone().getId()));
-                    if (config.bool(prefix + ".friendly.pad-start", false)) {
-                        friendly.put("pad-start", true);
-                    }
+                    // 4.x did not pad friendly text by default, the 5.0 codec does: written either way (R2-parity-03).
+                    friendly.put("pad-start", config.bool(prefix + ".friendly.pad-start", false));
                     codec.add(Map.of("friendly", friendly));
                     if (config.get("cosid.snowflake.zone-id") == null) {
                         report.add(prefix + ": the friendly codec used the server's default time zone; it is " + zone().getId() + " now (--zone)");
@@ -700,8 +874,8 @@ public final class ConfigConverter {
     }
 
     /**
-     * The 5.0 layouts {@link #convert} gives the time-based generators of a 4.x configuration: each snowflake keeps its
-     * 4.x layout, the CosIdGenerator becomes {@link Layout#COSID_80}.
+     * The 5.0 layouts {@link #convert} gives the time-based generators of a 4.x configuration: each keeps its 4.x layout,
+     * the snowflakes and, D36, the CosIdGenerator.
      *
      * @param legacy the 4.x configuration
      * @return 5.0 generator name to layout

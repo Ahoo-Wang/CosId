@@ -375,6 +375,14 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
         - Redis/Mongo 页写明驱动版本(Maven 经 Boot BOM 得到 Lettuce 7.5.2 和 Netty 4.2.19);
         - 新增 GA release notes 草稿 `docs/release/5.0.0.md`;AGENTS.md 中 starter 一行已修正。
       - **第 2 轮修复全部完成(#1415、#1416、#1418、#1419)。**
+      - **用户 2026-10-29 授权发布 GA**("授权你发布 GA")。前提按 D35:GA 候选提交上的正式门禁 PASS。门禁不通过就不发，先向用户汇报。
+        - 发布步骤：
+          1. 发布 PR(版本号 `5.0.0`、release notes 定稿、门禁报告存入 `docs/jmh/5.0.0/`、站点和 README 去掉 RC 提示);
+          2. 合入;
+          3. 在合入提交上创建**正式 release**(非 pre-release)`v5.0.0`:package-deploy 发布到 Central;docker-deploy 打 `5.0.0`、`5.0` 和 `latest`;document-deploy 因 `released` 事件自动触发;
+          4. 核对 Central、Docker Hub(含 `latest`)和文档站;
+          5. main 改为下一个 SNAPSHOT;
+          6. 通知 Wow。
       - → 第八次正式门禁 [run 40887469149](https://github.com/Ahoo-Wang/CosId/actions/runs/40887469149) @ `be35de36`(GA 候选提交，基线 4.1.1,首次纳入 P13 uuidv7 趋势行)运行中。完成后在 GA 提交上重跑门禁(R2-perf-01)。
       - 协调会话按推荐做的两项决定(§4.3 第 18 项):R2-spring-02 对不适用策略的键只打 WARN,不改为启动失败;R2-core-03 的公开构造器保留，约定今后新增参数只通过 builder 或静态工厂。
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:

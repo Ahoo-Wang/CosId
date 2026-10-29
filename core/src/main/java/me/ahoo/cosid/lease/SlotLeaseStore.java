@@ -20,6 +20,12 @@ import java.util.OptionalInt;
 /**
  * Leases time windows on machine slots, the lease primitive of a store (05-machine-lease.md §2). Every state change is
  * an atomic conditional update of one slot; the store clock stamps it.
+ *
+ * <p>Failures (R1-spi-03): an operation that fails for another reason than its outcome throws a
+ * {@link RuntimeException} of the backend's choosing (a driver exception, or the store's own wrapper of one). A timeout
+ * is recognised with {@link me.ahoo.cosid.store.StoreTimeoutException#isTimeout(Throwable)}, whether the backend
+ * throws a {@code StoreTimeoutException} or one as the cause; the runtime counts those as store timeouts. No common
+ * base class is promised beyond {@code RuntimeException}.
  */
 public interface SlotLeaseStore extends AutoCloseable {
     /**

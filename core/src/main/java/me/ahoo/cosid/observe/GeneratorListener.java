@@ -19,8 +19,23 @@ import me.ahoo.cosid.segment.Range;
 import java.time.Duration;
 
 /**
- * Generator, lease and store events (07-runtime-and-spring.md §2). Never called on the hot path: only on range
- * switches, refills, waits and lease changes. Counting and metrics are implementations of it.
+ * Generator, lease and store events (07-runtime-and-spring.md §2). Counting and metrics are implementations of it.
+ *
+ * <p>The contract of an implementation (R1-core-09):
+ * <ul>
+ *   <li><b>Threads.</b> A callback runs on the thread that did the work, concurrently with any other callback:
+ *   {@link #onRangeReserved} and {@link #onRefillFailed} on the refill executor, or on a caller that made the
+ *   reservation itself; {@link #onBatchResized}, {@link #onSequenceExhausted}, {@link #onClockRegression} and
+ *   {@link #onWindowExceeded} on a caller of {@code generate()}, while it switches ranges or waits; the slot callbacks
+ *   on the thread that acquires, renews or releases (the start, the runtime's renewal task, the close);
+ *   {@link #onStoreTimeout} on the thread whose store call timed out. Implementations are thread-safe.</li>
+ *   <li><b>No blocking.</b> None runs under a generator's lock, but a callback on a caller delays that caller's id,
+ *   and one on the renewal task delays the renewal: record and return, hand anything slow to another thread.</li>
+ *   <li><b>Not per id.</b> No callback runs for an id taken from a range or a time unit at hand; only on range
+ *   switches, refills, waits and lease changes.</li>
+ *   <li><b>Failures.</b> The runtime calls the listener of {@code RuntimeOptions} through a wrapper: a callback that
+ *   throws is logged and never fails the generator, refill or renewal that raised it.</li>
+ * </ul>
  */
 public interface GeneratorListener {
     GeneratorListener NOOP = new GeneratorListener() {

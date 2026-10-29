@@ -43,7 +43,8 @@ public interface StoreProvider {
      * Opens a store.
      *
      * @param config the store, its options under the spelling of {@link #options()}
-     * @return the store, which the runtime closes
+     * @return the store, never null (the runtime refuses a null at start); the runtime closes it
+     * @throws IllegalArgumentException if an option or the client does not fit this store (R1-core-16)
      */
     Store open(StoreConfig config);
 }

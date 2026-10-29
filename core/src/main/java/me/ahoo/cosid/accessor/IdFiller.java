@@ -20,5 +20,13 @@ package me.ahoo.cosid.accessor;
  */
 @FunctionalInterface
 public interface IdFiller {
+    /**
+     * Fills the {@code @CosId} field of {@code entity} if it is not set yet; an entity whose class has no such field is
+     * left as it is (R1-core-16).
+     *
+     * @param entity the entity
+     * @throws NullPointerException if {@code entity} is null
+     * @throws me.ahoo.cosid.CosIdException if the field cannot be set
+     */
     void fill(Object entity);
 }

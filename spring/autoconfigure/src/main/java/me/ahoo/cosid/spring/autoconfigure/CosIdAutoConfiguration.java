@@ -36,11 +36,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
+import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.core.env.Environment;
 
 import java.time.Duration;
@@ -65,6 +67,13 @@ public class CosIdAutoConfiguration {
     @Bean
     public static CosIdGeneratorRegistrar cosIdGeneratorRegistrar() {
         return new CosIdGeneratorRegistrar();
+    }
+
+    /** Binds the {@link CosIdProperties} bean as {@link CosIdSpecs#bind} does: {@code - friendly: {}} is its defaults. */
+    @Bean
+    @ConfigurationPropertiesBinding
+    public static GenericConverter cosIdEmptyItems() {
+        return new CosIdSpecs.EmptyItems();
     }
 
     @Bean(CosIdGeneratorRegistrar.SPEC_BEAN)

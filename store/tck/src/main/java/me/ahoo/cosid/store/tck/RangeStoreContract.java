@@ -229,7 +229,7 @@ public abstract class RangeStoreContract {
      * periodic segment, each a key of its own, apart from the keys of {@code eshop-ordering} and {@code eshop-ordering/order}.
      */
     @Test
-    public void storesTheKeysOfADottedGeneratorName() {
+    public void storesTheKeysOfDottedGeneratorNames() {
         String namespace = "tck-" + UUID.randomUUID();
         String segment = namespace + "/eshop-ordering.order";
         String periodic = segment + "/" + Period.YEAR_MONTH.keyOf(Instant.parse("2026-10-29T00:00:00Z"), ZoneOffset.UTC);

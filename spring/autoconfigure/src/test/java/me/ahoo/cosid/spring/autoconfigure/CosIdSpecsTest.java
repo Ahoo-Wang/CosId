@@ -557,7 +557,7 @@ class CosIdSpecsTest {
     }
 
     @Test
-    void theBracketedFormOfAnUnknownKeyEndsTheNameWhereAPropertyBegins() {
+    void theBracketedFormOfAnUnknownKeyEndsTheNameWherePropertiesBegin() {
         assertEquals(Optional.of("cosid.machines[global.ids].static.slot"),
             CosIdSpecs.bracketed(ConfigurationPropertyName.of("cosid.machines.global.ids.static.slot")));
         assertEquals(Optional.of("cosid.generators[a.b.c].codec[0].radix.radix"),

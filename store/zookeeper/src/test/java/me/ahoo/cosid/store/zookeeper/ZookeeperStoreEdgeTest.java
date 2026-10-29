@@ -91,6 +91,27 @@ class ZookeeperStoreEdgeTest {
     }
 
     @Test
+    void reservesOnAValueAnotherStoreMovedReadTheNodeAndStayContiguous() {
+        ZookeeperRangeStore first = new ZookeeperRangeStore(new Zk(client, ZookeeperTests.TIMEOUT));
+        ZookeeperRangeStore second = new ZookeeperRangeStore(new Zk(client, ZookeeperTests.TIMEOUT));
+        String key = "edge/seen-" + UUID.randomUUID();
+        assertEquals(new Range(0, 10), first.reserve(key, 10, 0));
+        // From the value it wrote: one setData at the version it saw.
+        assertEquals(new Range(10, 20), first.reserve(key, 10, 0));
+        assertEquals(new Range(20, 30), second.reserve(key, 10, 0));
+        // The version moved: the compare-and-set fails, the node is read, and the next reserves read it first.
+        long expected = 30;
+        for (int i = 0; i < ZookeeperRangeStore.CONTENDED_RESERVES + 3; i++) {
+            ZookeeperRangeStore store = i % 3 == 2 ? second : first;
+            assertEquals(new Range(expected, expected + 10), store.reserve(key, 10, 0));
+            expected += 10;
+        }
+        assertTrue(second.seal(key));
+        assertThrows(RangeSealedException.class, () -> first.reserve(key, 10, 0));
+        assertThrows(RangeSealedException.class, () -> second.reserve(key, 10, 0));
+    }
+
+    @Test
     void aParentKeyAndItsPeriodsAreIndependentKeys() {
         String key = "edge/" + UUID.randomUUID();
         assertEquals(new Range(7, 17), store.ranges().reserve(key + "/2026", 10, 7), "creates the parent without data");

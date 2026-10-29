@@ -36,6 +36,12 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
+import org.bson.BsonArray;
+import org.bson.BsonDocument;
+import org.bson.BsonInt32;
+import org.bson.BsonInt64;
+import org.bson.BsonString;
+import org.bson.BsonValue;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -95,6 +101,15 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     /** Attempts of the namespace upsert that lose the first-use race (E11000) before the error is rethrown. */
     static final int NAMESPACE_ATTEMPTS = 5;
     private static final FindOneAndUpdateOptions AFTER = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
+    /** A renewal returns the fields of the lease only. */
+    private static final FindOneAndUpdateOptions RENEWED = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
+        .projection(Projections.include(NS, SLOT, FENCE, EXPIRES_AT, FLOOR, CEILING, WRITTEN_AT));
+    private static final BsonString WRITTEN_AT_FIELD = new BsonString("$" + WRITTEN_AT);
+    private static final BsonString EXPIRES_AT_FIELD = new BsonString("$" + EXPIRES_AT);
+    private static final BsonString CEILING_FIELD = new BsonString("$" + CEILING);
+    private static final BsonDocument STAMP_BSON = new BsonDocument("$set",
+        new BsonDocument(WRITTEN_AT, new BsonDocument("$toLong", new BsonString("$$NOW"))));
+    private static final BsonDocument NEXT_FLOOR_IS_CEILING = new BsonDocument("$set", new BsonDocument(NEXT_FLOOR, CEILING_FIELD));
     private static final FindOneAndUpdateOptions LOWEST_AFTER = new FindOneAndUpdateOptions()
         .returnDocument(ReturnDocument.AFTER).sort(Sorts.ascending(SLOT));
 
@@ -263,11 +278,12 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
         // §2.2 renew: expiresAt = max(expiresAt, now + ttl); ceiling = max(ceiling, expiresAt + tolerance); nextFloor = ceiling.
+        // BSON values, which encode as they are, and only the fields of the lease in the reply (D21, allocation).
         Document renewed = slots.findOneAndUpdate(holding(lease), List.of(
-            STAMP,
-            new Document("$set", new Document(EXPIRES_AT, max("$" + EXPIRES_AT, add("$" + WRITTEN_AT, ttlMillis)))),
-            new Document("$set", new Document(CEILING, max("$" + CEILING, add("$" + EXPIRES_AT, toleranceMillis)))),
-            new Document("$set", new Document(NEXT_FLOOR, "$" + CEILING))), AFTER);
+            STAMP_BSON,
+            new BsonDocument("$set", new BsonDocument(EXPIRES_AT, bsonMax(EXPIRES_AT_FIELD, bsonAdd(WRITTEN_AT_FIELD, ttlMillis)))),
+            new BsonDocument("$set", new BsonDocument(CEILING, bsonMax(CEILING_FIELD, bsonAdd(EXPIRES_AT_FIELD, toleranceMillis)))),
+            NEXT_FLOOR_IS_CEILING), RENEWED);
         return renewed == null ? Optional.empty() : Optional.of(toLease(renewed, lease.owner()));
     }
 
@@ -289,9 +305,19 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     }
 
     /** The CAS condition of renew and release: the slot, the incarnation and the fence of the lease. */
-    private static Bson holding(SlotLease lease) {
-        return Filters.and(Filters.eq(NS, lease.namespace()), Filters.eq(SLOT, lease.slot()),
-            Filters.eq(INCARNATION, lease.owner().incarnation().toString()), Filters.eq(FENCE, lease.fence()));
+    private static BsonDocument holding(SlotLease lease) {
+        return new BsonDocument(NS, new BsonString(lease.namespace()))
+            .append(SLOT, new BsonInt32(lease.slot()))
+            .append(INCARNATION, new BsonString(lease.owner().incarnation().toString()))
+            .append(FENCE, new BsonInt64(lease.fence()));
+    }
+
+    private static BsonDocument bsonAdd(BsonString field, long value) {
+        return new BsonDocument("$add", new BsonArray(List.of(field, new BsonInt64(value))));
+    }
+
+    private static BsonDocument bsonMax(BsonString left, BsonValue right) {
+        return new BsonDocument("$max", new BsonArray(List.of(left, right)));
     }
 
     /**

@@ -71,9 +71,18 @@ final class JdbcRangeStore implements RangeStore {
                 }
                 offset = 0;
             }
-            long start = offset;
-            OptionalLong next = jdbc.retryingDuplicates(() -> jdbc.fetchPlan == FetchPlan.TRANSACTION
-                ? reserveInTransaction(session, key, size, start) : jdbc.dialect.reserve(session, key, size, start));
+            // As Jdbc.retryingDuplicates, without its lambda: a reserve allocates as little as 4.x (D21).
+            OptionalLong next = null;
+            for (int attempt = 1; next == null; attempt++) {
+                try {
+                    next = jdbc.fetchPlan == FetchPlan.TRANSACTION
+                        ? reserveInTransaction(session, key, size, offset) : jdbc.dialect.reserve(session, key, size, offset);
+                } catch (SQLException e) {
+                    if (attempt >= Jdbc.RETRIES || !jdbc.dialect.isDuplicateKey(e)) {
+                        throw e;
+                    }
+                }
+            }
             if (next.isEmpty()) {
                 if (row(session, key) == Row.SEALED) {
                     throw new RangeSealedException(key);

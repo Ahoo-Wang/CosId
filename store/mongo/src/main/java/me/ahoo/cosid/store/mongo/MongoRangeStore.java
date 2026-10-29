@@ -28,8 +28,12 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
+import org.bson.BsonArray;
+import org.bson.BsonBoolean;
+import org.bson.BsonDocument;
+import org.bson.BsonInt64;
+import org.bson.BsonString;
 import org.bson.Document;
-import org.bson.conversions.Bson;
 
 import java.time.Duration;
 import java.util.List;
@@ -52,6 +56,7 @@ public final class MongoRangeStore implements RangeStore {
     static final String SEALED = "sealed";
     /** A first reservation that lost the upsert race retries once; a third attempt covers a stale read in between. */
     static final int ATTEMPTS = 3;
+    private static final BsonString NEXT_FIELD = new BsonString("$" + NEXT);
     private static final FindOneAndUpdateOptions UPSERT = new FindOneAndUpdateOptions()
         .upsert(true).returnDocument(ReturnDocument.AFTER).projection(Projections.include(NEXT));
     private static final FindOneAndUpdateOptions UPDATE = new FindOneAndUpdateOptions()
@@ -106,9 +111,14 @@ public final class MongoRangeStore implements RangeStore {
         long highestStart = Long.MAX_VALUE - size;
         // A new key whose first range would pass Long.MAX_VALUE is never created: no upsert then.
         boolean create = initialOffset <= highestStart;
-        Bson filter = Filters.and(Filters.eq(ID, key), Filters.ne(SEALED, true), Filters.lte(NEXT, highestStart));
-        List<Bson> update = List.of(new Document("$set", new Document(NEXT,
-            new Document("$add", List.of(new Document("$ifNull", List.of("$" + NEXT, initialOffset)), size)))));
+        // Built as BSON values, which encode as they are: no Filters / Document rendering through the codec registry on
+        // every call (D21, allocation).
+        BsonDocument filter = new BsonDocument(ID, new BsonString(key))
+            .append(SEALED, new BsonDocument("$ne", BsonBoolean.TRUE))
+            .append(NEXT, new BsonDocument("$lte", new BsonInt64(highestStart)));
+        List<BsonDocument> update = List.of(new BsonDocument("$set", new BsonDocument(NEXT, new BsonDocument("$add",
+            new BsonArray(List.of(new BsonDocument("$ifNull", new BsonArray(List.of(NEXT_FIELD, new BsonInt64(initialOffset)))),
+                new BsonInt64(size)))))));
         MongoServerException lastRace = null;
         for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
             try {

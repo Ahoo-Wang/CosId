@@ -47,6 +47,6 @@ features:
   details: "19 个 Micrometer 指标、一个槽位租约健康检查，以及一个可描述并试用每个生成器的 Actuator 端点。"
 ---
 
-::: warning 候选发布版
-`5.0.0-rc.x` 是候选发布版。从 RC1 起,Java API、`cosid.*` 配置以及存储格式与协议冻结，之后的 5.x 只做向后兼容的增量。生产环境仍建议等待 GA,在此之前请继续使用 4.x（[4.x 文档](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/zh)）。
+::: tip 5.0
+CosId 5.0 已正式发布。Java API、`cosid.*` 配置以及存储格式与协议保持稳定，之后的 5.x 只做向后兼容的增量。从 4.x 升级？请看[迁移指南](/zh/guide/migration/from-4x)与离线迁移工具 `cosid-migration`；4.x 进入维护期（[4.x 文档](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/zh)）。
 :::

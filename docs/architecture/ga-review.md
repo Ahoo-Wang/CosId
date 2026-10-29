@@ -525,3 +525,108 @@ bom:16 个发布模块与 `settings.gradle.kts` 一致,`checkBom` 会守住,无�
 4. **WP-server-auth**:R1-server-01(+ R1-server-02/03)。
 5. **WP-migration**:R1-x-07、R1-x-04、R1-jdbc-06 的迁移侧、R1-doc-05。
 6. **WP-docs**:R1-x-01、R1-x-08、R1-doc-01–07、R1-mongo-04(或加 CI)、R1-core-14/15/16、R1-server-05、11 的补行。
+
+## 9. MINOR 分诊(第 1 轮,2026-10-29)
+
+75 条 MINOR 逐条对照 main(`45f6a82d`,含 #1365–#1393)核实。状态的判断依据 D35:**会影响冻结面**(公开 API、配置键与语义、存储/线上格式)**或用户体验**(错误或误导的行为、报错、用户照做的文档)的,RC 前修;**纯内部清洁**(实现、性能微调、测试卫生),可以兼容地后改的,GA 后。"已修复"按 PR 核实,不只看 PR 描述里有没有提到。
+
+### 9.1 汇总
+
+| 状态 | 条数 |
+|---|---|
+| 已修复 | 32 |
+| 本次修(RC 前) | 25 |
+| GA 后 | 16 |
+| 不修 | 2 |
+
+### 9.2 逐条
+
+| ID | 问题(一句话) | 状态 | 理由 / 修法 | 主题 |
+|---|---|---|---|---|
+| R1-x-02 | 是否提供官方静态入口 `CosIdHolder` | 不修(已定案) | #1371 定了方案 A(只做文档);from-4x 的"静态代码中取号"一节和 `CosIdRuntime` 类注释已经写明 holder 的做法(#1382)。官方 holder 是新增类,以后需要时可以在次版本加 | — |
+| R1-x-05 | cosid80 的 codec 静默忽略 `friendly.pad-start`、`radix.width/pad-start` | 已修复 #1373、#1375 | `PartsCodecSpec.Friendly.padStart`;radix 的这两项写了就是配置错误 | — |
+| R1-core-05 | `TimeSequencer` 每发一个号做一次 volatile 写 | 已修复 #1380 | `setRelease`;close/retire 仍用 `getAndSet` | — |
+| R1-core-06 | `ObservedStores` 的 lambda;P5/P6 没有走生产路径 | 已修复 #1380 | 改成直接 try/catch;P5/P6 改为经由 `CosIdRuntime` | — |
+| R1-core-07 | 匿名包装 store 以后不会转发 SPI 新增的 default 方法 | GA 后 | 内部包装;目前两个 default 方法都已覆盖。以后补一个反射单测 | — |
+| R1-core-08 | 自定义 `Period` 拿不到 key 长度(`instanceof PatternPeriod`) | GA 后 | 给 `Period` 加 `default OptionalInt keyLength()` 是增量改动 | — |
+| R1-core-09 | `GeneratorListener` javadoc 写"Never called on the hot path",与实际不符,也没有线程约定 | 本次修 | 这是实现方要遵守的 SPI 契约:在接口级写明各回调所在线程、不得阻塞 | core-javadoc |
+| R1-core-10 | listener 防护有三套写法,`saturatedAdd` 有 3 份 | GA 后 | 纯内部清理 | — |
+| R1-core-11 | `IdGenerators.uncertain` 抛 `IllegalStateException` | 已修复 #1373 | `IdOverflowException` | — |
+| R1-core-12 | time 位溢出、epoch 在未来时的异常类型,且没有测试 | 已修复 #1373 | `TimeOverflowException`;`RuntimePlan` 拒绝未来的 epoch | — |
+| R1-core-13 | `LeaseKeeper.INCARNATIONS` 是 JVM 级静态状态 | GA 后 | 只用于检测,不参与发号;以后在 01 §3 写明这一例外 | — |
+| R1-core-14 | 01–05 设计文档与代码不符 | 已修复 #1383 | 已按代码同步 | — |
+| R1-core-15 | 11 中测试链接的行号锚点漂移 | 已修复 #1383 | 已重新生成;CI 锚点校验 GA 后再加 | — |
+| R1-core-16 | 导出包缺 javadoc 和 `package-info`;SPI 契约不清 | 本次修(只做契约部分) | 写明 `IdCodec.encode` 遇到非法 id、`StoreProvider.open` 能否返回 null、`IdFiller.fill(null)` 的契约;给 9 个导出包加 `package-info`,`internal` 写明"不是 API"。平凡访问器的 javadoc GA 后补 | core-javadoc |
+| R1-core-17 | `describe()` 的 details key 是隐式冻结 | 已修复 #1373 | `GeneratorInfo` javadoc 列出 key;`DescribeKeysTest` 锁定 | — |
+| R1-core-18 | `get(name, TimeBasedGenerator.class)` 拿到的对象没说不要 close | 本次修(只做 javadoc) | 写明"由运行时拥有,不要关闭";`supportsRanges/Slots` GA 后再加 | core-javadoc |
+| R1-spi-03 | 各后端失败类型不统一(Mongo 泄漏驱动异常),也没有公共 `StoreException` | 本次修(只做契约) | 在 `RangeStore`/`SlotLeaseStore` javadoc 写明"任意 RuntimeException;超时用 `StoreTimeoutException.isTimeout` 判断",TCK 验证超时可识别。是否加 `StoreException` 基类:以后让各后端异常继承它是兼容的,**请总调度定** | core-javadoc |
+| R1-spi-04 | `timeout = 0` 在各后端语义矛盾 | 已修复 #1372、#1378 | timeout 必须为正数 | — |
+| R1-spi-05 | `StoreConfig` 是公开 record,冻结后加字段会破坏兼容 | 已修复 #1372 | 改为 final class + builder | — |
+| R1-jdbc-03 | 成功路径上也立即拼接 operation 字符串 | 已修复 #1380 | 只在出错时拼接 | — |
+| R1-jdbc-04 | MySQL upsert 绑 5 个参数,generated keys 可能有 2 行 | 已修复 #1392 | 已打开的 key 先走 2 个参数的 `update`;upsert 只在新建、已封存或已满时执行 | — |
+| R1-jdbc-05 | acquire 读候选时按列名取值,`TreeMap` 装箱,再 shuffle | GA 后 | acquire 是低频路径,纯内部性能 | — |
+| R1-jdbc-07 | 公开 SPI `JdbcDialect.firstRows(...)` 暴露了 store 拼 SQL 的方式 | 本次修(只做 javadoc) | 写明 `firstRows`/`createIndex`/`addColumn`/`selectNowMillis` 是 store 的 SQL 钩子:store 以后可以不再调用、也可以新增带默认实现的方法。如果要缩窄 SPI,需另做设计 | stores |
+| R1-jdbc-08 | `JdbcStore.of` 与 provider 查找方言用的类加载器不同 | 本次修 | 同一个自定义方言,一条路径能找到、另一条找不到。`of` 也用 TCCL,TCCL 为空时回退到类加载器 | stores |
+| R1-jdbc-09 | `DriverManagerDataSource.setLoginTimeout` 改的是 JVM 全局设置;`toString` 带出完整 url | 本次修 | url 可能含密码。`toString` 改用脱敏后的 url;login timeout 只记在本实例里 | stores |
+| R1-jdbc-10 | 死锁立即重试,没有退避 | GA 后 | 内部重试策略,以后可兼容地加随机退避 | — |
+| R1-jdbc-11 | 06 §2.1 落后于代码 | 已修复 #1383、#1392 | — | — |
+| R1-jdbc-12 | `schema-mariadb.sql` 缺许可证头 | 本次修 | 零风险,用户会直接执行这份文件 | stores |
+| R1-redis-01 | Redis 槽位行按位置解析,没有写明演进规则 | 本次修 | **存储格式**。06 已写"只读前 8 个字段"(#1383),但 encode 写回时只写 8 个字段:新旧版本混跑时,旧版本重写一行就会丢掉新字段。规则要写明"新字段只追加在末尾,并且丢失时必须安全(能从缺省值推导),否则需要版本门槛",再加一个解码时忽略多余字段的测试 | stores |
+| R1-redis-02 | 06 §2.2 缺 `:meta`、`:held` 和转义 | 已修复 #1383 | — | — |
+| R1-redis-03 | `wait=auto` 只在 open 时解析一次,不记日志 | 本次修 | 影响用户对持久性的判断。open 时以 INFO 记录解析出的副本数;README 写明副本增减后需要重启 | stores |
+| R1-redis-04 | `Script.eval` 用 stream 转换回复,每次拼 key 和参数 | GA 后 | 纯内部热路径优化 | — |
+| R1-mongo-01 | 索引 `ns_ownerKey` 多余(被 `lastOwnerKey` 蕴含) | 本次修 | 06 记录的索引集合属于库上格式,冻结前收窄。聚合只匹配 `lastOwnerKey`,store 与 `MongoTarget` 都不再建 `ns_ownerKey`,06 同步;已有的库在说明里提示可以手动删除 | stores |
+| R1-mongo-02 | take/renew 的 `findOneAndUpdate` 没有 projection,pipeline 每次重建 | GA 后(renew 已修复 #1392) | renew 已加 projection,并改为直接构造 BSON 值;take/acquire 是低频路径,纯性能 | — |
+| R1-mongo-03 | 06 §2.3 缺 `cosid_namespace`、`writtenAt`、索引,重试次数写错 | 已修复 #1383 | — | — |
+| R1-zk-02 | 06 §2.4 没有 owner 索引、`.clock`、元数据格式和分批读取 | 已修复 #1383 | — | — |
+| R1-remote-01 | 08 §2 协议表不全 | 本次修 | 以 `RemoteApi` 常量为准补一张完整的状态码/code 表(`503 busy`、`410 range_sealed`、`401/403/404/405`、`bad_request`、`unsupported`),主表 renew/release 行补上 `ownerKey` 和窗口字段 | docs |
+| R1-remote-02 | remote provider 不能注入自定义 `HttpClient`(mTLS、代理) | GA 后 | 现在注入会直接报错,以后放开是兼容的增量 | — |
+| R1-remote-03 | 在明文 `http` 上发 bearer token 没有提示 | 本次修 | 安全提示,成本极低:`http`、带 token、非回环地址三者都成立时,open 时打 WARN | stores |
+| R1-tck-01 | TCK 公开包里带着 CosId 自己的夹具 `TestRuntimes` | 本次修 | 冻结后就成了公开 API。移到 `me.ahoo.cosid.store.tck.internal`,写明不承诺兼容 | stores |
+| R1-tck-02 | 缺 provider/Store 级别的契约 | GA 后 | 新增契约类是增量 | — |
+| R1-tck-03 | TCK 没有 README;文档说 `InMemoryStore` 是"memory provider",但并没有注册 | 本次修 | 中英文都改正 memory provider 的说法,补 `ContractsRan` 的 Gradle/Maven 用法 | docs |
+| R1-mig-01 | 迁移的异常消息和 `StoreLocation.toString` 带出原始 url | 本次修 | url 可能含密码。`JdbcTarget`、`JdbcSource`、`StoreLocation.toString` 改用 `StoreLocation.redactUrl` | migration |
+| R1-mig-02 | 迁移写 Redis 不做 WAIT,与运行时 `wait=auto` 不一致 | 本次修 | failover 时可能丢掉 raise,导致重号。封存和 raise 写入后,有副本就 `WAIT n timeout`,确认数不足就中止;至少要在文档里写明这个前提 | migration |
+| R1-mig-03 | 09 没有同步 README 里的护栏 | 本次修 | `--allow-unmigrated`、`--machine-from/--machine-to`、`--allow-new`,以及 verify 报告新出现的 4.x key,并入 09 §2/§3 | docs |
+| R1-mig-04 | 迁移工具自己重写了一遍各 store 的格式 | 不修 | `TargetAdminTest` 在四个后端上 prepare 之后都用真实 store 做 acquire/reserve;冻结后格式不会再变 | — |
+| R1-mig-05 | 迁移用 `user`,运行时用 `username` | 已修复 #1382 | 两个都接受,值不同时报错 | — |
+| R1-spring-02 | Spring 用户无法替换预取执行器或时钟 | GA 后 | 加 customizer 是增量;11 §4"注入的执行器"一行对 Spring 用户要加注(并入 docs) | — |
+| R1-spring-03 | `cosid.*` 中写错的键被静默忽略 | 已修复 #1375 | 未知键会导致启动失败 | — |
+| R1-spring-04 | cosid80 codec 选项被静默忽略 | 已修复 #1373、#1375 | 与 R1-x-05 同一处修复 | — |
+| R1-spring-05 | 健康贡献者名的大小写 | 已修复 #1375 | 改为 `cosid` | — |
+| R1-spring-06 | `cosid.segment.reserve` 带 `key` 标签,基数无界 | 已修复 #1375 | 已去掉 `key` 标签 | — |
+| R1-spring-07 | `CosIdJacksonModule` 可能形成循环依赖 | GA 后 | 没有实际案例;改为 `ObjectProvider` 延迟解析不影响兼容 | — |
+| R1-spring-08 | AOT 下生成器集合在构建期固定 | 已修复 #1382(文档) | 运行期比对名字集合的校验 GA 后再加 | — |
+| R1-spring-09 | `CosIdProperties.Store` javadoc 漏了 `remote` | 本次修 | 用户在 IDE 提示里能看到;只补 javadoc,收拢属性读取 GA 后做 | spring-config |
+| R1-spring-10 | `- friendly: {}` 的报错是"(0 set)",令人困惑 | 本次修 | 先写测试确认实际怎么绑定,再把 0 个的情况改成"至少写一个字段,例如 …" | spring-config |
+| R1-server-02 | server 的 readiness 不检查存储 | 已修复 #1365 | — | — |
+| R1-server-03 | 开 `/ids` 时运行时另开第二个 Store | 已修复 #1365 | — | — |
+| R1-server-04 | `/ids` 装箱成 `List<Long>` | GA 后 | JSON 形状不变,纯性能 | — |
+| R1-server-05 | 08 没有反映已合入的改动 | 已修复 #1383 | — | — |
+| R1-int-01 | 4 个集成各复制一份 `TextIds` | 已修复 #1374 | `CosIdRuntime.text(name)` | — |
+| R1-int-02 | `cosid.jdbc.enabled` 关闭时没有任何提示 | 本次修 | 引入依赖却什么也不做。classpath 上有 Spring Data JDBC 而开关未开时,打一条 INFO | spring-config |
+| R1-int-03 | 迁移页说 cosid-jackson 是"same artifacts",没写只支持 Jackson 3,也没有属性对照 | 本次修 | jackson 页与 from-4x(中英文)加 4.x → 5.0 属性对照,写明不再支持 Jackson 2 | docs |
+| R1-int-04 | MyBatis 只认全局 `listKey`,ParamMap 中的单个实体不会被填充 | 本次修(只做文档) | mybatis 页(中英文)写明限制和推荐写法;遍历 ParamMap GA 后做 | docs |
+| R1-sharding-01 | `ExactCollection` 等缺 javadoc | GA 后 | 纯 javadoc | — |
+| R1-sharding-02 | `CachedSharding` 返回可变集合 | 本次修(只做 javadoc) | 以后改成不可变视图会让修改返回值的调用方抛错,所以 RC 前先在 javadoc 写明"不可修改" | core-javadoc |
+| R1-build-01 | getting-started 说三个示例都能 `bootRun` | 本次修 | 按 `examples/README.md` 改写(server 需要先 compose,`plain-stores` 是测试) | docs |
+| R1-build-02 | `SpringStartBenchmark` javadoc 中有转义反引号 | GA 后 | 只是基准代码的注释 | — |
+| R1-build-03 | 02 目录表的 examples 漏了 `plain-stores` | GA 后 | 内部设计文档;顺手并入 docs PR | — |
+| R1-doc-02 | rc-review 的 C-N4/C-N5/E-N1 未合入 main | 已修复 #1344(f93dee38) | #1382 核实 | — |
+| R1-doc-03 | "没有各特性的 enabled 开关"与集成开关矛盾 | 已修复 #1382、#1383 | — | — |
+| R1-doc-04 | 迁移手册缺拆分存储等选项 | 已修复 #1382 | — | — |
+| R1-doc-05 | 迁移工具的 `user` 与 `username` | 已修复 #1382 | — | — |
+| R1-doc-06 | 11 §5–§7 锚点失效 | 已修复 #1383 | — | — |
+| R1-doc-07 | AOT 下生成器集合在构建期固定 | 已修复 #1382 | — | — |
+
+### 9.3 评审外的新发现
+
+- **server readiness 贡献者名**:`cosIdServerStore` 是驼峰,用户会在 `management.endpoint.health.group.readiness.include` 中写到它,与 R1-spring-05 统一为 `cosid` 的做法不一致。建议 RC 前改为 `cosidServerStore`,并保留旧名作为别名(属于配置面)。**请总调度定**;定了就并入 spring-config PR。
+
+### 9.4 "本次修"的分组(建议 3 个 PR,串行)
+
+1. **stores**(9 条):R1-jdbc-07、R1-jdbc-08、R1-jdbc-09、R1-jdbc-12、R1-redis-01、R1-redis-03、R1-mongo-01、R1-remote-03、R1-tck-01。
+2. **core-javadoc + spring-config**(8 条):R1-core-09、R1-core-16(契约 + package-info)、R1-core-18、R1-spi-03(契约)、R1-sharding-02、R1-spring-09、R1-spring-10、R1-int-02,以及 9.3 若定为要改。
+3. **docs + migration**(8 条):R1-remote-01、R1-tck-03、R1-mig-03、R1-int-03、R1-int-04、R1-build-01(R1-build-03、11 §4 的执行器行顺手并入);R1-mig-01、R1-mig-02(代码)。
+
+**需要总调度决定的**:R1-spi-03 是否加 `StoreException` 基类;R1-mongo-01 是否在 RC 前改(这一项严格说也可以后改,老库只是多一个用不到的索引);9.3 是否改名。

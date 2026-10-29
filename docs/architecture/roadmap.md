@@ -141,7 +141,7 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 |---|---|---|
 | `5.0.0-M1` | R2 + R3 合入,可编程使用 | 不单独发布,由 alpha.1 取代(D33) |
 | `5.0.0-alpha.1` | BLOCKER 清零;pre-release、不做兼容性承诺(D33) | 准备就绪:#1360(版本号、alpha 提示、release notes)、#1361(4.x document-deploy 只手动触发)已合入;**已发布** [v5.0.0-alpha.1](https://github.com/Ahoo-Wang/CosId/releases/tag/v5.0.0-alpha.1)(pre-release,`81a9ef59`,含 codec 修复 #1362);Central、Docker(无 `latest`)、迁移工具 jar、文档站均已核对 |
-| `5.0.0-RC1` | R4 全部合入;RC 审查的 BLOCKER 清零;发布门槛通过;GA 前审查第 1 轮的 API/配置/存储格式类问题已修(D35) | **就绪待确认**:BLOCKER 清零;API 冻结完成;第七次正式门禁 PASS(8/8,run 40832851823);待 D46 UUIDv7 合入，再由用户确认发布 |
+| `5.0.0-RC1` | R4 全部合入;RC 审查的 BLOCKER 清零;发布门槛通过;GA 前审查第 1 轮的 API/配置/存储格式类问题已修(D35) | **✅ 已发布**(2026-10-29,`v5.0.0-rc.1` pre-release,Central/Docker/文档站已核对;兼容承诺开始) |
 | `5.0.0` | R5 全部通过,RC 无阻塞问题;分支改名已在 RC 前完成;两轮全面审查通过,性能无明显回退、无特性缺失、文档齐备(D35) | 未开始 |
 
 ### 5.3 进入 R5 前的遗留事项

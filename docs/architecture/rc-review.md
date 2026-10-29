@@ -339,6 +339,15 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
     - 文档站 generators 页已有 uuidv7 一节;
     - main 已改回 SNAPSHOT(#1410 `b73c9e0e`)。
 - [x] 用户确认发布 RC1(2026-10-29,用户在协调会话中:"Release RC1")
+- ✅ **`v5.0.0-rc.1` 已发布**(2026-10-29,pre-release,目标 `c154e69d` = #1411):
+  - Packages Deploy、Docker Image Deploy、document-deploy 全部成功;
+  - Central 在 10:24 已可解析(core、bom、starter、jdbc/redis/mongo/zookeeper);`cosid-store-redis` 的 POM 中是具体版本(Lettuce 7.9.0、slf4j 2.0.20),没有 BOM import;
+  - Docker Hub 有 `5.0.0-rc.1`,没有打 `latest`;
+  - release 附件中有 `cosid-migration.jar`;
+  - 文档站已按 tag 部署;
+  - main 已改回 SNAPSHOT(#1412 `8ebde66d`);
+  - 已通知 Wow。
+  **兼容承诺从本版开始。** 下一阶段：RC 期间进行 GA 前审查第 2 轮(D35),并按 §4.3 第 12 项在 RC 期间以 4.1.1 复跑门禁(第七次运行已经用的是 4.1.1,此项视为已满足)。
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;
     2. 在合入提交上创建 pre-release,会触发 package-deploy 和 docker-deploy(不打 `latest`);

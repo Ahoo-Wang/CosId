@@ -125,6 +125,6 @@ cosid:
 |---|---|
 | `IntegerIdGenerator` | `IdGenerators.toInt(ids)`：一个 `IntIdGenerator`，超过 `Integer.MAX_VALUE` 时抛出 `IdOverflowException` |
 | `UncertaintyIdGenerator` | `IdGenerators.uncertain(ids, bits, random)` |
-| `AtomicLongGenerator`、`UuidGenerator` | `IdGenerators.local()`、`IdGenerators.uuid()` |
+| `AtomicLongGenerator`、`UuidGenerator` | `IdGenerators.local()`、`IdGenerators.uuid()`（随机的 v4 文本）；需要有序的 UUID 时用 [`uuidv7`](../../reference/config/generators.md#uuidv7) 策略 |
 | `LazyIdGenerator` | `IdGenerators.lazy(() -> runtime.generator("order"))` |
 | `SafeJavaScriptSnowflakeId` | `Layout.JS_SAFE_MS` / `JS_SAFE_S` |

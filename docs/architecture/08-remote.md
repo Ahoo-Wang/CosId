@@ -24,7 +24,7 @@ key 与命名空间放在请求体中,不放在路径里,避免 `/` 需要编码
 | POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, ttlMs, toleranceMs}` | `200` 扁平的租约 `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`,或 `409 lease_lost` |
 | POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, lastIssued}` | `204` 或 `409 lease_lost` |
 | GET | `/ids/{generator}?count=n` | — | `{ids: [...]}`(可选) |
-| GET | `/ids/{generator}/strings?count=n` | — | `{ids: ["..."]}`(可选,使用生成器的 codec) |
+| GET | `/ids/{generator}/strings?count=n` | — | `{ids: ["..."]}`(可选,任意策略的文本 id,即 `CosIdRuntime.text`:long id 经生成器的 codec,cosid80、周期号段、uuidv7 各用其文本) |
 | GET | `/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`(可选) |
 
 renew / release 的窗口字段(`expiresAt`、`floor`、`ceiling`、`storeNow`)由客户端原样带回租约里的值;服务端缺省时按 0 处理(`ceiling` 小于 `floor` 时取 `floor`)。

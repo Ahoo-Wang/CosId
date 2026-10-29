@@ -72,6 +72,8 @@ public final class CosIdSpecs {
     public static final String PERIODIC_SEGMENT = "periodic-segment";
     /** The strategy of a user generator ({@code GeneratorSpec.Custom} or {@code Instance}) in {@code describe()}. */
     public static final String CUSTOM = "custom";
+    /** UUIDv7 ids (D46): no machine, store nor codec. */
+    public static final String UUIDV7 = "uuidv7";
 
     private static final Map<String, Layout> LAYOUTS = Map.of(
         "SNOWFLAKE_MS", Layout.SNOWFLAKE_MS,
@@ -398,8 +400,8 @@ public final class CosIdSpecs {
 
     private static GeneratorSpec generator(String at, CosIdProperties.Generator generator, Set<String> names, ZoneId zone, List<String> problems) {
         String strategy = generator.strategy() == null ? "" : generator.strategy().trim().toLowerCase(Locale.ROOT);
-        if (!List.of(SNOWFLAKE, COSID80, SEGMENT, PERIODIC_SEGMENT, CUSTOM).contains(strategy)) {
-            problems.add(at + ".strategy: one of snowflake, cosid80, segment, periodic-segment, custom, not [" + generator.strategy() + "]");
+        if (!List.of(SNOWFLAKE, COSID80, SEGMENT, PERIODIC_SEGMENT, CUSTOM, UUIDV7).contains(strategy)) {
+            problems.add(at + ".strategy: one of snowflake, cosid80, segment, periodic-segment, custom, uuidv7, not [" + generator.strategy() + "]");
             return null;
         }
         // A disabled generator is not validated (D24): only its strategy, which gives its bean type, must be known.
@@ -433,6 +435,11 @@ public final class CosIdSpecs {
                 case CUSTOM -> GeneratorSpec.Custom.builder(ref(at, generator, names, own))
                     .codec(codecs(at, generator.codec(), zone, own))
                     .build();
+                case UUIDV7 -> {
+                    uuidV7Keys(generator).forEach(key -> own.add(at + "." + key + ": a uuidv7 generator has no " + key
+                        + " (it needs no machine nor store, and its text is the canonical UUID form)"));
+                    yield GeneratorSpec.UuidV7.builder().build();
+                }
                 case SEGMENT -> GeneratorSpec.Segment.builder(store(at, generator, own))
                     .batch(batch(generator))
                     .codec(codecs(at, generator.codec(), zone, own))
@@ -453,6 +460,35 @@ public final class CosIdSpecs {
         return new GeneratorSpec.Disabled(spec != null && own.isEmpty() ? spec : placeholder(strategy, generator));
     }
 
+    /**
+     * The keys set on a uuidv7 generator that only other strategies have (D46); the machine and the ref are checked for
+     * every strategy. Keys with a default value cannot tell a setting from the default and are not reported.
+     */
+    private static List<String> uuidV7Keys(CosIdProperties.Generator generator) {
+        Map<String, Object> keys = new LinkedHashMap<>();
+        keys.put("layout", generator.layout());
+        keys.put("epoch", generator.epoch());
+        keys.put("unit", generator.unit());
+        keys.put("time-bits", generator.timeBits());
+        keys.put("node-bits", generator.nodeBits());
+        keys.put("seq-bits", generator.seqBits());
+        keys.put("seq-reset-threshold", generator.seqResetThreshold());
+        keys.put("store", generator.store());
+        keys.put("max-batch", generator.maxBatch());
+        keys.put("range-ttl", generator.rangeTtl());
+        keys.put("period", generator.period());
+        keys.put("zone", generator.zone());
+        keys.put("seal-after", generator.sealAfter());
+        keys.put("codec", generator.codec().isEmpty() ? null : generator.codec());
+        List<String> set = new ArrayList<>();
+        keys.forEach((key, value) -> {
+            if (value != null) {
+                set.add(key);
+            }
+        });
+        return set;
+    }
+
     /** What a disabled generator that would not map stands for: only its strategy matters. */
     private static GeneratorSpec placeholder(String strategy, CosIdProperties.Generator generator) {
         String store = generator.store() == null ? "" : generator.store();
@@ -464,6 +500,7 @@ public final class CosIdSpecs {
                 .build();
             case COSID80 -> GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build();
             case CUSTOM -> GeneratorSpec.Custom.builder(generator.ref() == null ? "" : generator.ref()).build();
+            case UUIDV7 -> GeneratorSpec.UuidV7.builder().build();
             case SEGMENT -> GeneratorSpec.Segment.builder(store).batch(BatchPolicy.DEFAULT).codec(List.of()).build();
             default -> GeneratorSpec.PeriodicSegment.builder(store, Period.YEAR_MONTH_DAY, ZoneId.of("UTC"))
                 .batch(BatchPolicy.DEFAULT)

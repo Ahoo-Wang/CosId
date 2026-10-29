@@ -31,6 +31,7 @@ benchmark/
 | P10 | store primitives: reserve, acquire, renew, per backend | mean and p99 latency |
 | P11 | Spring context start to the first id | time |
 | P12 | `IdFiller.fill` | throughput, allocation |
+| P13 | UUIDv7 (5.x only, a trend, not judged), 1 / 4 / 16 threads | throughput |
 
 A row's limit is the wider of 4.x with its error (JMH's 99.9% confidence interval) and 4.x with a tolerance: 5% for
 throughput and average time, 10% for p99 / p99.9, and the larger of 5% and +64 B for allocation. A row that fails runs

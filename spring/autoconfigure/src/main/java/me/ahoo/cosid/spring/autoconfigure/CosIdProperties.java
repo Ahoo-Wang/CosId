@@ -144,7 +144,7 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
     /**
      * A generator. Which fields apply depends on the strategy.
      *
-     * @param strategy      {@code snowflake}, {@code cosid80}, {@code segment}, {@code periodic-segment} or {@code custom}
+     * @param strategy      {@code snowflake}, {@code cosid80}, {@code segment}, {@code periodic-segment}, {@code custom} or {@code uuidv7}
      * @param disabled      declared but not created (D24): its bean throws {@code GeneratorDisabledException}
      * @param layout        time-based: the layout preset; snowflake: {@code SNOWFLAKE_MS} (default), {@code SNOWFLAKE_S},
      *                      {@code JS_SAFE_MS} or {@code JS_SAFE_S}; cosid80: {@code COSID_80} (default) only

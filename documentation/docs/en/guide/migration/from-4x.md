@@ -381,6 +381,7 @@ public class Ids implements SmartInitializingSingleton, DisposableBean {
 | `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>` (`GeneratorSpec.Custom`), or `GeneratorSpec.Instance` in a `RuntimeSpecCustomizer` |
 | `MachineIdDistributor`s, the guarder, `~/.cosid-machine-state` | `cosid.machine.leased` / `static` (see [the slot lease](../concepts/slot-lease.md)) |
 | `IntegerIdGenerator`, `UncertaintyIdGenerator`, `LazyIdGenerator` | `IdGenerators.toInt`, `.uncertain`, `.lazy` |
+| `UuidGenerator` (random UUIDv4) | `IdGenerators.uuid()`; for UUIDs ordered by time, `strategy: uuidv7` ([generators](../../reference/config/generators.md#uuidv7)) |
 | `CosIdStoreProvider` | `StoreProvider` |
 | `Customize*Properties` | `RuntimeSpecCustomizer` |
 | Actuator DELETE of a generator | `cosid.generators.<name>.disabled: true` |

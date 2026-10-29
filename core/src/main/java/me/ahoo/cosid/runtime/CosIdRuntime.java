@@ -110,11 +110,13 @@ public final class CosIdRuntime implements AutoCloseable {
     }
 
     /**
-     * The generator of that name with its codec.
+     * The {@code long} generator of that name with its codec. For the text ids of any strategy, cosid80, periodic
+     * segments and uuidv7 included, use {@link #text(String)}.
      *
      * @param name the generator name
      * @return the generator
-     * @throws java.util.NoSuchElementException          if there is none, or it has no {@code long} ids
+     * @throws java.util.NoSuchElementException          if there is none, or it has no {@code long} ids (cosid80,
+     *                                                   periodic segment, uuidv7: use {@link #text(String)})
      * @throws me.ahoo.cosid.GeneratorDisabledException if it is disabled
      */
     public StringIdGenerator stringGenerator(String name) {
@@ -149,7 +151,7 @@ public final class CosIdRuntime implements AutoCloseable {
     /**
      * The generator of that name as {@code type}: an {@code IdGenerator}, {@code PartsIdGenerator} (time-based) or
      * {@code GroupedIdGenerator} (periodic segment), the concrete generator ({@code TimeBasedGenerator},
-     * {@code SegmentGenerator}, {@code PeriodicSegmentGenerator}; never counted), or for {@code long} ids a
+     * {@code SegmentGenerator}, {@code PeriodicSegmentGenerator}, {@code UuidV7Generator}; never counted), or for {@code long} ids a
      * {@code StringIdGenerator}, an {@code IntIdGenerator} (range checked) or its {@code IdCodec}; for the 80-bit CosId
      * its {@code PartsCodec}; for a periodic segment its {@code GroupedCodec}.
      *
@@ -211,7 +213,7 @@ public final class CosIdRuntime implements AutoCloseable {
 
     /**
      * The text ids of the generator of that name, whatever its strategy (R1-int-01): the codec of its {@code long}
-     * ids, its parts codec (cosid80) or its grouped codec (periodic segment).
+     * ids, its parts codec (cosid80), its grouped codec (periodic segment) or the canonical UUID form (uuidv7, D46).
      *
      * @param name the generator name
      * @return the text ids

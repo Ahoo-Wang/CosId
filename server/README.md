@@ -21,7 +21,7 @@ Keys and namespaces travel in the JSON body, never in the path. Errors are `{cod
 | POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
 | POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`; `409 lease_lost` |
 | GET | `/ids[/{generator}]?count=n` | — | `{ids: [...]}` (optional) |
-| GET | `/ids[/{generator}]/strings?count=n` | — | `{ids: ["..."]}`, through the generator's codec (optional) |
+| GET | `/ids[/{generator}]/strings?count=n` | — | `{ids: ["..."]}`: the text ids of any strategy (optional): `long` ids through the generator's codec, cosid80, periodic segment and uuidv7 text |
 | GET | `/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`, all of one period (optional) |
 
 A lease is `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`. Renew and release

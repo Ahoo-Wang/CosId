@@ -34,6 +34,7 @@ import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.time.TimeBasedGenerator;
+import me.ahoo.cosid.time.UuidV7Generator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -221,6 +222,7 @@ public final class RuntimeParts {
                     "sealAfter", periodic.periodic().sealAfter().map(Object::toString).orElse("")), counter);
             case GeneratorSpec.Custom custom -> GeneratorEntry.custom(name, generator.ids(), (IdCodec) generator.codec(), counter);
             case GeneratorSpec.Instance instance -> GeneratorEntry.custom(name, generator.ids(), (IdCodec) generator.codec(), counter);
+            case GeneratorSpec.UuidV7 uuidV7 -> GeneratorEntry.uuidV7(new UuidV7Generator(name, options.time()), counter);
             case GeneratorSpec.Disabled disabled -> GeneratorEntry.disabled(name, strategy(disabled.generator()), storeOf(disabled.generator()));
         };
     }
@@ -233,6 +235,7 @@ public final class RuntimeParts {
             case GeneratorSpec.PeriodicSegment periodic -> GeneratorEntry.PERIODIC_SEGMENT;
             case GeneratorSpec.Custom custom -> GeneratorEntry.CUSTOM;
             case GeneratorSpec.Instance instance -> GeneratorEntry.CUSTOM;
+            case GeneratorSpec.UuidV7 uuidV7 -> GeneratorEntry.UUIDV7;
             case GeneratorSpec.Disabled disabled -> strategy(disabled.generator());
         };
     }

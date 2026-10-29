@@ -14,10 +14,10 @@
 
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
-> [!WARNING]
-> **`5.0.0-rc.x` is a release candidate.** From RC1 on, the Java API, the `cosid.*` configuration and the storage
-> formats and protocols are frozen: later 5.x releases only add to them. Production use should still wait for GA; until
-> then, stay on 4.x there.
+> [!NOTE]
+> **CosId 5.0 is generally available.** The Java API, the `cosid.*` configuration and the storage formats and protocols
+> are stable: later 5.x releases only add to them. 4.x stays in maintenance; the offline
+> [`cosid-migration`](./migration/README.md) tool moves a deployment over.
 
 Every replica of a service needs ids (primary keys, order numbers, event ids) that never collide with those of the other
 replicas. *CosId* generates them inside your process, without a network call per id, and does the coordination that

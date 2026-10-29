@@ -2,10 +2,10 @@
 
 CosId 5 needs **Java 21** or later. With Spring Boot it needs **Boot 4.1.2** or later (D49); Boot 4.0.x is not supported.
 
-::: warning Release candidate
-`5.0.0-rc.x` is a release candidate. From RC1 on, the Java API, the `cosid.*` configuration and the storage formats
-and protocols are frozen: later 5.x releases only add to them. Production use should still wait for GA; until then,
-stay on 4.x there ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
+::: tip 5.0
+CosId 5.0 is generally available. The Java API, the `cosid.*` configuration and the storage formats and protocols are
+stable: later 5.x releases only add to them. Coming from 4.x? See [the migration guide](migration/from-4x.md) and the offline
+`cosid-migration` tool; 4.x stays in maintenance ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
 :::
 
 ## 1. Add the dependencies

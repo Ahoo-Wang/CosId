@@ -354,7 +354,8 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
       - D35 三项结论：性能 PASS(第七次门禁);特性方面运行时 PASS,但迁移工具 `config` 有缺口;文档 PASS,有缺口。
       - 两条 BLOCKER 都出在迁移工具 `config`:R2-mig-01 没有读取 `apply-result.json` 的 `target`;R2-parity-01 丢掉了 4.x snowflake 自带的 namespace。两条都可兼容地修复，因此**不需要 RC2**。
       - 修复分三个 PR 串行进行:WP-migration-r2(包含两条 BLOCKER),然后 WP-core-spring-r2,最后 WP-docs-r2。
-      - ✅ WP-migration-r2 [#1415](https://github.com/Ahoo-Wang/CosId/pull/1415) `c6ce99ec`:`config` 按 `apply-result.json` 记录的目标生成 store;自带 namespace 的 4.x snowflake 迁成命名 machine,单独迁移一次;`--*-option` 键名做归一化并校验;`wait-replicas`/`fetch-plan`/`writeConcern`/Curator retry 都正确转换;Redis Cluster 写入走 key 所在主节点的连接;报错与日志中的 URL 隐去密码。新增"用 `config` 的输出启动 5.0"端到端测试(`ConfigRuntimeTest`)。**第 2 轮的两条 BLOCKER 已清零。** 下一步:D49(只支持 Boot 4.1.2+),然后 WP-core-spring-r2。完成后在 GA 提交上重跑门禁(R2-perf-01)。
+      - ✅ WP-migration-r2 [#1415](https://github.com/Ahoo-Wang/CosId/pull/1415) `c6ce99ec`:`config` 按 `apply-result.json` 记录的目标生成 store;自带 namespace 的 4.x snowflake 迁成命名 machine,单独迁移一次;`--*-option` 键名做归一化并校验;`wait-replicas`/`fetch-plan`/`writeConcern`/Curator retry 都正确转换;Redis Cluster 写入走 key 所在主节点的连接;报错与日志中的 URL 隐去密码。新增"用 `config` 的输出启动 5.0"端到端测试(`ConfigRuntimeTest`)。**第 2 轮的两条 BLOCKER 已清零。**
+      - ✅ D49 [#1416](https://github.com/Ahoo-Wang/CosId/pull/1416) `d8434b4d`:只支持 Spring Boot 4.1.2+。删除了 `spring-boot-minimum`/`minimumVersions` 机制;CI 矩阵改为 Boot 4.1.2 × Java 21/25;发布 POM 里 spring-boot-autoconfigure 和 spring-data-jdbc 都是 4.1.2,没有 BOM import。下一步:WP-core-spring-r2。完成后在 GA 提交上重跑门禁(R2-perf-01)。
       - 协调会话按推荐做的两项决定(§4.3 第 18 项):R2-spring-02 对不适用策略的键只打 WARN,不改为启动失败;R2-core-03 的公开构造器保留，约定今后新增参数只通过 builder 或静态工厂。
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;

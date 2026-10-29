@@ -118,6 +118,84 @@ class CompareTest(unittest.TestCase):
         self.assertEqual([("P.a", "thrpt", 1, "")], compare.compare(base, row("P.a", score=80))[2])
         self.assertEqual([], compare.compare(base, base)[2])
 
+    # D44: end-to-end rows fail past D34; component rows (P9, P10) only WARN there, up to their own limits.
+    def test_an_end_to_end_row_just_past_d34_fails(self):
+        name = "SegmentNoPrefetchBenchmark.generate_t1"
+        self.assertEqual(0, self.failed(row(name, score=100, error=0), row(name, score=95)))
+        self.assertEqual(1, self.failed(row(name, score=100, error=0), row(name, score=94.99)))
+        self.assertEqual(compare.END_TO_END, compare.kind(name))
+
+    def test_a_component_row_just_past_d34_warns_and_does_not_fail(self):
+        name = "MySqlStoreBenchmark.reserve_t1"
+        warned = []
+        lines, failed, keys = compare.compare(row(name, mode="avgt", score=100.0, error=0.0),
+                                              row(name, mode="avgt", score=105.01), warned=warned)
+        self.assertEqual(0, failed)
+        self.assertEqual([(name, "avgt", 1, "")], warned)
+        self.assertIn("**PASS (1 WARN)**: 0 of 1 baseline rows failed.", lines)
+        self.assertIn("## WARN: component rows past D34, within the D44 limits", lines)
+
+    def test_a_component_row_just_past_its_soft_limit_fails(self):
+        name = "MongoStoreBenchmark.reserve_t1"
+        base = row(name, mode="avgt", score=100.0, error=0.0)
+        self.assertEqual(0, self.failed(base, row(name, mode="avgt", score=120.0)))
+        self.assertEqual(1, self.failed(base, row(name, mode="avgt", score=120.01)))
+
+    def test_component_throughput_percentiles_and_allocation_have_soft_limits(self):
+        codec = "CodecBenchmark.radix62Encode_t1"
+        self.assertEqual(compare.COMPONENT, compare.kind(codec))
+        self.assertEqual(0, self.failed(row(codec, score=100, error=0), row(codec, score=80)))
+        self.assertEqual(1, self.failed(row(codec, score=100, error=0), row(codec, score=79.99)))
+        store = "ZookeeperStoreBenchmark.reserve_t1"
+        base = row(store, mode="sample", score=1.0, error=0.0, percentiles={"99.0": 10.0, "99.9": 20.0})
+        self.assertEqual(0, self.failed(base, row(store, mode="sample", percentiles={"99.0": 13.0, "99.9": 26.0})))
+        self.assertEqual(1, self.failed(base, row(store, mode="sample", percentiles={"99.0": 13.01, "99.9": 20.0})))
+        # Allocation: max(+25%, +64 B).
+        self.assertEqual(0, self.failed(row(store, mode="avgt", error=0.0, alloc=1000.0), row(store, mode="avgt", alloc=1250.0)))
+        self.assertEqual(1, self.failed(row(store, mode="avgt", error=0.0, alloc=1000.0), row(store, mode="avgt", alloc=1250.01)))
+        self.assertEqual(0, self.failed(row(store, mode="avgt", error=0.0, alloc=100.0), row(store, mode="avgt", alloc=164.0)))
+        self.assertEqual(1, self.failed(row(store, mode="avgt", error=0.0, alloc=100.0), row(store, mode="avgt", alloc=164.01)))
+
+    def test_a_component_row_that_failed_and_warns_on_its_rerun_passes_with_a_warning(self):
+        name = "RedisStoreBenchmark.renew_t1"
+        base = row(name, mode="avgt", score=100.0, error=0.0)
+        warned = []
+        lines, failed, keys = compare.compare(base, row(name, mode="avgt", score=130.0),
+                                              rerun=(base, row(name, mode="avgt", score=110.0)), warned=warned)
+        self.assertEqual(0, failed)
+        self.assertEqual([(name, "avgt", 1, "")], warned)
+        self.assertIn("**PASS (1 WARN)**: 0 of 1 baseline rows failed (1 failed the first run and were re-run).", lines)
+
+    def test_smoke_rules_have_no_warn(self):
+        name = "MySqlStoreBenchmark.reserve_t1"
+        self.assertEqual(1, self.failed(row(name, mode="avgt", score=100.0, error=0.0), row(name, mode="avgt", score=112.0), smoke=True))
+
+    def test_a_class_not_in_the_table_is_judged_end_to_end(self):
+        self.assertEqual(compare.END_TO_END, compare.kind("SomethingNewBenchmark.run_t1"))
+
+    def test_warned_rows_are_written_for_the_gate(self):
+        import json
+        import tempfile
+        name = "MySqlStoreBenchmark.reserve_t1"
+        with tempfile.TemporaryDirectory() as directory:
+            paths = [os.path.join(directory, f) for f in ("4x.json", "5x.json", "warned.json", "failed.json")]
+            for path, data in zip(paths, (row(name, mode="avgt", score=100.0, error=0.0), row(name, mode="avgt", score=110.0))):
+                with open(path, "w", encoding="utf-8") as file:
+                    json.dump(list(data.values()), file)
+            self.assertEqual(0, compare.main([paths[0], paths[1], "--warned", paths[2], "--failed", paths[3]]))
+            with open(paths[2], encoding="utf-8") as file:
+                self.assertEqual([{"benchmark": compare.PREFIX + name, "mode": "avgt", "threads": 1, "params": {}}], json.load(file))
+            with open(paths[3], encoding="utf-8") as file:
+                self.assertEqual([], json.load(file))
+
+    def test_every_scenario_class_is_in_the_table(self):
+        root = os.path.dirname(os.path.abspath(__file__))
+        for side in ("baseline-4x", "v5"):
+            directory = os.path.join(root, side, "src", "jmh", "java", "me", "ahoo", "cosid", "benchmark")
+            for name in os.listdir(directory):
+                if name.endswith("Benchmark.java"):
+                    self.assertIn(name[:-len(".java")], compare.SCENARIOS, f"{side}/{name}")
+
     def test_rows_match_by_threads(self):
         self.assertEqual(1, self.failed(row("P.a", threads=4), row("P.a", threads=1)))
 

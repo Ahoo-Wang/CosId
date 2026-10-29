@@ -380,8 +380,8 @@ class ConfigBindingTest {
         assertThat(((GeneratorSpec.Segment) spec.generators().get("order")).batch().initialOffset(), is(10_001L));
         GeneratorSpec.PeriodicSegment bill = (GeneratorSpec.PeriodicSegment) spec.generators().get("bill");
         assertThat(bill.batch().initialOffset(), is(20_001L));
-        // Offset 0 writes nothing: the 5.0 default 1 is the 4.x 0 + 1.
-        assertThat(((GeneratorSpec.Segment) spec("segments-only").generators().get("invoice")).batch().initialOffset(), is(1L));
+        // Offset 0: the migrated next value of apply-result.json (R2-mig-01), above the 5.0 default 1 = the 4.x 0 + 1.
+        assertThat(((GeneratorSpec.Segment) spec("segments-only").generators().get("invoice")).batch().initialOffset(), is(42L));
 
         // A migrated period continues from its 4.x value; the next, new period starts at offset + 1 as in 4.x.
         InMemoryStore store = new InMemoryStore();

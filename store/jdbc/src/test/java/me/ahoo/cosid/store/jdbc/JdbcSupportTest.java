@@ -230,6 +230,10 @@ class JdbcSupportTest {
         java.sql.SQLException withAccount = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class,
             () -> dataSource.getConnection("cosid", "other"));
         assertTrue(!withAccount.getMessage().contains("secret"), withAccount.getMessage());
+        // A url without a password: the failure as it is.
+        DriverManagerDataSource plain = new DriverManagerDataSource("jdbc:nosuchdriver://db/cosid", null, null);
+        java.sql.SQLException asIs = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, plain::getConnection);
+        assertTrue(asIs.getMessage().contains("jdbc:nosuchdriver://db/cosid"), asIs.getMessage());
     }
 
     @Test

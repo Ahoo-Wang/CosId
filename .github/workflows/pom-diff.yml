@@ -1,0 +1,39 @@
+# Temporary: the published POMs of main and of this commit, side by side. Never merged.
+name: POM diff
+on:
+  push:
+    branches: [ 'pomdiff/**' ]
+permissions:
+  contents: read
+jobs:
+  pom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Generate the POMs on both sides
+        run: |
+          tasks=":core:generatePomFileForMavenLibraryPublication :store:redis:generatePomFileForMavenLibraryPublication :store:jdbc:generatePomFileForMavenLibraryPublication :store:zookeeper:generatePomFileForMavenLibraryPublication :store:mongo:generatePomFileForMavenLibraryPublication :spring:starter:generatePomFileForMavenLibraryPublication :spring:autoconfigure:generatePomFileForMavenLibraryPublication"
+          checks=":core:checkPublishedMetadata :store:redis:checkPublishedMetadata :store:jdbc:checkPublishedMetadata :store:zookeeper:checkPublishedMetadata :store:mongo:checkPublishedMetadata :spring:starter:checkPublishedMetadata :spring:autoconfigure:checkPublishedMetadata"
+          git worktree add ../before origin/main
+          (cd ../before && ./gradlew -q $tasks)
+          ./gradlew -q $tasks $checks
+          mkdir -p out/before out/after
+          for p in core store/redis store/jdbc store/zookeeper store/mongo spring/starter spring/autoconfigure; do
+            n=$(echo $p | tr / -)
+            cp ../before/$p/build/publications/mavenLibrary/pom-default.xml out/before/$n.xml
+            cp $p/build/publications/mavenLibrary/pom-default.xml out/after/$n.xml
+            echo "=== $n"; diff out/before/$n.xml out/after/$n.xml || true
+          done
+          grep -l "spring-boot-dependencies" out/after/*.xml && echo "BOM LEAKED" || echo "no spring-boot-dependencies in any POM"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pom-diff
+          path: out

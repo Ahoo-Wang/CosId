@@ -649,7 +649,32 @@ bom:16 个发布模块与 `settings.gradle.kts` 一致,`checkBom` 会守住,无�
 |---|---|
 | #1365–#1412 逐 PR 审查 | 进行中 |
 | 各模块六个维度 | 待做 |
-| D35 结论 1:性能 | 待做 |
+| D35 结论 1:性能 | ✅ 完成(§10.2) |
 | D35 结论 2:特性 | 待做 |
 | D35 结论 3:文档 | 待做 |
 | 第 1 轮"已修复"抽查 | 待做 |
+
+### 10.2 D35 结论 1:性能无明显回退
+
+**结论:通过(PASS),附 2 条文档/留档发现(R2-perf-01、R2-perf-02)。** 证据:
+
+1. **第七次正式门槛**([run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823),`457c7266`,release 设置 3 fork × 5 × 2 s,D34 容差 + D44 端到端/组件口径,4.x 基线 4.1.1,存储组 ABBA):8 组 0 组失败,123 个判定行中 1 行首轮失败、重跑通过,3 个组件行 WARN。逐行读了 `release-gate-summary` 的 `report.md`,5.x 比 4.x 差 5% 以上的行只有下面这些,均已有解释:
+
+| 行 | 4.x | 5.x | 判定 | 解释 |
+|---|---|---|---|---|
+| `SnowflakeMillisBenchmark.generate_t16` 吞吐 | 4,097 | 3,877(−5.4%)/ 重跑 3,956(−3.4%) | 首轮 FAIL,重跑 PASS | 两边都顶在 12 位序列的 4,096/ms 上限;第六次门槛同一行 4,090 vs 4,098。这台 runner 报 `turbo ON`;判为噪声,不是回退 |
+| `Mongo/ZookeeperChainIdBenchmark.generate_t16` step=10 吞吐 | 58.96 ± 22.1 / 58.91 ± 26.9 | 45.16 / 42.97(−23% / −27%) | PASS(在 4.x 误差内) | 4.x 受存储约束且呈双峰(逐迭代 0.5–125),只在预取恰好领先时冲高;5.x 平稳在单计数器的争用上限(同 runner 内存 P5 t16 为 44.8,AtomicLong 参照 69.4)。见 P5 调查(会话笔记 `p5-t16-and-atomiclong.md`)。不是回退 |
+| `MongoStoreBenchmark.reserve_t1` avgt / p99 | 867 / 1,451 µs | 918 / 1,757 µs(+5.9% / +21.1%) | WARN(D44 组件行) | 组件行在 D44 软上限内;端到端 `MongoChainIdBenchmark` 全部 PASS |
+| `MySqlStoreBenchmark.acquire_t1` avgt | 960 µs | 1,013 µs(+5.5%) | WARN(D44 组件行) | 同上;acquire 是启动期低频路径 |
+
+2. **门槛之后合入的改动**(`457c7266..8ebde66d`):只有两个 PR 改了发布的代码。
+   - **#1405**(`40c5992f`):`CosIdSpecs`(Spring 绑定,启动期一次)与 TCK 的 `RangeStoreContract`(测试),都不在发号路径上。
+   - **#1406**(`ac3de73f`,UUIDv7):`GeneratorEntry` 只新增 `uuidV7(...)` 工厂和常量,`ids()` 的异常文案变了(只在抛错时拼接);`RuntimeParts`/`RuntimePlan` 只在启动期的 `switch` 里加了分支;`CosIdRuntime` 只改 javadoc;`IdController` 的 `/strings` 改走 `runtime.text(name)`(server 不在门槛内,见 R2-perf-02)。snowflake、segment、periodic、cosid80 的发号路径与 codec 一行未动,门槛测过的路径因此不受影响。
+   - 其余是发布 chore、pnpm、`benchmark/` 本身(#1404 的参照行,#1406 的 P13 与 `compare` 的 TREND 类型)。
+3. **门槛没有测到的新热路径**:`UuidV7Generator`(P13)按设计只报告不判定(4.x 没有对应实现,10 §1.2)。它还没进过正式门槛,只在 smoke 设置的 dry run([40841106228](https://github.com/Ahoo-Wang/CosId/actions/runs/40841106228),`release-gate-check/uuidv7`)里跑过:t1 28.1、t4 13.0、t16 13.5 ops/µs,`text_t1` 20.6 ops/µs。代码:每个 id 一次 `AtomicLong` CAS,加一次(跨毫秒时两次)`ThreadLocalRandom`,`generateUuid` 每次分配一个 `UUID`,`generate` 再加一个 `String`(`UuidV7Generator.java:86-93,113-133`)。4.x 的 `UuidGenerator`(v4)对应 5.0 的 `IdGenerators.uuid()`,两边都是 `UUID.randomUUID().toString()`(`IdGenerators.java:89-91`),没有差异。
+4. **rc.1 发布提交 `c154e69d` 本身没有跑过正式门槛**,两者之间只有上面第 2 条的改动。GA 准入清单本来就要求"门槛在 GA 提交上按 D34 PASS";那一次运行也会产出 P13 的第一组正式趋势数据。
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 冻结面 |
+|---|---|---|---|---|---|---|
+| R2-perf-01 | MINOR | 文档(性能证据) | `documentation/docs/{en,zh}/reference/performance/benchmark.md:41,54-61` / `:36,48-55`;`docs/jmh/`(无 `5.0*`、无 `4.1.1/`) | 文档站的"5.0 results"一节仍是 R5-A 的占位("Pending",结果"由专用机器产出"),并写"发布数据只来自一台固定、安静的物理机",与 D31/D34(CI 共享 runner 上 ABBA 交替、按容差判定)矛盾。RC1 的性能依据(第七次门槛)只在 Actions artifact 里,`release-gate-summary` 将于 **2027-01-27** 过期;10 §1.3 与 `scenarios.md:110-112` 要求的留档(`report.md` → `docs/jmh/5.0/`,`baseline-4x.md` → `docs/jmh/4.1.1/release-ci.md`)没有做 | GA 前把 GA 提交的门槛摘要提交到 `docs/jmh/5.0.0/`(和 4.1.1 基线),中英文"5.0 results"一节改为摘要表加链接,删掉"专用物理机"的说法,改写成 D31/D34/D44 的口径;rc.1 的第七次门槛摘要也可以先留档 | 无 |
+| R2-perf-02 | MINOR | 高性能(门槛覆盖) | `benchmark/scenarios.md`(P1–P13);`server/.../IdController.java` | 下面这些发布的热路径不在任何门槛场景里:cosid-server 的 `/ids/**`(4.x proxy 也没有基准,无法对照);Jackson `@AsString` 序列化、MyBatis/Spring Data JDBC 的填充(P12 只测 `IdFiller.fill` 本身);`runtime.text(name)` 对 cosid80/periodic 的文本视图(P3/P4 测的是 codec 直接调用,是否经过 `text()` 由 harness 决定)。都不是回退证据,只是 D21 的覆盖面 | 不阻塞 GA。在 `scenarios.md` 列出"不在门槛内的路径"及理由;若要补,优先 server `/ids`(5.x 趋势行,与 P13 同样只报告) | 无 |

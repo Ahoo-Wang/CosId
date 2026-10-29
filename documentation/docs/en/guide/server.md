@@ -29,7 +29,7 @@ runs as a non-root user on port 8688; `/actuator/health/liveness` answers withou
 container health check. `/actuator/health/readiness` also asks the backing store (a reserve of size 1 on the key
 `cosid-server/readiness`, at most one at a time, its result reused for 1s, `DOWN` after 2s without an answer), so a
 load balancer stops sending calls to a server whose store is down. That check is the health contributor
-`cosidServerStore` (`/actuator/health/cosidServerStore`); a readiness group of your own includes it by that name. A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`, and
+`cosidServerStore` (`/actuator/health/cosidServerStore`); a readiness group of your own includes it by that name. A JDBC backing store with `options.url` gets a HikariCP pool of `blocking.threads` + the generators + 1 connections at most (65 with the defaults and no generator), 2 idle, a connection awaited no longer than the store `timeout`, and
 the image carries the MySQL, MariaDB, PostgreSQL and SQL Server drivers.
 [`examples/server/compose.yaml`](https://github.com/Ahoo-Wang/CosId/tree/main/examples/server) runs the server on Redis
 with a client next to it. To build the image from source: `./gradlew :server:dockerImage` (or `:server:bootBuildImage`).
@@ -83,9 +83,9 @@ Keys and namespaces travel in the JSON body, never in the path. Errors are `{cod
 |---|---|---|---|
 | POST | `/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`; `410 range_sealed`; `422 range_exhausted` |
 | POST | `/ranges:seal` | `{key}` | `204`; `501 seal_unsupported` |
-| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | lease + `{reason, duplicateOwnerKey}`; `409 slots_exhausted {earliestExpiresAt}`; `409 namespace_mismatch` |
-| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
-| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`; `409 lease_lost` |
+| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, slotOffset?, preferredSlot?}` | lease + `{reason, duplicateOwnerKey}`; `409 slots_exhausted {earliestExpiresAt}`; `409 namespace_mismatch` (another limit, tolerance or slotOffset than its first use) |
+| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
+| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, lastIssued}` | `204`; `409 lease_lost` |
 | GET | `/ids[/{generator}]?count=n` | | `{ids: [...]}` (optional) |
 | GET | `/ids[/{generator}]/strings?count=n` | | `{ids: ["..."]}`: the text ids of any strategy (optional): `long` ids through the generator's codec, cosid80, periodic segment and uuidv7 text |
 | GET | `/ids/{generator}/periodic?count=n` | | `{period, values: [...]}`, all of one period (optional) |
@@ -216,6 +216,11 @@ cosid:
 ```bash
 curl -H "Authorization: Bearer $TOKEN" 'http://cosid-server:8688/ids/ticket?count=10'
 ```
+
+**JavaScript clients:** `/ids` answers JSON numbers, and `JSON.parse` rounds integers above 2^53, so a 63-bit id
+(every `SNOWFLAKE_MS` id: they passed 2^53 some 25 days after the 2019 epoch) can arrive as a neighbour's: two ids may become one number. A client
+that is not on the JVM reads `/ids/{generator}/strings` (decimal text without a codec), or the generator uses a
+`JS_SAFE_*` layout.
 
 The server is then an ordinary `CosIdRuntime`: a time-based generator also needs `cosid.machine`, and each server
 instance leases its own slot. Ids from one server namespace are unique for every caller, which is one way to get ids

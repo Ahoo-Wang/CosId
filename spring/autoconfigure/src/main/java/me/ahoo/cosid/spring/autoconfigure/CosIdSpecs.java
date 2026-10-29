@@ -29,6 +29,8 @@ import me.ahoo.cosid.store.StoreKeys;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.bind.AbstractBindHandler;
 import org.springframework.boot.context.properties.bind.BindContext;
 import org.springframework.boot.context.properties.bind.Bindable;
@@ -50,6 +52,8 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.RecordComponent;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -80,13 +84,14 @@ public final class CosIdSpecs {
         "SNOWFLAKE_S", Layout.SNOWFLAKE_S,
         "JS_SAFE_MS", Layout.JS_SAFE_MS,
         "JS_SAFE_S", Layout.JS_SAFE_S);
-    /** A namespace taken from {@code spring.application.name}: what every store and the server accept. */
     /** The {@code cosid.*} keys bound elsewhere: the integrations and the server. */
     private static final List<String> FOREIGN_KEYS = List.of("server", "mybatis", "jdbc", "activiti", "flowable", "axon");
     private static final Map<String, Period> PERIODS = Map.of(
         "YEAR", Period.YEAR,
         "YEAR_MONTH", Period.YEAR_MONTH,
         "YEAR_MONTH_DAY", Period.YEAR_MONTH_DAY);
+
+    private static final Logger log = LoggerFactory.getLogger(CosIdSpecs.class);
 
     private CosIdSpecs() {
     }
@@ -140,11 +145,14 @@ public final class CosIdSpecs {
 
     /**
      * Fails the binding when a {@code cosid.*} key bound to nothing; the keys checked elsewhere and empty values, such as
-     * {@code preferred-slot: ${POD_ORDINAL:}}, which bind to null, are not unknown.
+     * {@code preferred-slot: ${POD_ORDINAL:}}, which bind to null, are not unknown. Nor are the keys of a list in a
+     * source below the one it bound from (R2-spring-01): Spring binds a list, such as a {@code codec}, from the first
+     * source that has it, as a whole, so a profile or the command line replaces it.
      */
     private static final class UnknownKeys extends AbstractBindHandler {
         private final Iterable<ConfigurationPropertySource> sources;
         private final Set<ConfigurationPropertyName> bound = new HashSet<>();
+        private final Set<ConfigurationPropertyName> lists = new HashSet<>();
 
         private UnknownKeys(Iterable<ConfigurationPropertySource> sources) {
             this.sources = sources;
@@ -153,6 +161,9 @@ public final class CosIdSpecs {
         @Override
         public Object onSuccess(ConfigurationPropertyName name, Bindable<?> target, BindContext context, Object result) {
             bound.add(name);
+            if (result instanceof Collection<?>) {
+                lists.add(name);
+            }
             return super.onSuccess(name, target, context, result);
         }
 
@@ -161,10 +172,17 @@ public final class CosIdSpecs {
             if (context.getDepth() == 0) {
                 Set<String> unknown = new TreeSet<>();
                 Set<String> bracketed = new TreeSet<>();
+                // Each bound list and the source it bound from: the first, in order, that has a key of it.
+                Map<ConfigurationPropertyName, ConfigurationPropertySource> listSources = new HashMap<>();
                 for (ConfigurationPropertySource source : sources) {
-                    if (source instanceof IterableConfigurationPropertySource iterable && !isSystem(source)) {
+                    if (source instanceof IterableConfigurationPropertySource iterable) {
+                        boolean system = isSystem(source);
                         iterable.filter(name::isAncestorOf).forEach(key -> {
-                            if (!bound.contains(key) && !boundElsewhere(key) && !isEmpty(source, key)) {
+                            Optional<ConfigurationPropertyName> list = lists.stream().filter(root -> root.isAncestorOf(key)).findFirst();
+                            if (list.isPresent() && listSources.computeIfAbsent(list.get(), root -> source) != source) {
+                                return;
+                            }
+                            if (!system && !bound.contains(key) && !boundElsewhere(key) && !isEmpty(source, key)) {
                                 unknown.add(key.toString());
                                 bracketed(key).ifPresent(bracketed::add);
                             }
@@ -455,9 +473,62 @@ public final class CosIdSpecs {
             spec = null;
         }
         if (!generator.disabled()) {
+            List<String> ignored = ignoredKeys(strategy, generator);
+            if (!ignored.isEmpty()) {
+                // R2-spring-02 (user's decision): a warning, not a failed start, which would tighten cosid.* after RC1.
+                log.warn("{}: {} do not apply to a {} generator and are ignored", at, ignored, strategy);
+            }
             return spec;
         }
         return new GeneratorSpec.Disabled(spec != null && own.isEmpty() ? spec : placeholder(strategy, generator));
+    }
+
+    /** The strategies each key without a default applies to; cosid80 and uuidv7 refuse the others themselves. */
+    private static final Map<String, Set<String>> KEY_STRATEGIES = Map.ofEntries(
+        Map.entry("layout", Set.of(SNOWFLAKE)),
+        Map.entry("epoch", Set.of(SNOWFLAKE)),
+        Map.entry("unit", Set.of(SNOWFLAKE)),
+        Map.entry("time-bits", Set.of(SNOWFLAKE, COSID80)),
+        Map.entry("node-bits", Set.of(SNOWFLAKE, COSID80)),
+        Map.entry("seq-bits", Set.of(SNOWFLAKE, COSID80)),
+        Map.entry("seq-reset-threshold", Set.of(SNOWFLAKE, COSID80)),
+        Map.entry("store", Set.of(SEGMENT, PERIODIC_SEGMENT)),
+        Map.entry("max-batch", Set.of(SEGMENT, PERIODIC_SEGMENT)),
+        Map.entry("range-ttl", Set.of(SEGMENT, PERIODIC_SEGMENT)),
+        Map.entry("period", Set.of(PERIODIC_SEGMENT)),
+        Map.entry("zone", Set.of(PERIODIC_SEGMENT)),
+        Map.entry("seal-after", Set.of(PERIODIC_SEGMENT)));
+
+    /**
+     * The keys set on a snowflake, segment, periodic segment or custom generator that its strategy has no use for, such
+     * as {@code period} on a segment (R2-spring-02): ignored, with a warning. Keys with a default value cannot tell a
+     * setting from the default and are not reported, as for {@link #uuidV7Keys}.
+     */
+    static List<String> ignoredKeys(String strategy, CosIdProperties.Generator generator) {
+        if (COSID80.equals(strategy) || UUIDV7.equals(strategy)) {
+            return List.of();
+        }
+        Map<String, Object> keys = new LinkedHashMap<>();
+        keys.put("layout", generator.layout());
+        keys.put("epoch", generator.epoch());
+        keys.put("unit", generator.unit());
+        keys.put("time-bits", generator.timeBits());
+        keys.put("node-bits", generator.nodeBits());
+        keys.put("seq-bits", generator.seqBits());
+        keys.put("seq-reset-threshold", generator.seqResetThreshold());
+        keys.put("store", generator.store());
+        keys.put("max-batch", generator.maxBatch());
+        keys.put("range-ttl", generator.rangeTtl());
+        keys.put("period", generator.period());
+        keys.put("zone", generator.zone());
+        keys.put("seal-after", generator.sealAfter());
+        List<String> ignored = new ArrayList<>();
+        keys.forEach((key, value) -> {
+            if (value != null && !KEY_STRATEGIES.get(key).contains(strategy)) {
+                ignored.add(key);
+            }
+        });
+        return ignored;
     }
 
     /**

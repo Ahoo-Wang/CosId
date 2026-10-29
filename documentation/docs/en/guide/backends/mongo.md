@@ -9,6 +9,12 @@ collections (they hold a few rows per key and slot): unsharded, they live on the
 routed there, as on a replica set, and the store clock is that shard's. A sharded `cosid_slot` is not supported: its
 `findOneAndUpdate` filters do not carry the shard key, which MongoDB before 7.1 refuses.
 
+## Driver version {#driver}
+
+`cosid-store-mongo` is built and tested on **mongodb-driver-sync 5.8.1**, the version Spring Boot 4.1.2 manages: an
+application on Boot 4.1.2 gets 5.8.1 with Maven and with Gradle alike (CI job `published-jars`,
+[run 40881059003](https://github.com/Ahoo-Wang/CosId/actions/runs/40881059003)).
+
 ## Configuration
 
 ```yaml

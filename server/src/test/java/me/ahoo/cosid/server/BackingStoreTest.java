@@ -80,6 +80,13 @@ class BackingStoreTest {
         try (BackingStore store = BackingStore.open(Map.of("main", jdbc), "main", List.of(), 2)) {
             assertEquals(0, store.ranges().reserve("ns/a", 3, 0).start());
         }
+        // R2-server-01: few idle connections, and no wait for one beyond the store timeout.
+        try (BackingStore store = BackingStore.open(Map.of("main", jdbc), "main", List.of(), 66)) {
+            com.zaxxer.hikari.HikariDataSource pool = store.pool().orElseThrow();
+            assertEquals(66, pool.getMaximumPoolSize());
+            assertEquals(BackingStore.MIN_IDLE, pool.getMinimumIdle());
+            assertEquals(3000, pool.getConnectionTimeout());
+        }
         StoreSpec broken = StoreSpec.builder("jdbc")
             .timeout(Duration.ofSeconds(3))
             .option("url", url)

@@ -19,7 +19,7 @@ public class LineItem extends BaseEntity { }
 ```
 
 - 字段类型：`long` / `Long`、`int` / `Integer`（检查范围，超出抛 `IdOverflowException`），以及 `String`（经生成器的编解码器；
-  `cosid80` 经其 `PartsCodec`，`periodic-segment` 经其 `GroupedCodec`）。
+  `cosid80` 经其 `PartsCodec`，`periodic-segment` 经其 `GroupedCodec`，`uuidv7` 为规范的 UUID 文本；`uuidv7` 生成器只填充 `String` 字段）。
 - **字段仅在未设置时才填充**：`≤ 0`、`null` 或空字符串。
 - 有 getter 与 setter 时使用它们，否则直接访问字段。会搜索父类，并解析泛型字段类型。一个类最多有一个 ID。
 - 每个类的访问器在首次使用时解析，并以 method handle 形式缓存。没有扫描或注册步骤（4.x 的访问器注册表与扫描器已移除）。

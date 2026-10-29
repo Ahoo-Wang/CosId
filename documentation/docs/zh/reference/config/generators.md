@@ -6,15 +6,19 @@
 
 名字可以带点，例如 `eshop-ordering.order`（每个聚合一个生成器）。在 Spring 配置中要写在方括号里，否则点会把名字拆开：
 YAML 写作 `cosid.generators."[eshop-ordering.order]"`，properties 写作 `cosid.generators[eshop-ordering.order].strategy=segment`。
-不加方括号时，启动会因未知键失败，报错信息中给出加方括号的写法。
+不加方括号时，启动会因未知键失败，报错信息中给出加方括号的写法。环境变量与系统属性写不出方括号（也不做未知键检查）：带点的名字只能来自配置文件或命令行
+（`--cosid.generators[eshop-ordering.order].strategy=segment`），不能来自 `COSID_GENERATORS_...` 环境变量。
 
 ## 所有策略
 
 | 属性 | 默认值 | 含义 |
 |---|---|---|
-| `strategy` | | `snowflake`、`cosid80`、`segment`、`periodic-segment` 或 `custom` |
+| `strategy` | | `snowflake`、`cosid80`、`segment`、`periodic-segment`、`custom` 或 `uuidv7` |
 | `disabled` | `false` | 已声明但不创建；其 Bean 抛出 `GeneratorDisabledException`（D24） |
 | `codec` | `[]`（十进制） | 编解码器列表，按顺序应用（见下文） |
+
+写在不适用策略上的键（例如 `segment` 上的 `period`、`snowflake` 上的 `store`）不起作用：会被忽略，并在日志中以 WARN 列出。
+（`cosid80` 与 `uuidv7` 会对这类键报错。）
 
 ## `snowflake` 与 `cosid80`
 
@@ -69,7 +73,8 @@ cosid:
 ```
 
 它**不需要 machine、存储或租约**：生成器全部为 `uuidv7` 的应用，不配置任何 `cosid.machine.*` 或 `cosid.stores.*` 也能启动。它没有自己的属性；
-配置 `machine` 会让启动失败，其他策略的键（`layout`、`epoch`、`time-bits`、`store`、`period`、`codec` 等）也一样。
+配置 `machine` 会让启动失败，其他策略中没有默认值的键（`layout`、`epoch`、`time-bits`、`store`、`period`、`codec` 等）也一样；
+有默认值的键（`step`、`initial-offset`、`lookahead`、`reserve-timeout`、`prewarm`、`regression.*`）无法与默认值区分，会被忽略。
 
 - **无需协调即可唯一**：同一实例的 id 不会碰撞（由计数器区分）；不同实例的两个 id 只有在毫秒、计数器取值和 58 位随机数都相同时才会碰撞。
   每个实例在每毫秒以小于 2¹⁵ 的随机值作为计数起点，因此 m 个实例在同一毫秒内各发 k 个 id 时，该毫秒内的期望碰撞数约为 m²k² / 2⁷⁴。

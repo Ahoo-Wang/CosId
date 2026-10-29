@@ -26,6 +26,10 @@ import java.util.Objects;
  * The time-based generator: Snowflake layouts and the 80-bit CosId alike (03-core-model.md §4). Reads the slot binding
  * once per id and checks the slot window before publishing the new state (§4.1); issuing is a short critical section and
  * never waits while holding it.
+ *
+ * <p>Its public constructors are the assembly entry {@code CosIdRuntime} uses (R2-core-03): they keep their signatures,
+ * and a new parameter comes only through a builder or a static factory, never as one more positional overload
+ * (api-freeze.md §4.2).
  */
 public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, AutoCloseable {
     private final String name;

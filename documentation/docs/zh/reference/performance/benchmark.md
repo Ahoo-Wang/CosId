@@ -33,7 +33,7 @@ benchmark/
 | P13 | UUIDv7（只在 5.x 侧运行，只报告趋势，不判定），1 / 4 / 16 线程 | 吞吐量 |
 
 每行的界限取 4.x 加减其误差（JMH 的 99.9% 置信区间）与 4.x 乘以容差两者中较宽的一个：吞吐量与平均耗时 5%，p99 / p99.9 10%，内存分配取 5% 与 +64 B 中较大者。首次失败的行会在新的 fork 中重跑，重跑仍失败才算回退。存储场景（P7、P10）的两侧各运行两次，按 ABBA 顺序（4.x、5.x、5.x、4.x），使任一侧都不总是紧跟在另一侧之后访问存储。门槛以端到端发号为准（D44）：组件行（P9 编解码、P10 存储原语）超出上述界限时只给出警告，警告的上限为吞吐与平均耗时 20%、p99 / p99.9 30%、内存分配取 25% 与 +64 B 中较大者，再超出才失败。
-发布数据只来自一台固定、安静的物理机。来自共享机器或其他时间的数据都是噪声。
+门槛运行在 GitHub 的共享 runner 上（D31）：同一场景的两侧在同一台 runner 上交替运行，按上述容差相互比较；与其他 runner 或其他时间的数据比较没有意义，那些都是噪声。
 
 自行运行：
 
@@ -45,12 +45,21 @@ benchmark/compare BASELINE.json CANDIDATE.json
 
 ## 5.0 结果
 
-<!-- R5-A fills this section with the 5.0 release-gate report: machine, JDK, the compare table per scenario, and a
-     link to docs/jmh/5.0.0/. -->
+<!-- R2-perf-01: the summary of the gate on the GA commit, committed to docs/jmh/5.0.0/, goes here. -->
 
-::: info 待定
-5.0 发布门槛报告由发布基准（R5-A）在专用机器上产出。结果将提交到 [`docs/jmh/`](https://github.com/Ahoo-Wang/CosId/tree/main/docs/jmh)
-（`docs/jmh/<version>/`，附机器与 JDK 信息），并在此处汇总。
+候选发布版通过了门槛：第七次对照 4.1.1 运行（[run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823)），8 组全部通过，
+3 个组件行 WARN（D44）。端到端的号段链在单线程、step 10 下的发号速度，4.x → 5.0：
+
+| 存储 | 4.1.1（ops/µs） | 5.0（ops/µs） |
+|---|---|---|
+| MongoDB | 1.75 | 392 |
+| MySQL | 0.47 | 209 |
+| Redis | 0.86 | 211 |
+| ZooKeeper | 0.28 | 405 |
+
+::: info GA
+门槛会在 GA 提交上再跑一次；其摘要（`report.md`，以及 4.1.1 一侧的 `baseline-4x.md`）会提交到
+[`docs/jmh/`](https://github.com/Ahoo-Wang/CosId/tree/main/docs/jmh)（`docs/jmh/5.0.0/`），并在此处汇总。
 :::
 
 ## 历史结果

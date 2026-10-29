@@ -27,6 +27,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,9 @@ import java.util.ServiceLoader;
 /**
  * The store whose primitives the server exposes (08-remote.md §1): one of {@code cosid.stores}, opened through the
  * same {@link StoreProvider}s as the runtime (beans first, then {@link ServiceLoader}). A JDBC store with
- * {@code options.url} gets a HikariCP pool sized to the blocking pool, which closes with the store.
+ * {@code options.url} gets a HikariCP pool, which closes with the store (R2-server-01): a connection for each blocking
+ * thread, each generator's refill and the readiness check; 2 idle at least, and a connection waits at most the store
+ * timeout, not Hikari's 30s.
  */
 public final class BackingStore implements Store {
     private static final Logger log = LoggerFactory.getLogger(BackingStore.class);
@@ -58,7 +61,7 @@ public final class BackingStore implements Store {
      * @param stores    {@code cosid.stores}
      * @param name      {@code cosid.server.store}; may be null when there is one store
      * @param providers the provider beans, which win over {@link ServiceLoader} for their type
-     * @param poolSize  the connection pool size of a JDBC store
+     * @param poolSize  the connection pool size of a JDBC store: the blocking threads, the generators and the readiness check
      * @return the store
      */
     static BackingStore open(Map<String, StoreSpec> stores, String name, List<StoreProvider> providers, int poolSize) {
@@ -69,7 +72,7 @@ public final class BackingStore implements Store {
             .orElseThrow(() -> new CosIdException("No StoreProvider of type [" + spec.type() + "] for the backing store"));
         // The options as the runtime passes them: an environment variable or kebab-case key reaches its option (R1-spring-01).
         Map<String, Object> options = StoreOptions.resolve(chosen, provider, spec.options());
-        HikariDataSource pool = "jdbc".equals(spec.type()) && options.get("url") != null ? pool(chosen, options, poolSize) : null;
+        HikariDataSource pool = "jdbc".equals(spec.type()) && options.get("url") != null ? pool(chosen, options, poolSize, spec.timeout()) : null;
         try {
             StoreConfig.Builder config = StoreConfig.builder(chosen, spec.type()).timeout(spec.timeout()).options(options);
             if (pool != null) {
@@ -124,14 +127,28 @@ public final class BackingStore implements Store {
         return Optional.ofNullable(loaded.get(type));
     }
 
-    private static HikariDataSource pool(String name, Map<String, Object> options, int poolSize) {
+    /** The fewest idle connections a JDBC backing store keeps. */
+    static final int MIN_IDLE = 2;
+    /** Hikari refuses a connection timeout below 250ms. */
+    private static final long MIN_CONNECTION_TIMEOUT_MILLIS = 250;
+
+    private static HikariDataSource pool(String name, Map<String, Object> options, int poolSize, Duration timeout) {
         HikariConfig config = new HikariConfig();
         config.setPoolName("cosid-server-" + name);
         config.setJdbcUrl(options.get("url").toString());
         Optional.ofNullable(options.get("username")).map(Object::toString).ifPresent(config::setUsername);
         Optional.ofNullable(options.get("password")).map(Object::toString).ifPresent(config::setPassword);
         config.setMaximumPoolSize(poolSize);
+        // Not the pool size: every instance would hold it open (64 by default), past MySQL's 151 connections at three.
+        config.setMinimumIdle(Math.min(MIN_IDLE, poolSize));
+        // A call waits for a connection no longer than for the store, where the client gave up long before Hikari's 30s.
+        config.setConnectionTimeout(Math.max(MIN_CONNECTION_TIMEOUT_MILLIS, timeout.toMillis()));
         return new HikariDataSource(config);
+    }
+
+    /** The connection pool of a JDBC store opened from its url, for tests. */
+    Optional<HikariDataSource> pool() {
+        return ownedClient instanceof HikariDataSource pool ? Optional.of(pool) : Optional.empty();
     }
 
     /**

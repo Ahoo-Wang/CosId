@@ -61,7 +61,8 @@ public final class StoreOptions {
     }
 
     /**
-     * The options under the provider's spelling.
+     * The options under the provider's spelling, the problems collected for one message with others: what the runtime
+     * checks every store with. It keeps its signature (R2-core-03); a new parameter comes through a new method.
      *
      * @param store    the store name, for the problems
      * @param type     the store type

@@ -50,8 +50,9 @@ import java.util.Objects;
  * the spec is built then from {@code cosid.*} and the {@link RuntimeSpecCustomizer} beans, and is the
  * {@code cosIdRuntimeSpec} bean the runtime starts from.
  *
- * <p>Bean types: {@link IdGenerator} for {@code snowflake} and {@code segment} (the {@code default} one is primary),
- * {@link PartsIdGenerator} for {@code cosid80}, {@link GroupedIdGenerator} for {@code periodic-segment}; the concrete
+ * <p>Bean types: {@link IdGenerator} for {@code snowflake}, {@code segment} and {@code custom} (the {@code default} one
+ * is primary), {@link PartsIdGenerator} for {@code cosid80}, {@link GroupedIdGenerator} for {@code periodic-segment}, and
+ * the concrete {@link UuidV7Generator} for {@code uuidv7}, which has no interface of its own; the other concrete
  * generators are {@code CosIdRuntime.get(name, type)}. The bean of a disabled generator throws
  * {@link GeneratorDisabledException} on each call (D24). Every generator bean depends on the runtime, so it is
  * destroyed before the runtime closes.
@@ -154,7 +155,8 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
      * {@code cosid.metrics.generated.enabled} is on. A disabled generator's bean throws {@link GeneratorDisabledException} on
      * each call (D24).
      *
-     * @param <T> the bean type: {@link IdGenerator}, {@link PartsIdGenerator} or {@link GroupedIdGenerator}
+     * @param <T> the bean type: {@link IdGenerator}, {@link PartsIdGenerator}, {@link GroupedIdGenerator} or
+     *            {@link UuidV7Generator}
      */
     public static final class GeneratorBean<T> implements FactoryBean<T> {
         private final CosIdRuntime runtime;
@@ -183,6 +185,7 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
             }
         }
 
+        /** The bean of a disabled generator, by every bean type {@link #beanType} gives (R2-uuid-01). */
         private Object disabled() {
             if (type == IdGenerator.class) {
                 return (IdGenerator) () -> runtime.get(name, IdGenerator.class).generate();
@@ -190,7 +193,16 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
             if (type == PartsIdGenerator.class) {
                 return (PartsIdGenerator) () -> runtime.get(name, PartsIdGenerator.class).nextParts();
             }
-            return (GroupedIdGenerator) () -> runtime.get(name, GroupedIdGenerator.class).generate();
+            if (type == GroupedIdGenerator.class) {
+                return (GroupedIdGenerator) () -> runtime.get(name, GroupedIdGenerator.class).generate();
+            }
+            if (type == UuidV7Generator.class) {
+                // A final class: a generator whose time source throws, as the runtime would on use.
+                return new UuidV7Generator(name, () -> {
+                    throw new GeneratorDisabledException(name);
+                });
+            }
+            throw new IllegalStateException("No disabled bean of type " + type.getName() + " for generator [" + name + "]");
         }
 
         @Override

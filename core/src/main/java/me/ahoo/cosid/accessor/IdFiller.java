@@ -15,7 +15,8 @@ package me.ahoo.cosid.accessor;
 
 /**
  * Fills the {@link CosId} field of an entity when it is not set yet ({@code <= 0} or empty); {@code long}/{@code Long},
- * {@code int}/{@code Integer} (range checked) and {@code String} (through the generator's codec) fields
+ * {@code int}/{@code Integer} (range checked) and {@code String} fields: the generator's text, as {@code text(name)}
+ * gives it (its codec, the 80-bit or periodic text, the canonical UUIDv7 form)
  * (07-runtime-and-spring.md §3).
  */
 @FunctionalInterface

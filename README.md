@@ -15,9 +15,9 @@
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
 > [!WARNING]
-> **`5.0.0-alpha.x` is a preview with no compatibility promise.** The API, configuration, storage format and
-> cosid-server HTTP API may change between alphas and before GA, and no data migration is provided between alphas. Do
-> not use it in production: stay on 4.x there.
+> **`5.0.0-rc.x` is a release candidate.** From RC1 on, the Java API, the `cosid.*` configuration and the storage
+> formats and protocols are frozen: later 5.x releases only add to them. Production use should still wait for GA; until
+> then, stay on 4.x there.
 
 Every replica of a service needs ids (primary keys, order numbers, event ids) that never collide with those of the other
 replicas. *CosId* generates them inside your process, without a network call per id, and does the coordination that
@@ -35,6 +35,8 @@ moves a 4.x deployment over.
 | `segment` | `long`, dense, increasing per instance | you want short numeric keys; reservations size themselves to a time budget |
 | `periodic-segment` | per year / month / day (`20261027-000042`) | business numbers that restart each period |
 | `cosid80` | 80-bit text | you need more than 64 bits |
+| `uuidv7` | UUIDv7 (RFC 9562), time-ordered | you want standard UUIDs, with no machine, store nor lease |
+| `custom` | your own `long` generator | you have one, and want it served like the others |
 
 Stores: JDBC (MySQL 8.4+, MariaDB 10.11+, PostgreSQL 15+, SQL Server 2019+, H2), Redis 7.0+, MongoDB 6.0+, ZooKeeper
 3.8+, and cosid-server; declared once, mixed freely.
@@ -43,7 +45,7 @@ Stores: JDBC (MySQL 8.4+, MariaDB 10.11+, PostgreSQL 15+, SQL Server 2019+, H2),
 
 | CosId | Spring Boot | Java | Branch |
 |-------|-------------|------|--------|
-| 5.x | 4.0+ | 21+ | `main` |
+| 5.x | 4.1.2+ | 21+ | `main` |
 | 4.x | 4.x | 17+ | `4.x` (maintenance: bug fixes only) |
 | 3.x | 4.x | 17+ | `3.x` |
 | 2.x | 3.x | 17+ | `2.x` |

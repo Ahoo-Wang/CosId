@@ -1,6 +1,6 @@
 ---
 name: cosid-spring-boot
-description: Configure and troubleshoot CosId 5 in Spring Boot with cosid-spring-boot-starter. Use for the starter and store artifacts (cosid-store-jdbc, -redis, -mongo, -zookeeper, -remote), the cosid.stores / cosid.machine / cosid.generators model, snowflake, cosid80, segment and periodic-segment generators, codec lists, generator beans, RuntimeSpecCustomizer, @CosId filling with MyBatis or Spring Data JDBC, Jackson @AsString, health, metrics and the cosid Actuator endpoint, or start-up errors. Do not use for programmatic non-Spring wiring (cosid-manual-integration) or for 4.x applications.
+description: Configure and troubleshoot CosId 5 in Spring Boot with cosid-spring-boot-starter. Use for the starter and store artifacts (cosid-store-jdbc, -redis, -mongo, -zookeeper, -remote), the cosid.stores / cosid.machine / cosid.machines / cosid.generators model, snowflake, cosid80, segment, periodic-segment, uuidv7 and custom generators, named machines and slot-offset, codec lists, generator beans, RuntimeSpecCustomizer, @CosId filling with MyBatis or Spring Data JDBC, Jackson @AsString, health, metrics and the cosid Actuator endpoint, or start-up errors. Do not use for programmatic non-Spring wiring (cosid-manual-integration) or for 4.x applications.
 ---
 
 # Configure CosId for Spring Boot
@@ -43,8 +43,9 @@ Integrations are separate artifacts, one per library: `cosid-jackson`, `cosid-my
 
 ## The Model
 
-Stores are declared once and referenced by name. The machine slot serves every time-based generator of the runtime.
-Generators are named; `default` is the `@Primary` `IdGenerator`.
+Stores are declared once and referenced by name. The machine slot serves every time-based generator of the runtime,
+unless a generator chooses a named machine (`machine: <name>`, D37). Generators are named; `default` is the `@Primary`
+`IdGenerator`.
 
 ```yaml
 cosid:
@@ -110,6 +111,31 @@ cosid:
 ```
 
 Without `state-file` there is no protection against a clock set back across restarts.
+
+### A named machine (a namespace shared by services)
+
+```yaml
+cosid:
+  machines:
+    global:
+      namespace: global-ids          # every service sharing it: the same bits, tolerance and slot-offset
+      leased: { store: redis, bits: 10 }
+  generators:
+    trace: { strategy: snowflake, machine: global }
+```
+
+`slot-offset` (on `leased`) moves the nodes of the slots, for a rolling migration next to 4.x machine ids
+(`cosid-migration` writes it).
+
+### UUIDv7 (no machine, no store)
+
+```yaml
+cosid:
+  generators:
+    event: { strategy: uuidv7 }
+```
+
+Its bean is the concrete `UuidV7Generator`; its text comes from `runtime.text("event")` or a `String` `@CosId` field.
 
 ### Periodic segment and cosid80
 

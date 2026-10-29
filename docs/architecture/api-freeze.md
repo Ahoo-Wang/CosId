@@ -359,6 +359,7 @@ record 加分量会同时改掉规范构造器(源码与二进制都不兼容)�
 - 值等价:`equals/hashCode` 覆盖全部字段;`toString` 与 record 相同格式。类不可变,集合字段 `copyOf`。
 - 不提供 public 构造器;builder 是唯一的构造方式。
 - **GA 后加字段的规则**:只加到 builder 的可选方法,必须有默认值,默认值等于加字段之前的行为;新增同名访问器;`equals` 纳入新字段。从不往 `builder(...)` 的必填参数里加东西。
+- **具体生成器与租约类的公开构造器**(R2-core-03,用户决定:保留,只定约定):`TimeBasedGenerator`、`SegmentGenerator`、`PeriodicSegmentGenerator`、`LeaseKeeper`、`StaticSlot`、`UuidV7Generator` 的公开构造器是 `CosIdRuntime` 的装配入口,签名保持不变,属于兼容承诺。**以后新参数只走 builder 或静态工厂,不再增加位置参数重载**(现有 5 对重载保留)。`StoreOptions.resolve(store, type, known, options, problems)` 与 SPI `SlotLeaseStore.acquire` 同此:签名不变,新参数走新方法或值类型。各类的 javadoc 写明这一约定。
 
 ### 4.3 sealed 接口的演进(与 R1-core-02 一起定)
 

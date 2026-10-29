@@ -13,14 +13,15 @@ This site describes **CosId 5**. 5.0 is a full rewrite with no backward compatib
 | 5.x | `main` (the default branch) | 21+ / 4.1.2+ | this site |
 | 4.x | `4.x` (maintenance: bug fixes only) | 17+ / 4.x | the site of the 4.x release tags |
 
-## Two ways to be unique
+## Three ways to be unique
 
-Every distributed id is unique for one of two reasons, and CosId offers both:
+Every distributed id is unique for one of these reasons, and CosId offers all three:
 
 | Source | How | Coordination | CosId strategies |
 |---|---|---|---|
 | **Space partitioning** | pack `(time, slot, sequence)` into the bits of the id | an exclusive lease on a slot for a **time window** | `snowflake`, `cosid80` |
 | **Range reservation** | atomically take `[start, end)` from a counter, then hand it out locally | one atomic increment per range | `segment`, `periodic-segment` |
+| **Randomness** | a millisecond timestamp, a counter with a random start and 58 random bits (RFC 9562) | none: unique with overwhelming probability | `uuidv7` |
 
 Everything else (encoding, buffering, retries, lease keeping) is local code in `cosid-core`. A store only implements two
 primitives, `RangeStore.reserve` and the three `SlotLeaseStore` operations, and one test suite (the TCK) verifies every
@@ -35,6 +36,8 @@ store the same way.
 | short, dense, strictly increasing ids per key | `segment` |
 | numbers that restart every year, month or day (`20261027-000042`) | `periodic-segment` |
 | more than 64 bits, as text | `cosid80` (44-bit milliseconds, 20-bit node, 16-bit sequence) |
+| standard UUIDs, ordered by time, with no machine, store nor lease | `uuidv7` |
+| ids from a generator of your own, served like the others | `custom` |
 | ids for a client that is not on the JVM, or cannot reach a store | [cosid-server](server.md)'s optional id endpoints |
 
 The [recipes](recipes.md) give the configuration of each.

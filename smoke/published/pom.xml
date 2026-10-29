@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- R2-build-01/02: the published CosId jars in a Maven application on Spring Boot 4.1.2 (README.md). -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.2</version>
+        <relativePath/>
+    </parent>
+    <groupId>me.ahoo.cosid.smoke</groupId>
+    <artifactId>smoke</artifactId>
+    <version>1</version>
+    <properties>
+        <java.version>21</java.version>
+        <cosid.version>5.0.0-SNAPSHOT</cosid.version>
+    </properties>
+    <repositories>
+        <repository>
+            <id>cosid-build</id>
+            <url>${cosid.repo}</url>
+        </repository>
+    </repositories>
+    <dependencies>
+        <dependency>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-spring-boot-starter</artifactId>
+            <version>${cosid.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-store-redis</artifactId>
+            <version>${cosid.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-store-mongo</artifactId>
+            <version>${cosid.version}</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <finalName>smoke</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

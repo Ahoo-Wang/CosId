@@ -65,7 +65,7 @@ Every property and default: [configuration reference](../../reference/config/bas
 | Bean | Type |
 |---|---|
 | `cosIdRuntime` | `CosIdRuntime`, closed with the context |
-| one per generator, **named after it** | `IdGenerator` (`snowflake`, `segment`; `default` is `@Primary`), `PartsIdGenerator` (`cosid80`), `GroupedIdGenerator` (`periodic-segment`) |
+| one per generator, **named after it** | `IdGenerator` (`snowflake`, `segment`, `custom`; `default` is `@Primary`), `PartsIdGenerator` (`cosid80`), `GroupedIdGenerator` (`periodic-segment`), `UuidV7Generator` (`uuidv7`, the concrete class) |
 | `IdFiller` | `runtime.filler()` |
 
 ```java

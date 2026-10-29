@@ -82,6 +82,45 @@ class CosIdSpecsTest {
     }
 
     @Test
+    void keysOfAnotherStrategyAreIgnoredWithAWarning() {
+        // R2-spring-02 (user's decision): a period on a segment, a store on a snowflake start as before, and are named.
+        RuntimeSpec spec = spec("cosid.namespace=app", "cosid.machine.static.slot=1", "cosid.stores.db.type=memory",
+            "cosid.generators.order.strategy=segment", "cosid.generators.order.store=db", "cosid.generators.order.period=YEAR_MONTH_DAY",
+            "cosid.generators.order.node-bits=8", "cosid.generators.snow.strategy=snowflake", "cosid.generators.snow.store=db",
+            "cosid.generators.snow.seal-after=1d");
+        assertThat(spec.generators().get("order"), instanceOf(GeneratorSpec.Segment.class));
+        CosIdProperties properties = bind("cosid.generators.order.strategy=segment", "cosid.generators.order.store=db",
+            "cosid.generators.order.period=YEAR_MONTH_DAY", "cosid.generators.order.node-bits=8", "cosid.generators.snow.strategy=snowflake",
+            "cosid.generators.snow.store=db", "cosid.generators.snow.seal-after=1d", "cosid.generators.bill.strategy=periodic-segment",
+            "cosid.generators.bill.store=db", "cosid.generators.bill.period=YEAR", "cosid.generators.bill.zone=UTC");
+        assertEquals(List.of("node-bits", "period"), CosIdSpecs.ignoredKeys("segment", properties.generators().get("order")));
+        assertEquals(List.of("store", "seal-after"), CosIdSpecs.ignoredKeys("snowflake", properties.generators().get("snow")));
+        assertEquals(List.of(), CosIdSpecs.ignoredKeys("periodic-segment", properties.generators().get("bill")));
+    }
+
+    @Test
+    void aListReplacedByAHigherSourceIsNoUnknownKey() {
+        // R2-spring-01: application.yaml has a codec of two items, a profile (or the command line) replaces it with one.
+        // Spring binds the list from the profile alone; the second item of application.yaml is not a typo.
+        Map<String, String> profile = Map.of("cosid.generators.g.codec[0].radix.radix", "36");
+        Map<String, String> application = new LinkedHashMap<>();
+        application.put("cosid.namespace", "app");
+        application.put("cosid.machine.static.slot", "1");
+        application.put("cosid.generators.g.strategy", "snowflake");
+        application.put("cosid.generators.g.codec[0].radix.radix", "62");
+        application.put("cosid.generators.g.codec[1].prefix", "O");
+        CosIdProperties properties = CosIdSpecs.bind(List.of(new MapConfigurationPropertySource(profile), new MapConfigurationPropertySource(application)),
+            PlaceholdersResolver.NONE);
+        List<CodecSpec> codec = ((GeneratorSpec.Snowflake) CosIdSpecs.toSpec(properties, ZONE).generators().get("g")).codec();
+        assertEquals(1, codec.size());
+        // A typo in the source the list binds from is still one.
+        Map<String, String> typo = Map.of("cosid.generators.g.codec[0].radix.radix", "36", "cosid.generators.g.codec[0].radix.widht", "8");
+        Exception failed = assertThrows(Exception.class, () -> CosIdSpecs.bind(
+            List.of(new MapConfigurationPropertySource(typo), new MapConfigurationPropertySource(application)), PlaceholdersResolver.NONE));
+        assertThat(rootMessage(failed), containsString("cosid.generators.g.codec[0].radix.widht"));
+    }
+
+    @Test
     void anEmptyCodecMapIsTheItemWithItsDefaultsAndAnEmptyItemIsNamed() {
         // R1-spring-10: YAML "- friendly: {}" arrives as codec[0].friendly="" and binds the friendly codec's defaults.
         RuntimeSpec spec = spec("cosid.namespace=app", "cosid.machine.static.slot=1", "cosid.generators.g.strategy=snowflake",

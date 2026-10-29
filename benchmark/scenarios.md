@@ -26,7 +26,7 @@ generator a `CosIdRuntime` hands out, on the store as the runtime opens and wrap
 | P7 (Redis) | `RedisChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(SpringRedisIdSegmentDistributor)`, offset 0, on a `StringRedisTemplate` (Lettuce) at `COSID_TEST_REDIS_URI` (default `redis://localhost:6379`) | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `redis` store opened from the same URI (`wait=auto`, timeout 2s), `V5.batch(step)` |
 | P7 (MongoDB) | `MongoChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(MongoIdSegmentDistributor)`, offset 0, on the replica set at `COSID_BENCHMARK_MONGODB_URI` | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `mongo` store opened from the same client (timeout 2s), `V5.batch(step)` |
 | P7 (ZooKeeper) | `ZookeeperChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(ZookeeperIdSegmentDistributor)` (no call timeout), on one in-process ZooKeeper 3.9 (curator-test) per trial | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `zookeeper` store opened from the same Curator client (timeout 2s), `V5.batch(step)` |
-| P8 | `PeriodicSegmentBenchmark` | `generate_t1/t4` | thrpt, sample (p99, p99.9) | grouped `SegmentChainId` (`DefaultGroupedIdSegmentDistributor`, in-memory distributor), step 100; a `GroupBySupplier` keyed `yyyyMMdd` whose day lasts 2s of real time | `PeriodicSegmentGenerator` on the same accelerated `yyyyMMdd` day, `BatchPolicy.DEFAULT` with step 100, prewarm 1/1440 of the day (the default minute, scaled) |
+| P8 | `PeriodicSegmentBenchmark` | `generate_t1/t4` | thrpt, sample (p99, p99.9) | grouped `SegmentChainId` (`DefaultGroupedIdSegmentDistributor`, in-memory distributor), step 100; a `GroupBySupplier` keyed `yyyyMMdd` whose day lasts 2s of real time | `PeriodicSegmentGenerator` from a `CosIdRuntime` (its store wrapping and listener, R2-bench-01) on the same accelerated `yyyyMMdd` day, `BatchPolicy.DEFAULT` with step 100, prewarm 1/1440 of the day (the default minute, scaled) |
 | P9 | `CodecBenchmark` | `radix62Encode/Decode_t1`, `radix36Encode/Decode_t1`, `friendlyEncode/Decode_t1` | thrpt | `Radix62IdConverter.PAD_START`, `Radix36IdConverter.PAD_START`, `SnowflakeFriendlyIdConverter` (Asia/Shanghai, padded) | `Radix.of(62, 11, true)`, `Radix.of(36, 13, true)`, `Friendly.of(SNOWFLAKE_MS, Asia/Shanghai, true)` |
 | P10 (MySQL) | `MySqlStoreBenchmark` | `reserve_t1`, `acquire_t1`, `renew_t1` | avgt, sample | see [P7 / P10 on JDBC](#p7--p10-on-jdbc-r2-jdbc) | |
 | P10 (MongoDB) | `MongoStoreBenchmark` | `reserve_t1`, `acquire_t1`, `renew_t1` | avgt, sample | `MongoIdSegmentDistributor.nextMaxId(100)`; `LeaseStoreMachineIdDistributor` on `MongoMachineLeaseStore` (timeout 10s): `distribute` + `revert` of a machine id (10 bits), `guard` of a held one | `MongoStore` (timeout 10s): `reserve(key, 100, 0)`; `acquire` + `release` (limit 1024), `renew` of a held lease; both on the replica set at `COSID_BENCHMARK_MONGODB_URI` (default `mongodb://localhost:27017`) |
@@ -117,6 +117,24 @@ A push to a `release-gate-check/**` branch runs the same pipeline with smoke set
 noise, so it fails only when a group produced no result.
 `benchmark/run-release --dry-run CodecBenchmark` checks the script locally in a minute or two, likewise never a
 result.
+
+### Paths the gate does not measure (R2-perf-02, R2-bench-02)
+
+D21 covers the scenarios above. These published paths are in none of them, and nothing here is evidence of a
+regression on them:
+
+| Path | Why not in the gate |
+|---|---|
+| cosid-server `/ids/**` | the 4.x proxy had no id endpoint to compare with; a 5.x trend row would only report |
+| `cosid-store-remote` with cosid-server (`/ranges:reserve`, `/slots:*`) | it has a 4.x counterpart (the proxy's segment and lease endpoints) but no scenario yet: a P7 / P10 remote group would be one, as a trend first |
+| Jackson `@AsString`, MyBatis and Spring Data JDBC filling | P12 measures `IdFiller.fill` itself; the integrations add the library's own work around it |
+| counting (`cosid.metrics.generated.enabled: true`) | one `LongAdder.increment` per id on the views of the runtime; off in every scenario |
+| a Micrometer listener | P5, P7 run with the runtime's default listener; the Micrometer one records on range switches and lease changes only, never per id |
+| the text of periodic segments | P8 measures `GroupedId`s; the `GroupedCodec` is P9's kind of work |
+| `IdGenerators.uuid()` | `UUID.randomUUID().toString()`, the same code as the 4.x `UuidGenerator` |
+
+P1–P4 build the `TimeBasedGenerator` themselves rather than through `CosIdRuntime`; without counting the runtime hands
+out that same object, so they measure the production path. P8 goes through the runtime (R2-bench-01).
 
 ### P7 / P10 on JDBC (R2-JDBC)
 

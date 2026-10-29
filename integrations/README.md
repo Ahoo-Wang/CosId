@@ -18,6 +18,12 @@ Text ids come from the named generator whatever its strategy: a `long` generator
 through its `PartsCodec`, a periodic segment through its `GroupedCodec`. Without a Spring name, Activiti, Flowable and
 Axon take the generator from the system property `cosid.activiti`, `cosid.flowable` or `cosid.axon`, else `default`.
 
+`cosid-activiti` depends on MyBatis 3.5.19 itself: Activiti 7.0.0.SR1, the latest Activiti, brings MyBatis 3.4.2,
+which has a known vulnerability (GHSA-qq48-m4jx-xqh8, fixed in 3.5.6). The direct dependency puts the patched one on
+the application's classpath, with Maven and Gradle alike; the Activiti engine test runs on it. MyBatis 3.6 does not
+run Activiti 7 (`TypeHandlerRegistry.register(Class, JdbcType, TypeHandler)` is gone); the `cosid-mybatis` integration
+is built on 3.6.
+
 ## Jackson: `@AsString`
 
 ```java

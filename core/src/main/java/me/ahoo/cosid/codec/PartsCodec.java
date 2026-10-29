@@ -24,8 +24,22 @@ import java.time.ZoneId;
  * {@code FriendlyCosIdGenerator} and their state parsers.
  */
 public interface PartsCodec {
+    /**
+     * Encodes the parts of an id. An implementation is thread-safe: the generators of a runtime call it concurrently.
+     *
+     * @param parts the parts
+     * @return the text, never null
+     * @throws IllegalArgumentException if the codec cannot encode the parts, such as parts wider than its layout
+     */
     String encode(IdParts parts);
 
+    /**
+     * Decodes text produced by {@link #encode(IdParts)}.
+     *
+     * @param text the text
+     * @return the parts
+     * @throws IllegalArgumentException if the text is not encoded parts
+     */
     IdParts decode(String text);
 
     /**

@@ -41,15 +41,42 @@ public interface GeneratorListener {
     GeneratorListener NOOP = new GeneratorListener() {
     };
 
+    /**
+     * A segment generator reserved a range from its store.
+     *
+     * @param generator the generator
+     * @param key       the range key
+     * @param range     the range reserved
+     * @param latency   how long the store call took
+     */
     default void onRangeReserved(String generator, String key, Range range, Duration latency) {
     }
 
+    /**
+     * A reservation failed; the generator retries after a backoff, and callers with no value left fail meanwhile.
+     *
+     * @param generator the generator
+     * @param key       the range key
+     * @param error     why
+     */
     default void onRefillFailed(String generator, String key, Throwable error) {
     }
 
+    /**
+     * The rate estimate changed the size of the next reservations (a segment with a lookahead).
+     *
+     * @param generator the generator
+     * @param oldSize   the batch before
+     * @param newSize   the batch now
+     */
     default void onBatchResized(String generator, long oldSize, long newSize) {
     }
 
+    /**
+     * A time-based generator used up the sequence of its time unit and waits for the next one: once per such wait.
+     *
+     * @param generator the generator
+     */
     default void onSequenceExhausted(String generator) {
     }
 
@@ -63,6 +90,12 @@ public interface GeneratorListener {
     default void onClockRegression(String generator, long backwardsMillis, String action) {
     }
 
+    /**
+     * A time-based generator reached the ceiling of its slot window (renewals are failing or late) and waits for a
+     * renewal: once per such wait.
+     *
+     * @param generator the generator
+     */
     default void onWindowExceeded(String generator) {
     }
 
@@ -75,21 +108,57 @@ public interface GeneratorListener {
     default void onSlotAcquired(SlotLease lease, String reason) {
     }
 
+    /**
+     * A slot lease was renewed: its window moved on.
+     *
+     * @param lease the renewed lease
+     */
     default void onSlotRenewed(SlotLease lease) {
     }
 
+    /**
+     * A renewal failed; the lease stays valid until its expiry, and the next renewal tries again.
+     *
+     * @param lease the lease as held
+     * @param error why
+     */
     default void onSlotRenewFailed(SlotLease lease, Throwable error) {
     }
 
+    /**
+     * The store no longer has the slot for this owner (it expired, or another owner took it): its generators stop at
+     * the window ceiling while a slot is acquired again.
+     *
+     * @param lease the lease that was lost
+     */
     default void onSlotLost(SlotLease lease) {
     }
 
+    /**
+     * A slot was released, at the close, with the largest timestamp its generators issued.
+     *
+     * @param lease the lease released
+     */
     default void onSlotReleased(SlotLease lease) {
     }
 
+    /**
+     * The store clock differs from this host's by more than half the tolerance, measured at a lease call.
+     *
+     * @param namespace  the namespace of the slot
+     * @param skewMillis the store clock minus this host's (at the middle of the call), in milliseconds: positive when
+     *                   the store is ahead
+     */
     default void onClockSkew(String namespace, long skewMillis) {
     }
 
+    /**
+     * The acquired slot's owner key is also held by a live lease of another incarnation: two processes use one owner
+     * key (a copied {@code owner-key}), which is legal but defeats the preferred slot.
+     *
+     * @param namespace the namespace
+     * @param ownerKey  the owner key
+     */
     default void onDuplicateOwnerKey(String namespace, String ownerKey) {
     }
 

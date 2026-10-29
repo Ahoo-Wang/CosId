@@ -32,6 +32,7 @@ import java.util.Objects;
  *     <tr><td>{@code segment}</td><td>{@code key step maxBatch lookahead reserveTimeout batch held}</td></tr>
  *     <tr><td>{@code periodic-segment}</td><td>those of {@code segment}, and {@code zone prewarm sealAfter period}</td></tr>
  *     <tr><td>{@code custom}</td><td>{@code class}</td></tr>
+ *     <tr><td>{@code uuidv7}</td><td>{@code version text}</td></tr>
  *     <tr><td>any</td><td>{@code generated} while counting ({@code RuntimeOptions.countGenerated}); a disabled generator has
  *         {@code disabled} alone</td></tr>
  * </table>
@@ -55,7 +56,8 @@ public final class GeneratorInfo {
      * A builder of a generator description.
      *
      * @param name     the generator name
-     * @param strategy {@code snowflake}, {@code cosid80}, {@code segment} or {@code periodic-segment}
+     * @param strategy {@code snowflake}, {@code cosid80}, {@code segment}, {@code periodic-segment}, {@code custom} or
+     *                 {@code uuidv7}
      * @return the builder
      */
     public static Builder builder(String name, String strategy) {
@@ -72,7 +74,8 @@ public final class GeneratorInfo {
     }
 
     /**
-     * The strategy: {@code snowflake}, {@code cosid80}, {@code segment} or {@code periodic-segment}.
+     * The strategy: {@code snowflake}, {@code cosid80}, {@code segment}, {@code periodic-segment}, {@code custom} or
+     * {@code uuidv7}.
      *
      * @return the strategy
      */
@@ -83,7 +86,7 @@ public final class GeneratorInfo {
     /**
      * The store name.
      *
-     * @return the store name; empty (the default) for time-based generators
+     * @return the store name; empty (the default) for time-based, custom and uuidv7 generators
      */
     public String store() {
         return store;

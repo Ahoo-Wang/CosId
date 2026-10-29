@@ -17,9 +17,9 @@ Keys and namespaces travel in the JSON body, never in the path. Errors are `{cod
 |---|---|---|---|
 | POST | `/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`; `410 range_sealed`; `422 range_exhausted` |
 | POST | `/ranges:seal` | `{key}` | `204`; `501 seal_unsupported` |
-| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | lease + `{reason, duplicateOwnerKey}`; `409 slots_exhausted {earliestExpiresAt}`; `409 namespace_mismatch` |
-| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
-| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`; `409 lease_lost` |
+| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, slotOffset?, preferredSlot?}` | lease + `{reason, duplicateOwnerKey}`; `409 slots_exhausted {earliestExpiresAt}`; `409 namespace_mismatch` (another limit, tolerance or slotOffset than its first use) |
+| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
+| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, lastIssued}` | `204`; `409 lease_lost` |
 | GET | `/ids[/{generator}]?count=n` | — | `{ids: [...]}` (optional) |
 | GET | `/ids[/{generator}]/strings?count=n` | — | `{ids: ["..."]}`: the text ids of any strategy (optional): `long` ids through the generator's codec, cosid80, periodic segment and uuidv7 text |
 | GET | `/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`, all of one period (optional) |
@@ -54,7 +54,9 @@ Failures of the backing store answer a generic message; their details go to the 
 | `blocking.threads` / `queue-capacity` | `64` / `1024` | the bounded pool of the store calls |
 | `ids.enabled` | `false` | the id endpoints; the server then refuses generators named `strings` or `periodic` (path segments) |
 
-A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`. The runtime's generators on
+A JDBC backing store with `options.url` gets a HikariCP pool of at most `blocking.threads` + the generators + 1
+connections (the blocking calls, each generator's refill, the readiness check), 2 idle, and a connection awaited no
+longer than the store `timeout`. The runtime's generators on
 the backing store (the id endpoints, the `cosid` endpoint) use that same store, not a second client.
 
 A client token may use only the client paths: the store primitives and `/ids/**`, under `spring.mvc.servlet.path`.

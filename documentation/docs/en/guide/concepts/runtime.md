@@ -53,6 +53,7 @@ Each spec is built with `builder(<required>)`; the rest has defaults.
 | `GeneratorSpec.PeriodicSegment`: a periodic segment | `store`, `period`, `zone` | `batch`, `periodic`, `codec` |
 | `GeneratorSpec.Custom`: a `long` generator of your own, by name | `reference` | `codec` |
 | `GeneratorSpec.Instance`: a `long` generator of your own, as an instance | `ids` | `codec` |
+| `GeneratorSpec.UuidV7`: UUIDv7 ids (D46), text through `text(name)`, `UUID`s through `get(name, UuidV7Generator.class)`; no machine, store nor codec | | |
 | `GeneratorSpec.Disabled(spec)`: declared but not created; calls throw `GeneratorDisabledException` (D24) | | |
 
 `Custom` and `Instance` cover 4.x `IdGeneratorProvider.set(name, generator)`. `RuntimeOptions.generators` resolves a

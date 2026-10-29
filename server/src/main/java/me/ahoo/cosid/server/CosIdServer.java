@@ -122,7 +122,10 @@ public class CosIdServer {
     @Bean(name = STORE_BEAN, destroyMethod = "close")
     BackingStore cosIdServerStore(@Qualifier(CosIdGeneratorRegistrar.SPEC_BEAN) ObjectProvider<RuntimeSpec> spec, ServerProperties properties,
                                   ObjectProvider<StoreProvider> providers) {
-        return BackingStore.open(stores(spec), properties.store(), providers.orderedStream().toList(), properties.blocking().threads());
+        // A connection for each blocking thread, each generator's refill (they share the store) and the readiness check.
+        RuntimeSpec runtime = spec.getIfAvailable();
+        int poolSize = properties.blocking().threads() + (runtime == null ? 0 : runtime.generators().size()) + 1;
+        return BackingStore.open(stores(spec), properties.store(), providers.orderedStream().toList(), poolSize);
     }
 
     /** The runtime's store of the same name is the backing store, not a second client on it (R1-server-03). */

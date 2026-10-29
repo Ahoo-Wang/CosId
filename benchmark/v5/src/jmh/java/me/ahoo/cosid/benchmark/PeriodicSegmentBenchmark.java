@@ -14,11 +14,12 @@
 package me.ahoo.cosid.benchmark;
 
 import me.ahoo.cosid.GroupedId;
-import me.ahoo.cosid.observe.GeneratorListener;
+import me.ahoo.cosid.runtime.CosIdRuntime;
+import me.ahoo.cosid.runtime.GeneratorSpec;
+import me.ahoo.cosid.runtime.GroupedCodecSpec;
 import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.segment.PeriodicPolicy;
 import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
-import me.ahoo.cosid.time.TimeSource;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -36,12 +37,14 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * P8: segments grouped by day, crossing day boundaries; throughput and sampled latency (p999 includes the crossings).
  * A day lasts {@link #DAY_MILLIS} of real time on both sides, keyed {@code yyyyMMdd} like {@code YEAR_MONTH_DAY}, so
- * every run crosses a few boundaries; step {@value #STEP} on both sides.
+ * every run crosses a few boundaries; step {@value #STEP} on both sides. The 5.x generator is the one the runtime hands
+ * out, on the store as the runtime wraps it, with its listener (R2-bench-01), as in P5 and P6.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode({Mode.Throughput, Mode.SampleTime})
@@ -50,19 +53,24 @@ public class PeriodicSegmentBenchmark {
     static final long STEP = 100;
     static final long DAY_MILLIS = 2000;
 
+    CosIdRuntime runtime;
     PeriodicSegmentGenerator segment;
 
     @Setup
     public void setup() {
         // The prewarm is the default minute scaled to the day: 1/1440 of it.
         PeriodicPolicy periodic = PeriodicPolicy.builder().prewarm(Duration.ofMillis(Math.max(1, DAY_MILLIS * 60 / 86_400))).build();
-        segment = new PeriodicSegmentGenerator("p8", "bench/p8", new AcceleratedDay(DAY_MILLIS), V5.ZONE, new V5.MemoryRangeStore(),
-            V5.batch(STEP), periodic, V5.EXECUTOR, TimeSource.SYSTEM, GeneratorListener.NOOP);
+        runtime = V5.memoryRuntime("p8", GeneratorSpec.PeriodicSegment.builder("memory", new AcceleratedDay(DAY_MILLIS), V5.ZONE)
+            .batch(V5.batch(STEP))
+            .periodic(periodic)
+            .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
+            .build());
+        segment = runtime.periodic("p8");
     }
 
     @TearDown
     public void tearDown() {
-        segment.close();
+        runtime.close();
     }
 
     @Benchmark

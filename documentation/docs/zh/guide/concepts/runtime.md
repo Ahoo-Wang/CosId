@@ -51,6 +51,7 @@ public final class CosIdRuntime implements AutoCloseable {
 | `GeneratorSpec.PeriodicSegment`：周期号段 | `store`、`period`、`zone` | `batch`、`periodic`、`codec` |
 | `GeneratorSpec.Custom`：自己的 `long` 生成器，按名引用 | `reference` | `codec` |
 | `GeneratorSpec.Instance`：自己的 `long` 生成器，直接给实例 | `ids` | `codec` |
+| `GeneratorSpec.UuidV7`：UUIDv7（D46），文本经 `text(name)`，`UUID` 经 `get(name, UuidV7Generator.class)`；不需要 machine、存储与编解码器 | | |
 | `GeneratorSpec.Disabled(spec)`：已声明但不创建；调用时抛出 `GeneratorDisabledException`（D24） | | |
 
 `Custom` 与 `Instance` 对应 4.x 的 `IdGeneratorProvider.set(name, generator)`。`RuntimeOptions.generators` 解析 `Custom`

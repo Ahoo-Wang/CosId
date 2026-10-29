@@ -58,6 +58,7 @@ class DescribeKeysTest {
             .generator("segment", segment("db"))
             .generator("periodic", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR_MONTH_DAY, SHANGHAI).build())
             .generator("custom", GeneratorSpec.Instance.builder(() -> 7).build())
+            .generator("uuidv7", GeneratorSpec.UuidV7.builder().build())
             .generator("off", new GeneratorSpec.Disabled(segment("db")))
             .build();
     }
@@ -79,6 +80,7 @@ class DescribeKeysTest {
         assertThat(new TreeSet<>(infos.get("segment").details().keySet()), is(new TreeSet<>(SEGMENT)));
         assertThat(new TreeSet<>(infos.get("periodic").details().keySet()), is(new TreeSet<>(PERIODIC)));
         assertThat(infos.get("custom").details().keySet(), is(Set.of("class")));
+        assertThat(infos.get("uuidv7").details().keySet(), is(Set.of("version", "text")));
         assertThat(infos.get("off").details(), is(Map.of("disabled", true)));
         for (GeneratorInfo info : infos.values()) {
             info.details().values().forEach(value -> assertThat(info.name() + ": " + value,
@@ -92,6 +94,7 @@ class DescribeKeysTest {
         assertThat(new TreeSet<>(infos.get("segment").details().keySet()), is(union(SEGMENT, Set.of("generated"))));
         assertThat(new TreeSet<>(infos.get("periodic").details().keySet()), is(union(PERIODIC, Set.of("generated"))));
         assertThat(infos.get("custom").details().keySet(), is(Set.of("class", "generated")));
+        assertThat(infos.get("uuidv7").details().keySet(), is(Set.of("version", "text", "generated")));
         assertThat(infos.get("segment").details().get("generated"), instanceOf(Long.class));
         assertThat(infos.get("off").details(), is(Map.of("disabled", true)));
     }

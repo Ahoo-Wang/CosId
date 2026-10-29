@@ -18,5 +18,11 @@ package me.ahoo.cosid;
  */
 @FunctionalInterface
 public interface IdGenerator {
+    /**
+     * The next id. An implementation, such as one given as a {@code custom} generator, is thread-safe: any number of
+     * threads call it concurrently, and it never issues an id twice.
+     *
+     * @return the id
+     */
     long generate();
 }

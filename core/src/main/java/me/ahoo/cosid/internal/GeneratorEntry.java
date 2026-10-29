@@ -31,6 +31,7 @@ import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.time.IdParts;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
+import me.ahoo.cosid.time.TimeSource;
 import me.ahoo.cosid.time.UuidV7Generator;
 
 import java.util.ArrayList;
@@ -41,6 +42,7 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
 
@@ -73,6 +75,8 @@ public final class GeneratorEntry {
     private final LongAdder counter;
     /** The machine of a time-based generator; null otherwise. */
     private String machine;
+    /** What {@link #close()} does besides closing an owned generator: ends a UUIDv7 generator, which has no close. */
+    private Runnable closing = () -> { };
 
     private GeneratorEntry(String name, String strategy, String store, AutoCloseable generator, IdGenerator ids, IdCodec codec,
                            Supplier<String> text, List<Object> extraViews, Supplier<Map<String, Object>> details, LongAdder counter) {
@@ -240,20 +244,31 @@ public final class GeneratorEntry {
     }
 
     /**
-     * A UUIDv7 generator (D46): no {@code long} ids; its text is the canonical form, counted.
+     * A UUIDv7 generator (D46): no {@code long} ids; its text is the canonical form. The one generator of the entry
+     * counts its ids itself, whichever view issues them ({@code text(name)}, the generator by its type, a Spring bean;
+     * R2-uuid-01), and ends with the runtime as the other strategies do (R2-uuid-03): both through its time source,
+     * read once per id.
      *
-     * @param generator the generator
-     * @param counter   counts the text ids, or null
+     * @param name    the generator name
+     * @param time    the time source
+     * @param counter counts the ids, or null
      * @return the entry
      */
-    public static GeneratorEntry uuidV7(UuidV7Generator generator, LongAdder counter) {
-        Supplier<String> text = counter == null ? generator::generate : () -> {
-            String id = generator.generate();
-            counter.increment();
-            return id;
-        };
-        return new GeneratorEntry(generator.name(), UUIDV7, "", generator, true, null, null, text, List.of(),
+    public static GeneratorEntry uuidV7(String name, TimeSource time, LongAdder counter) {
+        AtomicBoolean closed = new AtomicBoolean();
+        UuidV7Generator generator = new UuidV7Generator(name, () -> {
+            if (closed.get()) {
+                throw new IllegalStateException("UUIDv7 generator [" + name + "] is closed");
+            }
+            if (counter != null) {
+                counter.increment();
+            }
+            return time.currentMillis();
+        });
+        GeneratorEntry entry = new GeneratorEntry(name, UUIDV7, "", generator, true, null, null, generator::generate, List.of(),
             () -> Map.of("version", 7, "text", "canonical"), counter);
+        entry.closing = () -> closed.set(true);
+        return entry;
     }
 
     /**
@@ -391,6 +406,7 @@ public final class GeneratorEntry {
      * @throws Exception if the generator fails to close
      */
     public void close() throws Exception {
+        closing.run();
         if (owned && generator instanceof AutoCloseable closeable) {
             closeable.close();
         }

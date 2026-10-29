@@ -21,5 +21,10 @@ import me.ahoo.cosid.time.IdParts;
  */
 @FunctionalInterface
 public interface PartsIdGenerator {
+    /**
+     * The parts of the next id; thread-safe, never the same parts twice.
+     *
+     * @return the parts
+     */
     IdParts nextParts();
 }

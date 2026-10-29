@@ -7,7 +7,8 @@
 ## 指标
 
 所有指标都以 `cosid.*` 命名（共 19 个）。它们来自 listener 事件，因此热路径从不调用它们；只有
-`cosid.generator.generated` 对 id 计数，并且仅在 `cosid.metrics.generated.enabled: true` 时开启。
+`cosid.generator.generated` 对 id 计数，并且仅在 `cosid.metrics.generated.enabled: true` 时开启。要关闭全部 `cosid.*` 指标
+（4.x 的 `cosid.metrics.enabled: false`），请用 Spring Boot 的指标过滤：`management.metrics.enable.cosid: false`。
 
 | 指标 | 类型 | 标签 | 4.x 名称 |
 |---|---|---|---|

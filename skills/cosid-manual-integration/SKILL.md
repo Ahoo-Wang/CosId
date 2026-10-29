@@ -50,14 +50,19 @@ try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
   (`MongoClient` or `options.uri`), `zookeeper` (`CuratorFramework` or `options.connectString`), `remote`
   (`options.baseUrl`, `token`). Providers come from `ServiceLoader`; `RuntimeOptions.storeProviders` adds more.
 - A store given a client never closes it; one it built itself, it closes.
-- `MachineSpec.Static(bits, slot, Optional.of(stateFile), Duration.ofSeconds(10), Optional.empty())` for a slot the
-  deployment keeps unique; without a state file there is no protection against a clock set back across restarts.
-- `GeneratorSpec.CosId80(regression, new PartsCodecSpec.Radix(62))`,
-  `GeneratorSpec.PeriodicSegment(store, Period.YEAR_MONTH_DAY, zone, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT,
-  new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 6, true))))`.
+- `MachineSpec.Static.builder(slot).bits(10).stateFile(path).build()` for a slot the deployment keeps unique; without
+  a state file there is no protection against a clock set back across restarts.
+- A named machine (D37): `.machine("global", MachineSpec.Leased.builder("db").namespace("global-ids").slotOffset(0).build())`
+  on the `RuntimeSpec.Builder`, and `.machine("global")` on a `Snowflake` or `CosId80` builder.
+- `GeneratorSpec.CosId80.builder().codec(new PartsCodecSpec.Radix(62)).build()`,
+  `GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR_MONTH_DAY, zone)
+  .codec(new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 6, true)))).build()`.
+- `GeneratorSpec.UuidV7.builder().build()` (D46): no machine nor store; `runtime.text(name)` and
+  `runtime.get(name, UuidV7Generator.class)`.
+- `GeneratorSpec.Custom.builder(reference)` / `GeneratorSpec.Instance.builder(ids)`: a `long` generator of your own.
 - `GeneratorSpec.Disabled(spec)` declares a generator without creating it.
-- A segment's `BatchPolicy(step, initialOffset, lookahead, maxBatch, reserveTimeout, rangeTtl)`; `BatchPolicy.DEFAULT`
-  starts a new key at 1, as 4.x did.
+- A segment's `BatchPolicy.builder().step(..).initialOffset(..).lookahead(..).maxBatch(..).reserveTimeout(..)`;
+  `BatchPolicy.DEFAULT` starts a new key at 1, as 4.x did.
 
 ## Reading Ids
 

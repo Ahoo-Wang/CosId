@@ -36,18 +36,21 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * The contract of {@link UuidV7Generator} (D46, RFC 9562 §5.7 and §6.2 method 1): the bits, the order within an
- * instance, the counter, a clock that goes back, and uniqueness under contention.
+ * The contract of {@link UuidV7Generator} (D46, RFC 9562 §5.7 and §6.2 method 1 with a 26-bit counter): the bits, the
+ * order within an instance, the counter and when it carries, a clock that goes back, the limits, and uniqueness under
+ * contention.
  */
 class UuidV7GeneratorTest {
     private static final long NOW = 1_761_696_000_000L;
+    private static final long COUNTER_MAX = (1L << UuidV7Generator.COUNTER_BITS) - 1;
 
     private static long millis(UUID id) {
         return id.getMostSignificantBits() >>> 16;
     }
 
-    private static int randA(UUID id) {
-        return (int) (id.getMostSignificantBits() & 0xFFF);
+    /** The 26-bit counter: the 12 bits of rand_a, then the top 14 bits of rand_b. */
+    private static long counter(UUID id) {
+        return (id.getMostSignificantBits() & 0xFFF) << 14 | (id.getLeastSignificantBits() >>> 48 & 0x3FFF);
     }
 
     @Test
@@ -74,41 +77,46 @@ class UuidV7GeneratorTest {
     }
 
     @Test
-    void idsIncreaseAcrossMillisecondsAndWithinOneByTheCounter() {
-        ManualTimeSource time = new ManualTimeSource(NOW);
-        UuidV7Generator generator = new UuidV7Generator("ids", time);
-        UUID first = generator.generateUuid();
-        assertThat(randA(first), lessThan(UuidV7Generator.START_BOUND));
-        UUID previous = first;
-        for (int i = 0; i < 100; i++) {
+    void aStillClockKeepsItsTimestampFor100000IncreasingIds() {
+        UuidV7Generator generator = new UuidV7Generator("ids", new ManualTimeSource(NOW));
+        UUID previous = generator.generateUuid();
+        assertThat(counter(previous), lessThan(UuidV7Generator.START_BOUND));
+        for (int i = 0; i < 100_000; i++) {
             UUID next = generator.generateUuid();
-            assertEquals(NOW, millis(next));
-            assertEquals(randA(previous) + 1, randA(next), "the counter counts within the millisecond");
+            assertEquals(NOW, millis(next), "the timestamp does not run ahead");
+            assertEquals(counter(previous) + 1, counter(next), "the counter counts within the millisecond");
             assertThat(next.compareTo(previous), greaterThan(0));
             assertThat(next.toString().compareTo(previous.toString()), greaterThan(0));
             previous = next;
         }
-        time.advance(1);
-        UUID later = generator.generateUuid();
-        assertEquals(NOW + 1, millis(later));
-        assertThat(randA(later), lessThan(UuidV7Generator.START_BOUND));
-        assertThat(later.compareTo(previous), greaterThan(0));
     }
 
     @Test
-    void aFullCounterBorrowsTheNextMillisecond() {
-        UuidV7Generator generator = new UuidV7Generator("ids", new ManualTimeSource(NOW));
+    void aNewMillisecondStartsTheCounterAtRandomBelowHalfItsRange() {
+        ManualTimeSource time = new ManualTimeSource(NOW);
+        UuidV7Generator generator = new UuidV7Generator("ids", time);
         UUID previous = generator.generateUuid();
-        // From a start below 2048, 4096 more ids pass the 12-bit counter at least once.
-        boolean borrowed = false;
-        for (int i = 0; i < 4096; i++) {
+        for (int i = 1; i <= 50; i++) {
+            time.advance(1);
             UUID next = generator.generateUuid();
+            assertEquals(NOW + i, millis(next));
+            assertThat(counter(next), lessThan(UuidV7Generator.START_BOUND));
             assertThat(next.compareTo(previous), greaterThan(0));
-            borrowed |= millis(next) == NOW + 1;
             previous = next;
         }
-        assertTrue(borrowed, "the timestamp moved to the next millisecond");
-        assertEquals(NOW + 1, millis(previous));
+    }
+
+    @Test
+    void onlyAFullCounterCarriesIntoTheNextMillisecond() {
+        UuidV7Generator generator = new UuidV7Generator("ids", new ManualTimeSource(NOW));
+        generator.state(NOW, COUNTER_MAX - 1);
+        UUID last = generator.generateUuid();
+        assertEquals(NOW, millis(last));
+        assertEquals(COUNTER_MAX, counter(last));
+        UUID carried = generator.generateUuid();
+        assertEquals(NOW + 1, millis(carried), "the next millisecond, borrowed");
+        assertEquals(0, counter(carried));
+        assertThat(carried.compareTo(last), greaterThan(0));
     }
 
     @Test
@@ -119,7 +127,7 @@ class UuidV7GeneratorTest {
         time.set(NOW - 5_000);
         UUID after = generator.generateUuid();
         assertEquals(NOW, millis(after));
-        assertEquals(randA(before) + 1, randA(after));
+        assertEquals(counter(before) + 1, counter(after));
         assertThat(after.compareTo(before), greaterThan(0));
         time.set(NOW + 1);
         assertEquals(NOW + 1, millis(generator.generateUuid()), "the clock caught up");
@@ -132,6 +140,17 @@ class UuidV7GeneratorTest {
         assertEquals("ids", overflow.generator());
         assertEquals(UuidV7Generator.TIMESTAMP_BITS, overflow.timeBits());
         assertThat(new UuidV7Generator("ids", new ManualTimeSource((1L << UuidV7Generator.TIMESTAMP_BITS) - 1)).generateUuid().version(), is(7));
+    }
+
+    @Test
+    void anInstanceIssuesFor2Pow38MillisecondsAfterItsStart() {
+        ManualTimeSource time = new ManualTimeSource(NOW);
+        UuidV7Generator generator = new UuidV7Generator("ids", time);
+        // The state counts from one millisecond before the start.
+        time.set(NOW - 1 + (1L << UuidV7Generator.OFFSET_BITS) - 1);
+        assertEquals(NOW - 1 + (1L << UuidV7Generator.OFFSET_BITS) - 1, millis(generator.generateUuid()));
+        time.set(NOW - 1 + (1L << UuidV7Generator.OFFSET_BITS));
+        assertEquals(UuidV7Generator.OFFSET_BITS, assertThrows(TimeOverflowException.class, generator::generateUuid).timeBits());
     }
 
     @Test

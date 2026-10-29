@@ -5,7 +5,7 @@
 
 ## 0. 恢复方法(会话中断后从这里继续)
 
-1. 在任何机器上:`git fetch origin && git switch wip/rc-review`(Draft PR [#1344](https://github.com/Ahoo-Wang/CosId/pull/1344)),读本文件 §2 的状态表与 §3 的发现。WIP 只存在于 GitHub 上的 PR 分支,不依赖本机状态。
+1. 在任何机器上:`git fetch origin && git switch wip/ga`(Draft PR [#1368](https://github.com/Ahoo-Wang/CosId/pull/1368);RC 前审查阶段的 WIP 已于 2026-10-28 随 [#1344](https://github.com/Ahoo-Wang/CosId/pull/1344) 作为 alpha.1 里程碑合入 main),读本文件 §2 的状态表与 §3 的发现。WIP 只存在于 GitHub 上的 PR 分支,不依赖本机状态。
 2. 状态为"进行中"的审查路,如果没有结果,按 §1 的范围重新派一个只读审查(不跑构建,遵守 `AGENTS.md` 的 CPU 规则)。
 3. 所有路都有结果后:逐条在代码中核实 → 填 §4 修复计划 → 按归属派会话修复 → 每个修复 PR 合入后在 §4 勾掉。
 4. §5 的 RC 准入清单全部通过后,再请用户决定是否发布 RC1。
@@ -168,11 +168,95 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - ✅ codec 修复 [#1362](https://github.com/Ahoo-Wang/CosId/pull/1362) 已合入 `81a9ef59`(dry-run:decode +8~13%、encode +30~32%,分配 88 B)。
 - ✅ **`v5.0.0-alpha.1` pre-release 已创建**(2026-10-28,目标 `81a9ef59`):**已核对**:Packages Deploy(校验、构建、Central、GitHub Packages、迁移工具 jar)与 Docker Image Deploy 全部成功;Central 06:34 可解析(`cosid-bom`、`cosid-core`、`cosid-spring-boot-starter`、各 store);Docker Hub 有 `5.0.0-alpha.1`、无 `latest`;release 附 `cosid-migration.jar`;文档站已由 tag 部署(run 40644322052),页面显示 `5.0.0-alpha.1`、alpha 提示与 4.x 文档入口。✅ main 已改回 `5.0.0-SNAPSHOT` 并修复 `CosIdRuntimeHintsTest`([#1363](https://github.com/Ahoo-Wang/CosId/pull/1363),`3a1cdaae`)。**alpha.1 发布步骤全部完成。**
 - **第 1 轮完成**(2026-10-28,[#1364](https://github.com/Ahoo-Wang/CosId/pull/1364)):95 条,BLOCKER 1(R1-x-07)、MAJOR 19(10 条触及冻结面)、MINOR 75;总调度抽查核实(R1-x-03/06/07、R1-core-04、R1-jdbc-01 无 `owner_key` 索引、R1-server-01 等)。修复分组与顺序(一次一个子会话):
-  1. **WP-server**(进行中,会话 `server-swagger-ui`):`docs.public` 开关、虚拟线程默认开启、匿名内网部署文档、R1-server-01(admin 改白名单)/02/03。
-  2. **WP-migration-safety**:R1-x-07 先做止血(`config`/`plan` 遇到与 `cosid.namespace` 不同的 `cosid.generator.namespace` 时拒绝并报告,T4 纳入全局命名空间)、R1-doc-01(未封存回滚会重号)、R1-x-04、R1-jdbc-06 迁移侧。
-  3. **WP-API-freeze**:先在 03/05/07 定稿再改代码:D36(R1-x-03/05)、D37(R1-x-06,命名 machine,含 R1-x-07 的最终修复)、D38(namespace 默认应用名)、R1-core-01(公开 record 演进策略)、R1-core-02(自定义生成器)、R1-core-03(`acquireTimeout`)及冻结面 MINOR。
-  4. **WP-store-contract**:R1-spi-01/R1-spring-01(options 键规范与未知键报错)、R1-spi-02(可移植 key 语法)、R1-jdbc-01(`cosid_slot` 索引,DDL)。
-  5. **WP-perf**:R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
+  1. ✅ **WP-server**([#1365](https://github.com/Ahoo-Wang/CosId/pull/1365) `f641e1ae`):`docs.public` 开关、虚拟线程默认开启、匿名内网部署文档、R1-server-01(admin 改白名单)/02/03。
+  2. ✅ **WP-migration-safety**([#1369](https://github.com/Ahoo-Wang/CosId/pull/1369) `598fa80f`;R1-jdbc-06 迁移侧移到 WP-store-contract):R1-x-07 先做止血(`config`/`plan` 遇到与 `cosid.namespace` 不同的 `cosid.generator.namespace` 时拒绝并报告,T4 纳入全局命名空间)、R1-doc-01(未封存回滚会重号)、R1-x-04、R1-jdbc-06 迁移侧。
+  3. **WP-API-freeze**:设计已定稿并合入([#1371](https://github.com/Ahoo-Wang/CosId/pull/1371) `6d69bf5a`,`api-freeze.md`,D39–D43);实现按 api-freeze.md §10 分 6 个 PR 串行:✅ PR1 值类型 builder([#1372](https://github.com/Ahoo-Wang/CosId/pull/1372) `ba294a5f`)→ ✅ PR2 cosid80 布局/acquireTimeout/自定义生成器([#1373](https://github.com/Ahoo-Wang/CosId/pull/1373) `7225296a`;另加 `timeBits + seqBits ≤ 63`,PR5 迁移须同样校验) → ✅ PR3 命名 machine + slotOffset([#1374](https://github.com/Ahoo-Wang/CosId/pull/1374) `a6e91a88`;五后端元数据加 `slotOffset`,兼容 alpha.1 数据;R1-int-01) → ✅ PR4 Spring 配置冻结([#1375](https://github.com/Ahoo-Wang/CosId/pull/1375) `8144607a`:`cosid.machines`、cosid80 布局键、D38 namespace 默认应用名、`custom`+`ref`、`acquire-timeout`、未知 `cosid.*` 键启动失败、health 名 `cosid`、`metrics.generated.enabled`) → ✅ PR5 迁移命名 machine([#1376](https://github.com/Ahoo-Wang/CosId/pull/1376) `385d363e`:共享 `cosid.generator.namespace` 一次性迁移为 `cosid.machines.generator`,默认 slotOffset = `2^nodeBits − 2^bits` 并报告 headroom,解除 #1369 止血,63 位规则前置) → ✅ PR6 用户文档([#1377](https://github.com/Ahoo-Wang/CosId/pull/1377) `2fc23371`:§9 中英文、11 新行与测试锚点、api-freeze.md 定稿、javadoc、`docs/release/5.0.0-rc.1.md` 草稿)。**API 冻结全部完成(2026-10-28)**;下一步 WP-store-contract → WP-perf → 门槛重跑。原条目:先在 03/05/07 定稿再改代码:D36(R1-x-03/05)、D37(R1-x-06,命名 machine,含 R1-x-07 的最终修复)、D38(namespace 默认应用名)、R1-core-01(公开 record 演进策略)、R1-core-02(自定义生成器)、R1-core-03(`acquireTimeout`)及冻结面 MINOR。
+  4. **WP-store-contract**(✅;✅ A 选项与 key 契约 [#1378](https://github.com/Ahoo-Wang/CosId/pull/1378) `48bcb039`:`StoreProvider.options()` 声明 + 宽松匹配 + 未知键报错,`StoreKeys` 可移植 key 规则 + TCK,timeout 必须为正;✅ B JDBC [#1379](https://github.com/Ahoo-Wang/CosId/pull/1379) `16687821`:`(namespace, last_owner_key)` 索引 + 三段 union 候选查询(各库 EXPLAIN 断言),alpha.1 表由 initSchema 补建;R1-jdbc-06 恢复 4.x 值校验、去掉 `last_insert_id()` 兜底、`fetchPlan=transaction`;迁移侧校验无专用测试(需代理,接受)。**WP-store-contract 完成**):R1-spi-01/R1-spring-01(options 键规范与未知键报错)、R1-spi-02(可移植 key 语法)、R1-jdbc-01(`cosid_slot` 索引,DDL)、R1-jdbc-06(SQL 代理下 generated key 校验,含迁移侧)。
+  5. **WP-perf**(代码完成;门槛第三次运行 [run 40772963183](https://github.com/Ahoo-Wang/CosId/actions/runs/40772963183) @ `1ed9aaeb`:**FAIL 3/8**。codec-filler、redis、segment、snowflake、spring-start 5 组全部 PASS,codec 和 P6 回退已消除。重跑后仍失败的行:
+     - Mongo:reserve avgt 1060→1152 µs(+8.7%),分配 31.1→32.8 KB(+5.4%);renew p99.9 5840→6998 µs(+20%)。
+     - MySQL:延迟全部通过;renew 分配 16.4→20.5 KB(+25%),p99 1561→2079 µs;reserve 分配 8.6→14.0 KB(+64%),疑与 R1-jdbc-04 有关(upsert 5 个参数,update 分支的 generated keys 有 2 行)。
+     - ZooKeeper:reserve 分配 5.8→6.5 KB(+12%),p99 +15%,p99.9 +14%;avgt 通过。
+     以上都在 I/O 主导的存储操作上(µs 级,分配为 KB 级),按 D34 仍算回退。安排 WP-perf P3 逐项定位修复(先用分配剖析,不放宽容差);确实无法修复的,作为 D34 补充登记给用户决定。
+     ✅ **P3** [#1392](https://github.com/Ahoo-Wang/CosId/pull/1392) `4eebc74a`(未放宽 D34,没有需要登记的不可消除项)。本地对比:
+     - MySQL:未封存的已有 key 的 reserve 改为一条 2 参数的 `update … last_insert_id(…)`(与 4.x 相同),分配 14.1→8.7 KB(4.x 8.7);renew 首次尝试只读存储时钟,分配 20.4→17.0 KB(4.x 16.5)。
+     - Mongo:filter 和 pipeline 直接用 BSON 值构造，renew 的返回只投影 lease 需要的字段;reserve 分配 33.9→28.4 KB(4.x 31.3),renew 分配 43.9→30.7 KB。
+     - ZooKeeper:记住上次写入的版本，先按该版本做一次 `setData`,一次往返;未命中则回退为先读后写。reserve 分配 26.8→16.0 KB(4.x 25.7)。
+     审查遗留(后续加固,不阻塞门槛):按版本写的 ZK 快路径存在 ABA 前提——节点被删除并重建后,版本号可能回到原值。目前只有迁移工具的 `delete` 会删除已封存的 key,本身已要求实例停止。加固项:记住 czxid,`setData` 返回的 czxid 不一致即报存储回退并清除记忆;把"持有期间节点不得删除"写进 06。 ✅ 已由 [#1393](https://github.com/Ahoo-Wang/CosId/pull/1393) `45f6a82d` 完成。局限:ZK 无法以 czxid 为写入条件，这次写入本身撤不回，只能保证该号段不发出且报错，所以首要防线是不变式(06 §2.4、ZK 后端文档、09/迁移指南:`purge` 必须在所有 5.0 实例停止后执行)。
+     → 第四次正式门槛 [run 40797246965](https://github.com/Ahoo-Wang/CosId/actions/runs/40797246965) @ `4eebc74a` 运行中。
+     **D44(用户 2026-10-28):端到端发号是最终指标，组件只要求不过度退化。** 门槛改为:端到端行(P1–P8、P11、P12)按 D34 硬判;组件行(P9、P10)按 D34 判 PASS,超出 D34 但未超过软上限(吞吐/平均 20%、尾延迟 30%、分配 25%)判 WARN,超过软上限才 FAIL。
+     - 按此口径回看第三次运行:Mongo reserve +8.7%/+5.4%、renew p99.9 +20%,ZK reserve 分配 +12%、尾延迟约 15%,都只是 WARN;MySQL reserve 分配 +64%、renew p99 +33% 仍为 FAIL,已由 P3 修复。
+     - 缺口:Mongo 和 ZooKeeper 只有存储原语基准，没有端到端号段链基准。
+     - 实现交给子会话:WP-perf P4 = `benchmark/compare` 的行分类与 WARN 档 + Mongo/ZK 号段链基准(两侧)+ 10 §1.2/§1.3。
+     - ✅ **P4** [#1394](https://github.com/Ahoo-Wang/CosId/pull/1394) `ad8a1499`:
+       - `compare` 的 `SCENARIOS` 单表定义行的类型，未列出的类按端到端判定，测试保证每个基准类都在表中;
+       - 组件行超出 D34 时判 WARN,`run-release`/`aggregate-release` 显示为 "PASS (n WARN)";
+       - 新增 Mongo/ZK 号段链基准(两侧),四个后端的 P7 在 5.x 侧都走 `CosIdRuntime` 生产路径;
+       - 10 §1.2/§1.3 已同步，删除了被跟踪的 `__pycache__`;
+       - remote 端到端行暂不加，可作为 GA 后 5.x 自身的趋势行。
+     - 第四次运行(run 40797246965 @ `4eebc74a`)已取消：其口径和基准集已被 P4 取代。
+     - 第五次正式门槛 [run 40800116981](https://github.com/Ahoo-Wang/CosId/actions/runs/40800116981) @ `ad8a1499`(D44):**FAIL 3/8,但不是性能回退**。
+       - **原因**:5.x 侧的 Redis、MySQL、Mongo 号段链基准在 setup 阶段就失败了(`no StoreProvider of type [redis]`),所以报告显示 "missing"。`benchmark/v5` 的 jmhJar 没有合并 `META-INF/services`,只剩 ZooKeeper 一个 provider。
+       - **有效数据**:存储原语行全部 PASS(Redis 5.x 约为 4.x 的一半耗时、四成分配),只有 ZK renew sample 一行 WARN;ZK 端到端链 PASS;segment、snowflake、codec-filler、spring-start 全部 PASS。
+       - **修复**(交给子会话):jmhJar 合并 service 文件;`run-release` 把某一侧数据缺失或 JMH `<failure>` 当作装配错误直接失败，不记成回退行;CI 加基准装配自检;基准改动交回前必须先跑 `release-gate-check/**` dry-run。修复后由协调会话重跑正式门槛。
+       - **教训**:P4 只用 javac 加类路径做了本地 smoke,没有跑 dry-run,所以 jar 装配问题没有暴露。
+     - ✅ [#1398](https://github.com/Ahoo-Wang/CosId/pull/1398) `632fdfdf`:
+       - 基准约定插件合并各模块的 `META-INF/services`;
+       - `checkJmhJar` 核对 jar 内的 provider,CI Check 与 run-smoke/run-release 都先过这一步;
+       - 某一侧数据缺失视为装配错误(`compare` exit 4),不计入回退行;
+       - AGENTS.md 增加 gotcha。
+       dry-run [run 40808254473](https://github.com/Ahoo-Wang/CosId/actions/runs/40808254473) 已证实四个后端的 5.x 链基准都有数据(dry-run 不作为结果)。
+     - 第六次正式门槛 [run 40810418780](https://github.com/Ahoo-Wang/CosId/actions/runs/40810418780) @ `632fdfdf`(D44):**7/8 组 PASS,所有端到端行 PASS。**
+       - 四个后端的号段链 `generate_t1`(step=10)吞吐:Mongo 48→452、MySQL 0.51→442、Redis 2.5→409、ZK 0.35→354 ops/µs。
+       - 4 个组件行 WARN:Mongo reserve/renew sample、MySQL renew p99.9 +15%、ZK renew sample。
+       - **唯一 FAIL**:组件行 `MySqlStoreBenchmark.reserve_t1` 的 sample p99.9。首次 29.0→79.0 ms,重跑 61.9→83.9 ms(+35.6%,超过 30% 软上限)。同一行的 avgt(784→720 µs)、p99(3.2 ms 持平)和分配(8.7 KB 持平)全部通过。
+       - 4.x 自己在两次运行之间的 p99.9 就从 29 ms 变到 62 ms,这个指标的噪声大于容差。第三次运行时同一行 p99.9 还在 4.2/4.4 ms(runner 不同)。
+       - 另有两行端到端链基准 4.x 更高，只因 4.x 误差太大才判 PASS:MySQL t16 step=10 102.0 vs 68.7,ZK t16 step=10 83.2 vs 53.6 ops/µs;同后端 4.x t4 只有 1.3/4.7,呈两极分化。v5 多线程上限约 43–71 ops/µs,与内存 P5 t16 的 42 一致，疑为号段游标的单点 CAS 竞争。并入 P5 调查：判断是否值得在 GA 前优化高并发热路径，以及对单调性和空洞的代价。
+       - 处理：交给子会话做 P5,判断这个尾延迟是不是结构性的(P3 改为先 update、1690 回退、连接或提交路径)。若不是结构性的，作为数据完整的例外交用户裁定(RC1 准入允许"每个例外有数据并经用户裁定")。✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
+       - **P5 结论(2026-10-29)**:
+         1. MySQL `reserve_t1` 的 p99.9 **不是结构性问题，是运行顺序造成的**。在 CI runner 上按 ABBA 顺序各跑 8 次，合并后 p99.9:5.x 17.4 ms,4.x 29.1 ms;≥20 ms 的样本每万次 8.9 对 12.6;均值 612 对 677 µs。紧跟另一侧之后运行的那次，p99.9 中位数是 32.5 ms,紧跟同侧之后是 15.7 ms。门禁重跑时 5.x 总在 4.x 之后。处理：门禁对存储行改为 ABBA 交替，属于测量流程的修正，容差不变(§4.3 第 16 项)。
+         2. t16 链基准:4.x 每个 iteration 在 0.1 到 166 之间摆动，它的高值只出现在预取恰好领先的窗口;5.x 在 t4/t16/t64 下都稳定(MySQL 约 68、ZK 约 54、内存 42–44),上限来自号段游标这一个计数器。
+         3. AtomicLong 参照：在 4 核 runner 上做 smoke,5.x 在 t1/t4/t16/t64 下分别是 AtomicLong 的 99%/57%/63%/51%,4.x 是 33%/32%/38%/35%;在 M4 Pro 上,5.x 是 91%/81%/80%/76%。4.x 宣称的"约 89% 接近 AtomicLong",5.x 在单线程下做到了;同一台 runner 上 4.x 只有 33%。
+         4. **GA 前不做分条带。** 分条带会让跨线程不再递增，并留下空洞，API 冻结后这属于语义变化。可选的零语义代价改进是给游标字段做填充、避开伪共享，先测量再决定，列为 GA 前的可选项。
+       - ✅ [#1404](https://github.com/Ahoo-Wang/CosId/pull/1404) `457c7266`:
+         - 新增 AtomicLong 参照基准，只报告不判定;
+         - 存储组(P7/P10)按 ABBA 交替运行，同一侧两次运行的原始数据合并后重新计算统计量(`merge-results`);
+         - dry-run 40828410128 通过。dry-run 的参照数据(smoke 参数)如下:t1 时 4.x 是 AtomicLong 的 73–78%,5.x 是 101%;t4 时 4.x 42–44%,5.x 75–77%;t16 时 4.x 45%,5.x 68–72%。
+       - ✅ **第七次正式门禁 [run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823) @ `457c7266`:PASS,8 组中 0 组失败**(基线 4.1.1,依赖来自 Spring Boot BOM,存储组按 ABBA 顺序运行,D44 口径)。**这是 RC1 的性能依据。**
+         - 所有端到端行 PASS。号段链 t1 step=10 吞吐，4.x → 5.x(ops/µs):Mongo 1.75 → 392、MySQL 0.47 → 209、Redis 0.86 → 211、ZK 0.28 → 405;内存号段 t1 141 → 418,t16 24.6 → 44.8。
+         - AtomicLong 参照(正式参数):t1 时 5.x 达到 AtomicLong 的 99%,4.x 为 34%;t4 时 5.x 65–68%,4.x 37%;t16 时 5.x 63–65%,4.x 35%。
+         - 3 个组件行 WARN(不阻塞):Mongo reserve avgt +5.9%,Mongo reserve p99 +21%,MySQL acquire avgt +5.5%。
+         - 第六次运行中唯一失败的 MySQL reserve p99.9,这次是 3.3 → 2.3 ms,PASS,与 P5 的"运行顺序噪声"结论一致。
+  6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
+  7. **依赖与 MINOR**(进行中;MINOR 分诊 ✅ [#1395](https://github.com/Ahoo-Wang/CosId/pull/1395) `feb0edd5`,ga-review §9:75 条中已修 32、本次修 25(stores 9 / core-javadoc+spring-config 8 / docs+migration 8,分 3 个 PR 串行:✅ stores [#1396](https://github.com/Ahoo-Wang/CosId/pull/1396) `520b1426`;✅ core-javadoc+spring-config [#1397](https://github.com/Ahoo-Wang/CosId/pull/1397) `5b0eb1d3`(含 readiness 改名 `cosidServerStore`,修复 Boot 4.0 下 `- friendly: {}` 的绑定问题);✅ docs+migration [#1399](https://github.com/Ahoo-Wang/CosId/pull/1399) `926a4b2b`。**RC 前的 25 条全部完成**)、GA 后 16、不修 2。协调会话对 §9.4 待定 3 项的决定见 §4.3 第 14 项):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml` → ✅ [#1384](https://github.com/Ahoo-Wang/CosId/pull/1384) `b2e40694`(pnpm overrides:vite 6.4.5、esbuild 0.25.12、source-map-js 1.2.2、vue 3.5.44;73 页渲染与 main 对比一致);剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
+  8. ✅ **WP-ci 重构 CI(工程质量、执行效率)**([#1385](https://github.com/Ahoo-Wang/CosId/pull/1385) `157eb656`;试验 PR #1386–#1390 验证后已关闭)。实测:
+     - 改 core:75.1 → 约 35–38 runner·分钟(缓存预热后),`check` 由 3 遍变为 1 遍,关键路径约 6 分钟;
+     - 只改单个 store:约 67 → 约 20–29;
+     - 只改 docs:0.9;
+     - 汇总检查 `CI` 在 job 失败时确实变红。
+     - 协调会话取舍:不采用"PR 上每个 store 只跑一个版本"的进一步提速(只省约 8 分钟,但当前版本的问题要到 nightly 才暴露)。目标修订为:单模块改动 ≤ 30、全量运行 ≤ 40。
+     - 合入后 main 首次运行 CodeQL 时,旧配置 `analyze/language:java` 会成为陈旧配置,可在 Security → Code scanning 中删除(仓库设置,由用户操作)。
+     - 试验运行还发现了 #1380 的顺序回退,已由 #1391 修复。
+     原计划:用户 2026-10-28 提出;排在文档依赖 PR 之后、MINOR 分诊之前)。现状(以 #1375 一次推送为样本):
+     - 每次推送约 59 runner·分钟:Integration Test 22 个 job 约 37 分钟,CodeQL autobuild 5 分钟,Codecov 在 `pull_request` 和**所有分支的 `push`** 上各跑一次全量 `check`(8–9 分钟)。同一份 `./gradlew check` 每次推送跑 3 遍(IT Check + Codecov×2)。关键路径约 9 分钟。
+     - 没有 `concurrency`:同一个 PR 连续推送时,旧运行跑到底。没有 `timeout-minutes`:mongo:8 卡住时跑满 6 小时默认值。
+     - 不支持版本的 probe(Mongo 4.4/5.0、ZK 3.6/3.7、Redis 6.2、JDBC probe×3,共 8 个 job)每个 PR 都跑;store 和 Spring job 不看改了什么,全部都跑。
+     - 约 10 个 job 重复写 checkout + setup-java + `cache: gradle`,没有使用 `gradle/actions/setup-gradle`(构建缓存、wrapper 校验、依赖图提交)。
+     - labeler 的 `cancel-in-progress` 在 PR 检查中留下 CANCELLED 噪声。branch protection 只把 `Conventional Commits title` 设为必需检查;"全绿才能合并"目前靠人工判断。
+     - 目标(可度量):PR 每次推送 ≤ 30 runner·分钟(代码改动)、只改 docs 时 ≤ 2 分钟;关键路径 ≤ 8 分钟;每次推送只跑 1 遍 `check`;所有 job 都有超时;旧运行自动取消;一个汇总检查 `CI` 代表全部结果。
+     - 方案:
+       ① 删掉独立的 Codecov workflow,覆盖率在 IT `Check` 的同一次 `check` 中上传(按 Codecov flags 拆分,保留 patch 80%)。
+       ② 所有 PR workflow 加 `concurrency: ${{ workflow }}-${{ PR 号 }}`,`cancel-in-progress: true`;push 到 main 不取消。
+       ③ 新增 composite action `.github/actions/setup-build`(checkout、JDK、setup-gradle,PR 上缓存只读、main 上可写)。
+       ④ 新增 `changes` job,用路径过滤决定 store-*/server/spring 是否运行:core、tck、构建脚本改动时全部运行。
+       ⑤ probe 和 Spring 兼容全矩阵移到 nightly + main;PR 上 Spring 只跑 最低 Boot/J21 + 当前 Boot/J25 两个对角组合。
+       ⑥ CodeQL Java 在 PR 上用 `build-mode: none`;main 和每周 schedule 保持完整构建。
+       ⑦ 所有 job 加 `timeout-minutes`。
+       ⑧ 新增汇总 job `CI`(`needs` 全部、`if: always()`,skipped 视为通过、failure 或 cancelled 视为失败),作为合并依据。
+       ⑨ labeler 改为不取消。
+       ⑩ 用 setup-gradle 提交依赖图,让 Dependabot 看到 Gradle 依赖。
+       ⑪ 失败时上传 JUnit 报告并生成注释。
+     - 不在范围内:release-gate、package-deploy、docker-deploy、document-deploy 这些发布链路只加 timeout,不重构。
+     - 验证:同一提交在旧/新 workflow 下的 runner·分钟和关键路径对比写进 PR 描述;docs-only、单 store、core 三种改动各推一次验证路径过滤。
   6. **WP-docs**:R1-x-01/08、R1-doc-01–07、R1-mongo-04(加分片集群 CI 或收窄承诺)、k8s 部署指南、设计文档与 11 对照表同步、javadoc。
 - 原派发队列(一次一个子会话):① codec(✅)→ alpha.1 发布(✅)→ ② **GA 前审查第 1 轮**(下一个)(§6)→ ③ 门槛实现 D34(`benchmark/compare` 及测试、10 §1.3)→ ④ 修复:第 1 轮发现 + MySQL 分配 + 号段与 ZK 分配(按严重度排序,一次一个)→ ⑤ 在 main 上按 D34 重跑门槛 → RC1(用户确认)→ 第 2 轮审查 → GA。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。
 
@@ -196,6 +280,30 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **alpha.1 发布步骤(D33):** 1) ✅ #1360、#1361 已合入(main 版本号已为 `5.0.0-alpha.1`);2) release notes 的已知问题按门槛结论填写;3) 用户最终确认后,在合入 #1360 的提交上创建 pre-release `v5.0.0-alpha.1`(会触发 package-deploy:校验、发布 Central、上传迁移工具 jar;以及 docker-deploy,不打 `latest`);4) 用该 tag 手动触发 `document-deploy`;5) 跟踪各 workflow,在 Central、Docker Hub、站点上核对;6) main 改回 SNAPSHOT 版本(例如 `5.0.0-SNAPSHOT`),避免之后的构建冒用 alpha.1 版本号。
 
+## 4.3 待用户确认的决策(用户休息期间按总调度推荐执行,2026-10-28 起)
+
+用户授权:默认按总调度推荐推进,PR 审查通过后由总调度合并;RC/GA 发布仍需用户决定。以下决策已按推荐执行或排期,**用户回来后请逐项确认或推翻**(推翻越早代价越小,冻结面相关项须在 RC1 前定):
+
+| # | 决策 | 已执行/排期 | 推翻的影响 |
+|---|---|---|---|
+| 1 | D36 cosid80 可配置布局、friendly `padStart`、不适用属性报错 | api-freeze PR2 | 改为"不支持"只需改文档 |
+| 2 | D37 命名 machine + `slotOffset` 滚动迁移(总调度改定:子会话原推荐 RC 只支持一次性停机切换) | api-freeze PR3/PR5 | 去掉 `slotOffset` 则共享全局命名空间的服务须一起停机迁移 |
+| 3 | D38 `cosid.namespace` 默认 `spring.application.name`,未设置回退 `cosid` + WARN | api-freeze PR4 | 保持默认 `cosid` |
+| 4 | D39 配置/SPI 值类型改 final class + builder(约 230 处调用) | api-freeze PR1(进行中) | 保持 record + 重载;须在 PR1 合入前提出 |
+| 5 | D40 sealed 规格接口次版本可加变体;D41 `Custom`/`Instance` 自定义生成器;D42 `acquireTimeout`;D43 其余冻结面 MINOR | api-freeze PR2/PR4 | 逐项 |
+| 6 | D34 门槛容差(吞吐/平均 5%、p99 10%、分配 max(5%, +64 B)) | 门槛实现排在 WP-perf | 用户已同意,列此备查 |
+| 7 | cosid-server:`docs.public` 默认关;虚拟线程默认开;admin 路径改为白名单(删除 `auth.admin-paths`);管理端口独立时拒绝启动 | 已合入 #1365 | 可再调 |
+| 8 | Mongo 分片集群:推荐加 CI job 证实"集合不分片"可用并写明不要分片(R1-mongo-04) | WP-docs | 改为文档收窄为副本集 |
+| 9 | main 上 11 个 Dependabot 告警(3 high)须在 GA 前处理(Renovate) | GA 准入核对项 | — |
+| 10 | 是否发布 RC1、何时发布 | 待门槛 PASS 与 API 冻结完成后请用户决定 | — |
+| 11 | RC 版本号写法:`5.0.0-rc.1`(与 `5.0.0-alpha.1` 同为 SemVer 点分预发布标识,`alpha.1 < rc.1` 在 SemVer 与 Maven 中都成立;大写 `RC1` 在 SemVer ASCII 排序中会排在 `alpha` 之前)。roadmap 中 `5.0.0-RC1` 指同一版本 | 协调会话按推荐(PR6 #1377 的草稿 release notes 已用 `rc.1`) | 改用 `5.0.0-RC1` |
+| 12 | 门槛 4.x 基线:RC1 门槛按已文档化的 4.1.0 判定(本轮 run 40772963183);Renovate #1367(cosid4 → 4.1.1,4.x 分支只含 bug 修复)在门槛结论后合入,并在 RC 期间用 4.1.1 复跑一次门槛作为 GA 依据 | ~~协调会话按推荐~~ 被 D45 取代(用户 2026-10-29:依赖升到最新，基线改用 4.1.1) | 立即升 4.1.1 并重跑 |
+| 13 | WP-ci 完成后把 branch protection 的必需检查设为汇总检查 `CI`(加上现有的 `Conventional Commits title`),由 GitHub 强制"全绿才能合并"。仓库设置的改动须由用户本人操作或明确授权 | ✅ 用户已决定(2026-10-28):由用户本人在 GitHub 设置中把 `CI` 设为 main 的必需检查。之后协调会话合并 PR 时以 `CI` 为准(skipped 视为通过) | — |
+| 14 | MINOR 分诊 §9.4 的三项:① R1-spi-03 RC 前只写异常契约，不加 `StoreException` 基类(以后在现有层次中插入基类是兼容的);② R1-mongo-01 RC 前修:不再创建 `ns_ownerKey` 索引(属于存储格式，冻结前清掉);已有库保留这个无用索引不影响正确性，文档说明可手动删除;③ server readiness 贡献者 `cosIdServerStore` 改名为 `cosidServerStore`,与 R1-spring-05 的 `cosid` 一致，不保留别名(alpha.1 无兼容承诺,D33),K8s 指南和 release notes 同步 | 协调会话按推荐 | 保留 `cosIdServerStore` 或加别名 |
+| 16 | 门禁对存储组(P7/P10)的 4.x/5.x 运行顺序改为 ABBA 交替(依据 P5:先后顺序会让 p99.9 差 2 倍);容差和判定规则不变。不在 GA 前做分条带;游标字段填充(伪共享)列为可选项，先测量 | 协调会话按推荐 | 保持 4.x→5.x 固定顺序，则 MySQL reserve p99.9 这一行交用户裁定 |
+| 17 | D46 UUIDv7 生成器(`strategy: uuidv7`)**进 5.0,在 RC1 之前完成**。它自包含、不依赖存储，在 RC1 冻结前定型，就能一并纳入兼容承诺 | ✅ 用户已确认(2026-10-29) | 改为 5.1:RC1 不必等它，按 D40 以后作为新增变体追加 |
+| 18 | 第 2 轮中触及冻结面的两项都按兼容方式处理:① R2-spring-02:写在不适用策略上的键改为打 WARN,不改为启动失败(RC1 后校验不能收紧);② R2-core-03:具体生成器与租约类的公开构造器继续留在兼容承诺内，约定今后新增参数只走 builder 或静态工厂，不再增加位置参数重载。结论：不需要 RC2 | 协调会话按推荐 | ① 改为启动失败需要发 RC2;② 把构造器移出兼容承诺等于收窄 RC1 的冻结面 |
+
 ## 4.2 审查不通过登记
 
 | PR | 问题 | 处理 |
@@ -203,16 +311,89 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | WP-Redis(B-B1)审查不通过:`Store Redis TCK (Redis 7.0)` 稳定失败(8.10 和 6.2 probe 通过)。`ClusterReplicaWaitTest` 中 `wait=auto` 在 7.0 上解析为 0(期望 1),之后 WAIT 不执行,冻结副本时写入照常成功。这是产品缺陷,不只是测试问题:启动时 auto 若解析为 0,WAIT 就会一直被静默跳过,与 B-B1 属同类问题。可能原因:Lettuce 缓存的拓扑还没显示副本,或 7.0 的 CLUSTER NODES 解析不同 | 已退回 R2-Redis:查清 7.0 的根因;auto 解析改为刷新拓扑或按各主节点的 INFO replication 计数,存在副本却解析为 0 时不能静默;同连接执行 WAIT 和 B-N4 的设计认可 |
 | [#1357](https://github.com/Ahoo-Wang/CosId/pull/1357)(✅ 已关闭,2026-10-28) | 发布门槛自动报告(run 40534275762,基于 `614d5df9`,即各修复合入前):**FAIL,8 组中 5 组失败**。重跑后仍失败:codec-filler 4 行(radix36/62 编解码单线程吞吐低约 12–15%);mongo 1 行(reserve 分配多约 4%);mysql 7 行(`MySqlStoreBenchmark.acquire` 耗时约 +70%,acquire/renew/reserve 分配 +25–65%,ChainId p99/p99.9 偏高);segment 1 行;zookeeper 4 行(renew/reserve 小幅超阈值 1–7%)。另外该 PR 由 workflow 的 GITHUB_TOKEN 创建,不触发 CI,处于 BLOCKED,不满足“CI 全绿”规则 | 不合入。D21(性能不回退)未满足,是 **RC 阻断项**;分析在 #1345(R5-A)。收尾阶段不开新任务,RC 前需派发:codec 与 MySQL store 为主要回退;mongo/zookeeper/segment 行接近阈值,需先确认是否为噪声。报告需改为由能触发 CI 的身份创建(或改为直接推到 #1345) |
 | [#1358](https://github.com/Ahoo-Wang/CosId/pull/1358) | CI(会话 `ci-gate-mongo`):门槛报告改为 job summary + artifact、不再开 PR,通过;mongo:8.0 根因为 MongoDB 8.0.21+ 在 Linux 6.19–7.0.13 上启动即退出(SERVER-125742,runner 镜像 20261025),认可。不通过:检测到不兼容时跳过 TCK,job 显示绿色而 8.0 实际未覆盖 | 已退回(2026-10-28):`mongo:8*` 改在 `ubuntu-22.04`(内核 6.8)上真跑;探测到不兼容时 job 失败而非跳过。**复审通过**(`5cd86293`,CI 全绿,8.0 TCK 在内核 6.8.0-1064-azure 上跑完),待用户同意转 ready;✅ **已合入 `0873ed9e`**(2026-10-28) |
+| [#1376](https://github.com/Ahoo-Wang/CosId/pull/1376) | API 冻结 PR5(迁移:共享 `cosid.generator.namespace` → 命名 machine `generator` + slotOffset)。共享命名空间一次性迁移、各后端读 M、元数据 slotOffset、63 位规则、config 输出均通过。不通过:默认 offset = `roundUpToPowerOfTwo(M+1)` 无余量(M=511 → 512,余量 0),滚动期间 4.x 扩容即可分出 ≥ offset 的 id 与 5.0 节点重叠,唯一性依赖运维纪律 | 已退回(2026-10-28,head `38ba6731`):默认 offset 取 4.x 分配器硬上限 `2^(4.x cosid.machine.machine-bit)`,由构造保证不相交;放不下时要求显式 `--slot-offset` 并标记 `guaranteed: false` + 警告,`verify` 事后检查保留。**复审(`00b107fc`)再退回**:我的前提有误——4.x CosIdGenerator 按 `cosid.generator.machine-bit` 分配、5.0 保留为 node-bits,上限恒为 2^nodeBits,构造性保证在保留位宽时不可达,修复后默认路径恒抛错。改为默认 offset = `2^nodeBits − 2^bits`(slot 置于节点空间顶端,默认 20/10 位时 4.x 余量约 104 万),plan 报告 `headroom`,余量 < 2^bits 时醒目警告,`verify` 保留。**第三版复审通过**,CI 32 项全绿,✅ 已合入 `385d363e`(2026-10-28) |
+| [#1391](https://github.com/Ahoo-Wang/CosId/pull/1391) | 修复 #1380(R1-core-04 take-first)引入的顺序回退。`slowPath` 先后两次检查当前游标,两次之间热路径可能已在锁外用完游标,于是 ready 里还有号段时调用方就自己 reserve 并先发出新号段的首值。ID 仍唯一,但发号越过了 ready 号段,紧接着 `close()` 就会留下空洞。由 WP-ci 试验运行发现(`SegmentGeneratorTest` 偶发失败,本地 1/12)。修复:只有 ready 为空时才等待或自行 reserve | 审查通过(循环必然终止,P6 不受影响),CI 29 项全绿,✅ 已合入 `9488ad60`(2026-10-28) |
 
 ## 5. RC1 准入清单
 
 - [x] 审查 A–E 无未关闭的 BLOCKER(#1355 合入后清零,2026-10-28)
-- [ ] 发布门槛报告:全部 PASS,或每个例外有数据并经用户裁定
+- [x] 发布门槛报告:全部 PASS(第七次运行 40832851823,8/8 组 PASS,3 个组件行 WARN 不阻塞,D44 口径)
 - [x] #1342 合入(L14)
-- [ ] 遗留事项 L1–L16 中阻塞 RC 的已关闭
-- [ ] 发布配置核对通过(E 路)
-- [ ] 用户确认发布 RC1
-- [ ] GA 前审查第 1 轮完成,BLOCKER/MAJOR 已修复或经用户裁定(见 §6;涉及 API、配置、存储格式的改动必须在 RC 冻结前完成)
+- [x] 遗留事项 L1–L16 中阻塞 RC 的已关闭(2026-10-29 核对):
+  - L1、L2、L15 由 CI 正式门禁接管;
+  - L4 稳定性:nightly `test-stability` 每类 20 次，连续两晚通过(40590957166、40779346122),L12、L16 的偶发测试在其中没有复现;
+  - L5 由 `check -Pcosid.test.skipProjects` 去重(WP-ci);
+  - L6 由 WP-docs 覆盖;
+  - L7–L11、L13、L14 已完成。
+- [x] 发布配置核对通过(E 路):
+  - E 路 BLOCKER 已清零;
+  - E-N6 `TODO(R1)` 已从 main 清除;
+  - E-N8 CodeQL 路径与 E-N9 `release: published` 已在 main 上;
+  - 发布前的手工步骤(版本号、server README)放进 RC1 准备 PR。
+- [x] D46 UUIDv7 生成器合入([#1406](https://github.com/Ahoo-Wang/CosId/pull/1406) `ac3de73f`:16 位计数器，状态是一个 `AtomicLong`(48 位毫秒 + 16 位计数),58 位随机数，无需 machine,文本经 `text(name)` 获取;smoke 中 t1 生成 UUID 约 28 ops/µs、文本约 21 ops/µs,多线程的 smoke 误差很大，以后看正式门禁 P13 的趋势行)
+  - 用户 2026-10-29 决定：先发 **`v5.0.0-alpha.3`**(包含 UUIDv7、带点名字的测试、AtomicLong/ABBA,以及第七次门禁 PASS),RC1 之后再说。发布步骤同 alpha.2。
+  - ✅ **`v5.0.0-alpha.3` 已发布**(2026-10-29,pre-release,目标 `f4f5bece` = #1409):
+    - Packages Deploy、Docker Image Deploy、document-deploy 全部成功;
+    - Central 在 09:37 已可解析(core、bom、starter、各 store);
+    - Docker Hub 有 `5.0.0-alpha.3`,没有打 `latest`;
+    - release 附件中有 `cosid-migration.jar`;
+    - 文档站 generators 页已有 uuidv7 一节;
+    - main 已改回 SNAPSHOT(#1410 `b73c9e0e`)。
+- [x] 用户确认发布 RC1(2026-10-29,用户在协调会话中:"Release RC1")
+- ✅ **`v5.0.0-rc.1` 已发布**(2026-10-29,pre-release,目标 `c154e69d` = #1411):
+  - Packages Deploy、Docker Image Deploy、document-deploy 全部成功;
+  - Central 在 10:24 已可解析(core、bom、starter、jdbc/redis/mongo/zookeeper);`cosid-store-redis` 的 POM 中是具体版本(Lettuce 7.9.0、slf4j 2.0.20),没有 BOM import;
+  - Docker Hub 有 `5.0.0-rc.1`,没有打 `latest`;
+  - release 附件中有 `cosid-migration.jar`;
+  - 文档站已按 tag 部署;
+  - main 已改回 SNAPSHOT(#1412 `8ebde66d`);
+  - 已通知 Wow。
+  **兼容承诺从本版开始。** 下一阶段：RC 期间进行 GA 前审查第 2 轮(D35),并按 §4.3 第 12 项在 RC 期间以 4.1.1 复跑门禁(第七次运行已经用的是 4.1.1,此项视为已满足)。
+  - **GA 前审查第 2 轮**(D35,用户 2026-10-29 要求开始):由独立的新会话 `ga-review-round-2` 进行，避免受前面实现上下文的影响。只出发现表，不改代码，结果追加到 ga-review.md。审查要明确给出 D35 的三项结论(性能、特性、文档);触及冻结面的问题须标明能否兼容地修复，需要不兼容改动的标 RC2-BREAKING,交用户决定。
+    - ✅ 第 2 轮报告 [#1413](https://github.com/Ahoo-Wang/CosId/pull/1413) 已合入(ga-review.md §10)。共 41 条:BLOCKER 2、MAJOR 4、MINOR 35;RC2-BREAKING 的候选只有 1 条(可选做法)。
+      - D35 三项结论：性能 PASS(第七次门禁);特性方面运行时 PASS,但迁移工具 `config` 有缺口;文档 PASS,有缺口。
+      - 两条 BLOCKER 都出在迁移工具 `config`:R2-mig-01 没有读取 `apply-result.json` 的 `target`;R2-parity-01 丢掉了 4.x snowflake 自带的 namespace。两条都可兼容地修复，因此**不需要 RC2**。
+      - 修复分三个 PR 串行进行:WP-migration-r2(包含两条 BLOCKER),然后 WP-core-spring-r2,最后 WP-docs-r2。
+      - ✅ WP-migration-r2 [#1415](https://github.com/Ahoo-Wang/CosId/pull/1415) `c6ce99ec`:`config` 按 `apply-result.json` 记录的目标生成 store;自带 namespace 的 4.x snowflake 迁成命名 machine,单独迁移一次;`--*-option` 键名做归一化并校验;`wait-replicas`/`fetch-plan`/`writeConcern`/Curator retry 都正确转换;Redis Cluster 写入走 key 所在主节点的连接;报错与日志中的 URL 隐去密码。新增"用 `config` 的输出启动 5.0"端到端测试(`ConfigRuntimeTest`)。**第 2 轮的两条 BLOCKER 已清零。**
+      - ✅ D49 [#1416](https://github.com/Ahoo-Wang/CosId/pull/1416) `d8434b4d`:只支持 Spring Boot 4.1.2+。删除了 `spring-boot-minimum`/`minimumVersions` 机制;CI 矩阵改为 Boot 4.1.2 × Java 21/25;发布 POM 里 spring-boot-autoconfigure 和 spring-data-jdbc 都是 4.1.2,没有 BOM import。下一步:WP-core-spring-r2。完成后在 GA 提交上重跑门禁(R2-perf-01)。
+      - 协调会话按推荐做的两项决定(§4.3 第 18 项):R2-spring-02 对不适用策略的键只打 WARN,不改为启动失败;R2-core-03 的公开构造器保留，约定今后新增参数只通过 builder 或静态工厂。
+  - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
+    1. 合入 #1400;
+    2. 在合入提交上创建 pre-release,会触发 package-deploy 和 docker-deploy(不打 `latest`);
+    3. 用 tag 手动触发 `document-deploy`;
+    4. 在 Central、Docker Hub 和站点上核对;
+    5. main 改回 `5.0.0-SNAPSHOT`。
+    RC1 仍需用户确认。
+  - **下游 Wow V10**(2026-10-29,跨会话沟通):
+    - wow-cosid 正从 CosId 3.4.1 升级到 5.0.0-alpha.2。它按名字从运行时解析生成器，命名约定是聚合的限定名 `<context>.<aggregate>`(带点),全局默认生成器为 `default`。
+    - 我们已确认带点的名字受支持，并属于冻结面。会补一个回归测试 PR,覆盖 Spring 中的 `"[a.b]"` 写法、未知键检查、运行时查找和 TCK,PR 号出来后告知 Wow。
+    - Wow 的 rc/GA 跟随 CosId RC1,由用户决定。
+    - 已提醒 Wow:跨服务唯一的 ID 要用共享命名空间的命名 machine(D37)。
+    - CoSec 与 CosId 5 不能共存于同一类路径(CoSec 依赖 4.x API)。CosId **不提供兼容层**(D1),建议 CoSec 改为依赖 `LongSupplier`/`Supplier<String>` 这类函数式接口来解耦。
+  - ✅ 已转告 Wow(alpha.3 发布后):`stringGenerator(name)` 只服务 long 生成器;cosid80 和 uuidv7 的文本请用已有的 `runtime.text(name)`(alpha.2 已提供)。D46 会把异常信息改成提示 `text(name)`。
+  - ✅ **`v5.0.0-alpha.2` 已发布**(2026-10-29,pre-release,目标 `f3c80934` = #1400):
+    - Packages Deploy、Docker Image Deploy、document-deploy 全部成功;
+    - Central 在 06:13 可以解析(core、bom、starter、各 store);`cosid-store-zookeeper` 的 POM 中是具体版本(Curator 5.9.0、ZooKeeper 3.9.6、Guava 33.7.2),没有 BOM import;
+    - Docker Hub 上有 `5.0.0-alpha.2`,没有打 `latest`;
+    - 文档站和 Kubernetes 指南页面返回 200;
+    - release 附件中有 `cosid-migration.jar`;
+    - main 已经改回 `5.0.0-SNAPSHOT`(#1403 `074fdddd`)。
+  - **发布前插入 WP-deps**:WP-ci 加入 Gradle 依赖图提交后,Dependabot 新增 55 条告警(2 critical:netty-handler;high 涉及 netty、jackson 2/3、zookeeper、httpcore5、snappy、guava、mybatis 3.5.6 等)。这些告警全部记在 `settings.gradle.kts` 名下，来源不明。处理:
+    1. 按来源归类：发布模块的 runtime、server 镜像、测试、benchmark(含 4.x 基线)、构建插件;
+    2. 修复发布物和 server 镜像中的告警;
+    3. 依赖图只提交发布物的 runtime classpath,不手动 dismiss 告警;
+    4. 4.x 基线的依赖不动。
+    alpha.2 等 WP-deps 合入后再发，原因是不想发布一个带已知 critical 的 server 镜像。
+    ✅ WP-deps [#1401](https://github.com/Ahoo-Wang/CosId/pull/1401) `3a76f1de`:Lettuce 7.9.0(Netty 4.2.17),store-zookeeper 显式声明 ZooKeeper 3.9.5 和 Guava 33.7.2,支持的 Boot 下限 4.0.9,依赖图只提交发布物。剩余 1 条(MyBatis 3.4.2,来自 Activiti 7.0),写进文档。
+    → 合入后在 main 上提交依赖图，告警从 55 条降到 **1 条**(mybatis 3.4.2,来自 Activiti 7.0),与预期一致。
+    → ✅ D45 依赖升级 [#1402](https://github.com/Ahoo-Wang/CosId/pull/1402) `9290f371`:
+      - 所有模块在构建期导入 Spring Boot 4.1.2 BOM,版本目录只保留 BOM 不管理的依赖;
+      - Lettuce 7.9.0 为安全修复高于 BOM,写明了移除条件;
+      - Checkstyle 升到 14.3.0,删掉 #1401 留下的 5 条工具链约束，只保留 Guava 一条;
+      - cosid4 基线升到 4.1.1,并入 #1367,Renovate 会自动关闭它;
+      - 发布 POM 中没有 BOM import,版本都是具体值(Mongo driver 回到 BOM 的 5.8.1)。
+      CI 全绿,dry-run 40822764071 通过。下一步发布 alpha.2。
+- [x] GA 前审查第 1 轮完成,BLOCKER/MAJOR 已修复或经用户裁定(2026-10-29:BLOCKER 1、MAJOR 19 已修;RC 前要修的 25 条 MINOR 已修，#1396/#1397/#1399)(见 §6;涉及 API、配置、存储格式的改动必须在 RC 冻结前完成)
 
 ## 6. GA 前两轮全面审查(D35)
 
@@ -239,4 +420,4 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - [ ] RC 期间无阻塞问题
 - [ ] 用户确认发布 GA
 
-> WIP 通过 Draft PR [#1344](https://github.com/Ahoo-Wang/CosId/pull/1344) 保存:本文件与路线图的更新都推送到分支 `wip/rc-review`,换机器也能继续;在阶段节点合入 `main`。各子会话同样一开工就开 Draft PR,WIP 推送到各自 PR 分支。
+> WIP 通过分支 `wip/ga` 上的 Draft PR 保存(此前为 #1344 的 `wip/rc-review`,已合入):本文件与路线图的更新都推送到该分支,换机器也能继续;在阶段节点合入 `main`。各子会话同样一开工就开 Draft PR,WIP 推送到各自 PR 分支。

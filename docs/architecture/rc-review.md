@@ -367,7 +367,15 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
         - 新增 CI job `published-jars`:用发布出去的 jar,分别以 Maven 和 Gradle 配 Boot 4.1.2 启动冒烟应用。它当场发现一个**发布缺陷**:`cosid-spring-boot-starter`(rc.1 也受影响)没有依赖 `spring-boot-starter`,只引入 CosId starter 的应用用 YAML 时缺 snakeyaml。已补上依赖，要写进 GA release notes;
         - P8 改走生产路径,dry-run 40875468905 通过。
         - 未做：`cosid.server.*` 和各集成的配置键还没有未知键检查;各存储页的驱动版本说明。并入 WP-docs-r2 或之后再做。
-      - 下一步:WP-docs-r2。完成后在 GA 提交上重跑门禁(R2-perf-01)。
+      - ✅ WP-docs-r2 [#1419](https://github.com/Ahoo-Wang/CosId/pull/1419) `be35de36`:
+        - 文档：uuidv7 进入所有策略清单;README 改为 RC 状态并写明 Boot 4.1.2+;迁移指南写明默认文本从 radix62 改为十进制(R2-doc-03);skills 更新;SPI 补上方法级契约;SQL Server 的升级 SQL 修正;
+        - 对照表 11:proxy 与 metrics 两项对照，38 个行号锚点重新生成;
+        - 说明：`/ids` 在 JS 中的精度问题;remote 协议的 javadoc;
+        - 性能页改为 CI 模型，并填入 RC1 门禁结果;scenarios.md 列出门禁未覆盖的路径;
+        - Redis/Mongo 页写明驱动版本(Maven 经 Boot BOM 得到 Lettuce 7.5.2 和 Netty 4.2.19);
+        - 新增 GA release notes 草稿 `docs/release/5.0.0.md`;AGENTS.md 中 starter 一行已修正。
+      - **第 2 轮修复全部完成(#1415、#1416、#1418、#1419)。**
+      - → 第八次正式门禁 [run 40887469149](https://github.com/Ahoo-Wang/CosId/actions/runs/40887469149) @ `be35de36`(GA 候选提交，基线 4.1.1,首次纳入 P13 uuidv7 趋势行)运行中。完成后在 GA 提交上重跑门禁(R2-perf-01)。
       - 协调会话按推荐做的两项决定(§4.3 第 18 项):R2-spring-02 对不适用策略的键只打 WARN,不改为启动失败;R2-core-03 的公开构造器保留，约定今后新增参数只通过 builder 或静态工厂。
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;

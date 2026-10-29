@@ -530,7 +530,8 @@ jobs:
           COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
           COSID_TEST_MYSQL_USERNAME: root
           COSID_TEST_MYSQL_PASSWORD: root
-          COSID_TEST_MARIADB_URL: jdbc:mariadb://localhost:3307/cosid_db
+          # MariaDB Connector/J 4 asks for TLS by default; the minimum server (10.11) has none.
+          COSID_TEST_MARIADB_URL: jdbc:mariadb://localhost:3307/cosid_db?sslMode=disable
           COSID_TEST_MARIADB_USERNAME: root
           COSID_TEST_MARIADB_PASSWORD: root
           COSID_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/cosid_db

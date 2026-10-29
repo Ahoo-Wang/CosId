@@ -23,6 +23,7 @@ benchmark/
 | P3 | Snowflake + Radix62 text, + Friendly text | throughput, allocation |
 | P4 | 80-bit CosId Radix62 / Friendly | throughput, allocation |
 | P5 | segment on an in-memory store, 1 / 4 / 16 / 64 threads | throughput, p99 / p99.9 |
+| P5 reference | one shared `AtomicLong`, 1 / 4 / 16 / 64 threads (5.x side only, not judged): P5 on both sides as a share of it | throughput |
 | P6 | segment, step 1, no prefetch | throughput |
 | P7 | segment on MySQL / Redis / MongoDB / ZooKeeper | throughput, p99 / p99.9 |
 | P8 | periodic segment (daily) across period switches | throughput, p99.9 at the switch |
@@ -33,7 +34,8 @@ benchmark/
 
 A row's limit is the wider of 4.x with its error (JMH's 99.9% confidence interval) and 4.x with a tolerance: 5% for
 throughput and average time, 10% for p99 / p99.9, and the larger of 5% and +64 B for allocation. A row that fails runs
-again in fresh forks, and only a failed re-run counts as a regression. The gate is end-to-end ID generation (D44): a
+again in fresh forks, and only a failed re-run counts as a regression. The store scenarios (P7, P10) run each side
+twice in ABBA order (4.x, 5.x, 5.x, 4.x), so that neither side always runs right after the other on the store. The gate is end-to-end ID generation (D44): a
 row of a component (P9 codecs, P10 store primitives) that misses these limits only warns, up to 20% for throughput and
 average time, 30% for p99 / p99.9 and the larger of 25% and +64 B for allocation, and fails beyond them. Release numbers come only from a fixed, quiet physical machine. Numbers from a
 shared machine or another time are noise.

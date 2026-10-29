@@ -20,6 +20,7 @@ generator a `CosIdRuntime` hands out, on the store as the runtime opens and wrap
 | P3 | `SnowflakeStringBenchmark` | `radix62_t1`, `friendly_t1` | thrpt | `StringSnowflakeId(…, Radix62IdConverter.PAD_START)`, `DefaultSnowflakeFriendlyId(…, Asia/Shanghai)` | `StringIdGenerator` with `Radix.of(62, 11, true)` / `Friendly.of(SNOWFLAKE_MS, Asia/Shanghai, true)` |
 | P4 | `CosId80Benchmark` | `radix62_t1`, `friendly_t1` | thrpt | `ClockSync(Leased(Radix62CosIdGenerator(1)))`, `ClockSync(Leased(FriendlyCosIdGenerator(1, Asia/Shanghai, true)))` | `TimeBasedGenerator` on `Layout.COSID_80` + `PartsCodec.radix(…, 62)` / `PartsCodec.friendly` |
 | P5 | `SegmentBenchmark` | `generate_t1/t4/t16/t64`, `@Param step` = 10, 100 | thrpt, sample (p99, p99.9) | `SegmentChainId(distributor)`; in-memory distributor at `step`, no simulated latency; other settings default | the `long` generator a `CosIdRuntime` hands out (counted, on its store wrapped by `ObservedStores`, as in production) on an in-memory range store, one atomic add per reservation (`V5.MemoryRangeStore`, `V5.segmentRuntime`); `BatchPolicy.DEFAULT` with `step` (and `maxBatch = BatchPolicy.defaultMaxBatch(step)`, `max(step × 1000, 2^20)` rounded to `step`) |
+| P5 reference | `AtomicLongBenchmark` | `generate_t1/t4/t16/t64` | thrpt | — (5.x only) | one shared `AtomicLong`, `incrementAndGet`: the bound of a segment's hot path, one volatile read and one `getAndAdd`. Never judged: `compare` reports P5 on both sides as a share of it at the same threads; `run-smoke` runs it on 5.x right after P5, on the same runner |
 | P6 | `SegmentNoPrefetchBenchmark` | `generate_t1` | thrpt | `DefaultSegmentId`, in-memory distributor, step 1, no ttl | the same runtime path as P5, step 1, `lookahead = 0`, `maxBatch = 1`, no `rangeTtl` |
 | P7 (MySQL) | `MySqlChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | see [P7 / P10 on JDBC](#p7--p10-on-jdbc-r2-jdbc) | |
 | P7 (Redis) | `RedisChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(SpringRedisIdSegmentDistributor)`, offset 0, on a `StringRedisTemplate` (Lettuce) at `COSID_TEST_REDIS_URI` (default `redis://localhost:6379`) | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `redis` store opened from the same URI (`wait=auto`, timeout 2s), `V5.batch(step)` |
@@ -89,8 +90,14 @@ one after the other on the same runner.
 
 - It records the runner (CPU model, cores, memory, OS, image), the JDK, JMH and the commit.
 - It refuses to start when a store the group needs does not answer.
+- **The store scenarios run ABBA** (P7, P10: the `mysql`, `redis`, `mongo` and `zookeeper` groups): each side runs twice,
+  4.x 5.x 5.x 4.x, with half the forks each (2 + 2 in release settings), and `benchmark/merge-results` joins the two
+  runs of a side into one row: forks pooled, score, JMH's 99.9 % error and percentiles computed again from the raw
+  data. Neither side then always runs right after the other on the store, which changes its tail latency (the P5
+  investigation). Tolerances and judging are unchanged.
 - **Runners are shared virtual machines**, so on CI (`CI=true`, or `--rerun`) a row that fails runs once more, both
-  sides again in fresh forks (`compare --failed` lists the rows, `compare --rerun` judges them on that re-run alone).
+  sides again in fresh forks, a store row ABBA again (`compare --failed` lists the rows, `compare --rerun` judges them on
+  that re-run alone).
   A row that failed passes only if its re-run passes; the report shows both runs.
 - Outside CI it still aborts (status 3) when the 1-minute load average is above 1.5 before a scenario; on CI the load
   of a runner says nothing about its neighbours, so that check is off.

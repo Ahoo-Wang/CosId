@@ -25,6 +25,7 @@ benchmark/
 | P3 | Snowflake + Radix62 字符串、+ Friendly 字符串 | `StringSnowflakeId` / `SnowflakeFriendlyId` | 吞吐、每次分配字节 | 端到端 |
 | P4 | CosIdGenerator 80 位 Radix62 / Friendly 字符串 | `Radix62CosIdGenerator` / `FriendlyCosIdGenerator` | 吞吐、每次分配字节 | 端到端 |
 | P5 | 号段,内存存储,1 / 4 / 16 / 64 线程 | `SegmentChainId` + 内存分发器 | 吞吐、p99 / p999 延迟 | 端到端 |
+| P5 参照 | 一个共享 `AtomicLong` 的 `incrementAndGet`,1 / 4 / 16 / 64 线程,只在 5.x 侧 | — | 吞吐 | 参照(不判定;`compare` 报告 P5 两侧在同线程数下相对它的比例,同组同 runner 运行) |
 | P6 | 号段,step = 1(无预取) | `DefaultSegmentId` | 吞吐 | 端到端 |
 | P7 | 号段,真实 MySQL / Redis / MongoDB / ZooKeeper;5.x 一律走生产路径(`CosIdRuntime` 发出的生成器,运行时打开并包装的存储) | `MySqlChainIdBenchmark` / `RedisChainIdBenchmark` / `MongoChainIdBenchmark` / `ZookeeperChainIdBenchmark` | 吞吐、p99 / p999 延迟 | 端到端 |
 | P8 | 周期号段(按天)含跨期 | grouped `SegmentChainId` | 吞吐、跨期 p999 延迟 | 端到端 |
@@ -54,7 +55,7 @@ benchmark/
 一行首次失败时,两侧在新的 fork 中重跑,**重跑仍失败才算回退**(`benchmark/run-release` 在 CI 上默认如此,`compare --rerun`)。阈值的边界由 `benchmark/compare_test.py` 覆盖。
 
 执行环境:
-- **发布门槛**(D31):**只在 CI 上运行,不在本地运行**。`release-gate` workflow(手动触发)按场景组分 job,每个 job 在同一台 GitHub runner 上交替运行 4.1.1 与 5.x;存储场景使用 CI 的 service 容器;固定 JDK 21 小版本,报告记录 runner 的 CPU 型号与核数。
+- **发布门槛**(D31):**只在 CI 上运行,不在本地运行**。`release-gate` workflow(手动触发)按场景组分 job,每个 job 在同一台 GitHub runner 上交替运行 4.1.1 与 5.x;存储场景(P7、P10,即 mysql、redis、mongo、zookeeper 组)按 ABBA 交替(4.x、5.x、5.x、4.x,每次各用一半 fork,合并后判定;重跑同样按 ABBA),使任一侧都不总是紧跟在另一侧之后访问存储(P5 调查:顺序会改变尾延迟,§4.3 第 16 项),容差与判定规则不变;存储场景使用 CI 的 service 容器;固定 JDK 21 小版本,报告记录 runner 的 CPU 型号与核数。
   CI runner 有噪声,因此 FAIL 行在新的 fork 对上重跑一次,重跑通过才算通过,两次结果都保留在报告中。结论表(每组 PASS/FAIL 与逐行对比)写入该次运行的 job summary,完整报告与原始 JMH JSON 作为 artifact 保留;报告是证据,workflow 不提交、不开 PR。需要留档时人工提交 markdown 摘要(`release-gate-summary` artifact,不含原始 JSON)到 `docs/jmh/5.0/`,4.1.1 基线到 `docs/jmh/4.1.1/release-ci.md`。
 - **PR 冒烟**:CI 上运行 P1、P3、P5、P9 的短版本,容差放宽到 `score_5 ≥ 0.9 × score_4`,只用来尽早发现量级上的回退。
 - **存储场景(P7、P10)**:延迟由外部服务决定。PR 中只要求两侧往返次数相同、冒烟无量级回退,最终判定在 `release-gate` workflow 中进行。

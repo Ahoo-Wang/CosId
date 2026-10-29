@@ -175,6 +175,7 @@ jobs:
       - name: Test the benchmark scripts
         run: |
           python3 -I benchmark/compare_test.py
+          python3 -I benchmark/merge_results_test.py
           bash -n benchmark/run-smoke
           bash -n benchmark/run-release
           python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' benchmark/aggregate-release

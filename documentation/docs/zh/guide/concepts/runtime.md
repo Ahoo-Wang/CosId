@@ -17,7 +17,7 @@ RuntimeSpec spec = RuntimeSpec.builder("order-service")       // 命名空间
 public final class CosIdRuntime implements AutoCloseable {
     public static CosIdRuntime start(RuntimeSpec spec, RuntimeOptions options);
     public IdGenerator generator(String name);              // snowflake、segment、custom
-    public StringIdGenerator stringGenerator(String name);  // 带其编解码器
+    public StringIdGenerator stringGenerator(String name);  // 仅 long id 加其编解码器
     public Supplier<String> text(String name);              // 任意策略的文本 ID，含 cosid80 与 uuidv7
     public PeriodicSegmentGenerator periodic(String name);
     public <T> T get(String name, Class<T> type);           // TimeBasedGenerator, SegmentGenerator, UuidV7Generator, PartsCodec, GroupedCodec, IntIdGenerator, ...
@@ -30,6 +30,11 @@ public final class CosIdRuntime implements AutoCloseable {
     public void close();
 }
 ```
+
+::: tip 文本 id：用 `text(name)`
+`text(name)` 提供**所有**策略的文本 id：`long` id 经编解码器编码、80 位 CosId、周期号段、UUIDv7。`stringGenerator(name)`
+只是 `long` 生成器加其编解码器：对 cosid80、periodic-segment 或 uuidv7 调用会失败，提示 "issues no long ids; use text(name) for its text"。
+:::
 
 ## Spec
 

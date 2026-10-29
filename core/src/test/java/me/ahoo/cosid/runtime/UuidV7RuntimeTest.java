@@ -74,8 +74,9 @@ class UuidV7RuntimeTest {
         RuntimeSpec spec = RuntimeSpec.builder("app").generator("order", GeneratorSpec.UuidV7.builder().build()).build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options())) {
             assertThat(assertThrows(NoSuchElementException.class, () -> runtime.generator("order")).getMessage(),
-                containsString("(uuidv7) issues no long ids"));
-            assertThrows(NoSuchElementException.class, () -> runtime.stringGenerator("order"));
+                containsString("(uuidv7) issues no long ids; use text(name) for its text"));
+            assertThat(assertThrows(NoSuchElementException.class, () -> runtime.stringGenerator("order")).getMessage(),
+                containsString("use text(name) for its text"));
         }
     }
 

@@ -15,7 +15,6 @@ package me.ahoo.cosid.server;
 
 import me.ahoo.cosid.GroupedId;
 import me.ahoo.cosid.IdGenerator;
-import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
@@ -92,15 +91,16 @@ class IdController {
     }
 
     @GetMapping(RemoteApi.IDS + "/{generator}/strings")
-    @Operation(summary = "Ids of a generator, encoded by its codec")
+    @Operation(summary = "Text ids of a generator, of any strategy (its codec, the 80-bit or periodic text, UUIDv7)")
     CompletableFuture<Bodies.StringIdsBody> strings(@PathVariable String generator, @RequestParam(defaultValue = "1") int count,
                                                     @RequestAttribute(Grant.ATTRIBUTE) Grant grant) {
         int n = admit(count, grant);
-        StringIdGenerator ids = lookup(generator, () -> runtime.stringGenerator(generator));
+        // The text of every strategy (CosIdRuntime.text): cosid80, periodic segments and uuidv7 too, not only long ids.
+        Supplier<String> ids = lookup(generator, () -> runtime.text(generator));
         return calls.submit(() -> {
             List<String> issued = new ArrayList<>(n);
             for (int i = 0; i < n; i++) {
-                issued.add(ids.generate());
+                issued.add(ids.get());
             }
             return new Bodies.StringIdsBody(issued);
         });

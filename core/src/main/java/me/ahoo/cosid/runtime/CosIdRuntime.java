@@ -110,11 +110,13 @@ public final class CosIdRuntime implements AutoCloseable {
     }
 
     /**
-     * The generator of that name with its codec.
+     * The {@code long} generator of that name with its codec. For the text ids of any strategy, cosid80, periodic
+     * segments and uuidv7 included, use {@link #text(String)}.
      *
      * @param name the generator name
      * @return the generator
-     * @throws java.util.NoSuchElementException          if there is none, or it has no {@code long} ids
+     * @throws java.util.NoSuchElementException          if there is none, or it has no {@code long} ids (cosid80,
+     *                                                   periodic segment, uuidv7: use {@link #text(String)})
      * @throws me.ahoo.cosid.GeneratorDisabledException if it is disabled
      */
     public StringIdGenerator stringGenerator(String name) {

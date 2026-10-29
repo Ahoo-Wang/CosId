@@ -240,11 +240,10 @@ public final class GeneratorEntry {
     }
 
     /**
-     * A disabled generator (D24): every lookup throws {@link GeneratorDisabledException}.
+     * A UUIDv7 generator (D46): no {@code long} ids; its text is the canonical form, counted.
      *
-     * @param name     the generator name
-     * @param strategy the strategy it would have
-     * @param store    the store it would use, empty for none
+     * @param generator the generator
+     * @param counter   counts the text ids, or null
      * @return the entry
      */
     public static GeneratorEntry uuidV7(UuidV7Generator generator, LongAdder counter) {
@@ -257,6 +256,14 @@ public final class GeneratorEntry {
             () -> Map.of("version", 7, "text", "canonical"), counter);
     }
 
+    /**
+     * A disabled generator (D24): every lookup throws {@link GeneratorDisabledException}.
+     *
+     * @param name     the generator name
+     * @param strategy the strategy it would have
+     * @param store    the store it would use, empty for none
+     * @return the entry
+     */
     public static GeneratorEntry disabled(String name, String strategy, String store) {
         return new GeneratorEntry(name, strategy, store, null, false, null, null, null, List.of(), () -> Map.of("disabled", true), null);
     }
@@ -321,7 +328,7 @@ public final class GeneratorEntry {
     public IdGenerator ids() {
         requireEnabled();
         if (ids == null) {
-            throw new NoSuchElementException("Generator [" + name + "] (" + strategy + ") issues no long ids");
+            throw new NoSuchElementException("Generator [" + name + "] (" + strategy + ") issues no long ids; use text(name) for its text");
         }
         return ids;
     }

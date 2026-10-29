@@ -16,3 +16,19 @@ back from it, for JavaScript clients that cannot hold 63-bit numbers.
 - The inline codecs need no module. `generator = …` needs `new CosIdJacksonModule(runtime)` on the `JsonMapper`;
   Spring Boot registers a `CosIdJacksonModule` bean.
 - Reading accepts the text, a JSON number the codec could have written, and an empty string as `null`.
+- Jackson 3 only: Jackson 2 (`com.fasterxml.jackson.databind`) is not supported.
+
+## From 4.x
+
+The attributes of `@AsString` were renamed:
+
+| 4.x | 5.0 |
+|---|---|
+| `value` (`AsString.Type`) | `codec` (`AsString.Codec`) |
+| `Type.TO_STRING`, `Type.RADIX` | `Codec.TO_STRING`, `Codec.RADIX` |
+| `Type.FRIENDLY_ID` | `Codec.FRIENDLY` |
+| `radixCharSize` | `width` (`0`, the default, for as many digits as a `long` takes in the radix) |
+| `radixPadStart` | `padStart` |
+| `timestampBit`, `machineBit`, `sequenceBit` | `timeBits`, `nodeBits`, `seqBits` (all three or none) |
+| `epoch` | `epoch` (unset: the epoch of `layout`) |
+| — | `generator`, `radix` (62 by default), `layout`, `zone` |

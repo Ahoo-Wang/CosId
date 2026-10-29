@@ -21,7 +21,8 @@
 2. **静止观察**:`apply` 先对所有源 key 和机器号记录做快照,等待观察窗口(默认 2 分钟,可配置),再次读取,有任何变化即中止。
 3. **封存源**(默认开启,可用 `--no-seal-source` 关闭):**先封存、后写目标**(R4-C 实现):对每个 4.x 号段做一次原子递增 `sealGap`(默认 2^40,与 4.x 取段是同一种操作),
    取 `lastMaxId = 封存后的值 − sealGap`,这样快照与封存之间 4.x 的取段也被覆盖。已达到 `计划值 + sealGap` 的号段视为已封存,重跑不会重复封存(`--seal-gap` 在多次运行间必须一致)。
-   对**已封存的 key**,即使还有遗漏的 4.x 实例在运行,它拿到的区间也远离 5.0 的区间,不会重复。但遗漏实例在封存之后**新建的 key**(例如跨期产生的新周期 key)不受封存保护,`verify` 必须标出 4.x 中存在而迁移结果中没有的 key(RC 审查 D-M1)。所以停写仍是前提,封存只是兜底。
+   封存只保护**已封存的 key**:遗漏的 4.x 实例此后在这些 key 上拿到的区间远离 5.0 的区间。遗漏实例在第二次快照之后**新建的 key**(例如跨期产生的新周期 key)既没有迁移也没有封存,5.0 会再次发出它发过的号;它的时间型 ID 也不受封存保护。
+   `verify` 报告 4.x 中存在而 `apply-result.json` 中没有的 key(用 `--allow-unmigrated` 放行的除外;RC 审查 D-M1),但发现时可能已经重号。所以停写仍是前提,封存只是兜底。
    封存后回滚是安全的:回到 4.x 时,4.x 从封存后的值继续发号,只要 5.0 在该 key 上预留的号少于 `sealGap`,就不会重复。
    **未封存时回滚会重号**(`--no-seal-source`,或 §6.3 的手工迁移跳过了封存;GA 审查 R1-doc-01):4.x 从 `lastMaxId` 继续取段,与 5.0 从 `lastMaxId + 1` 起已发出的号重叠。
    所以未封存的回滚必须先停止 5.0,再把每个迁移过的 4.x 值推进到 5.0 在该 key 上预留过的最大值之上(例如补做一次 `+sealGap` 的原子递增,各后端的命令见迁移指南"回滚"一节),然后才启动 4.x。
@@ -31,19 +32,25 @@
 ## 3. 命令
 
 ```bash
-java -jar cosid-migration.jar plan   --from <4.x 存储> --to <5.0 存储> --namespace app [--layout-config old-application.yaml]
-java -jar cosid-migration.jar apply  --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source]
+java -jar cosid-migration.jar plan   --from <4.x 存储> --to <5.0 存储> --namespace app [--layout-config old-application.yaml] [--machine-from <4.x 机器号存储>] [--machine-to <5.0 槽位存储>]
+java -jar cosid-migration.jar apply  --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source] [--allow-unmigrated <4.x key>]...
 java -jar cosid-migration.jar verify --plan plan.json --result apply-result.json
-java -jar cosid-migration.jar config --input application.yaml --result apply-result.json --output application-5.yaml
+java -jar cosid-migration.jar config --input application.yaml --result apply-result.json --output application-5.yaml [--allow-new <generator>]...
 java -jar cosid-migration.jar purge  --to <5.0 存储> --namespace app --before <period>    # 运维命令:物理清理已封存的周期 key;必须先停止所有 5.0 实例(--confirm-stopped)
 ```
 
 - `plan`:只读。列出每个 key 的旧值、新 key、新值,每个命名空间的 W 估计值,以及布局校验结果;输出 `plan.json` 与可读报告。未识别的 key 单独列出。
+  给了 `--layout-config` 时,`plan` 把 4.x 的 `cosid.segment.distributor.type` 与 `--from` 比较,`cosid.machine.distributor.type` 与 `--from` 或 `--machine-from` 比较,不一致即拒绝;
+  4.x 把号段与机器号放在不同存储时还要求 `--machine-to`(5.0 中接收槽位的存储,即 `cosid.machine.leased` 的存储,可以与 `--to` 相同)。
 - `apply`:幂等。在目标存储中只把 `next` 与 `next_floor` 往大的方向推进(取 `max(当前值, 计划值)`),重复执行不会出错。
   **"迁移时刻"指 `apply` 写入时目标存储的时钟 `T_apply`**,记录在 `apply-result.json` 中。
-- `verify`:重新读取两端,确认 M1–M3 成立,并且源在封存之后没有继续增长。
+  有无法映射的 4.x key(5.0 读不懂的分组格式、名字含 `/`)时 `apply` 中止,除非每个 key 都用 `--allow-unmigrated <ns>.<name>` 显式放行。
+- `verify`:重新读取两端,确认 M1–M3 成立,并且源在封存之后没有继续增长;还报告 4.x 中存在而结果中没有的 key(例如 `apply` 之后遗漏实例新建的 key)。
 - `config`:把 4.x 的 `cosid.*` 配置尽量转换为 5.0 的配置模型,无法转换的项写进报告;StaticSlot 的 `not-before` 取自 `apply-result.json`。
+  每个号段与周期号段生成器都必须接上 `apply-result.json` 中的某个 key,否则拒绝(名字对不上的生成器会从头发号,重复 4.x 的号);4.x 从未发过号的生成器用 `--allow-new <generator>` 放行。
 - 源与目标可以是不同的存储类型,例如从 Redis 迁移到 JDBC。
+- Redis(源或目标):每次写入(4.x 封存、5.0 raise、prepare)之后,若写入的节点有已连接的副本,工具执行 `WAIT 1`;5s 内没有副本确认就报错停止,
+  因为此时 failover 会丢掉这次写入。与运行时的 `wait=auto` 一致(GA 审查 R1-mig-02);确认复制正常后重跑该步骤即可(`apply` 幂等)。
 
 ## 4. 4.x 数据映射
 

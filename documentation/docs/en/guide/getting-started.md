@@ -139,5 +139,11 @@ what the runtime opened. See [the runtime](concepts/runtime.md).
   [segments](concepts/segment.md): what each strategy does and how to tune it.
 - [Choosing a backend](backends/index.md): supported versions and the preconditions of each store.
 - [Production checklist](operations/production.md) before going live.
-- [Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples): `segment-jdbc`, `snowflake-redis` and `server`,
-  each runnable with `./gradlew :examples:<name>:bootRun`.
+- [Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples):
+
+  | Example | Run |
+  |---|---|
+  | `segment-jdbc` | `./gradlew :examples:segment-jdbc:bootRun` |
+  | `snowflake-redis` | `REDIS_URI=redis://localhost:6379 ./gradlew :examples:snowflake-redis:bootRun` |
+  | `server` (a client of cosid-server, which the compose file starts too) | `./gradlew :server:dockerImage :examples:server:bootJar && docker compose -f examples/server/compose.yaml up` |
+  | `plain-stores` (a test only, no application; needs Docker) | `./gradlew :examples:plain-stores:test` |

@@ -88,12 +88,16 @@ java -jar cosid-migration.jar apply --plan plan.json --confirm-stopped --layout-
 3. **写入目标**：把每个 5.0 key 提升到 `next`，记录 `{limit, tolerance}`，并以 `next_floor = W` 准备每个槽位。目标值只升不降
    （`max(current, planned)`）。
 
+在 Redis 上，这几步写入（封存、提升、准备槽位）之后，如果写入的节点有副本，就执行 `WAIT 1` 等待副本确认；
+5 秒内没有副本确认时 `apply` 报错停止，因为此时发生 failover 会丢掉这次写入。确认复制正常后再运行一次 `apply` 即可。
+
 `apply` 的其他选项：
 
 - `--allow-unmigrated <ns>.<name>`：计划中有 `NOT MIGRATED` 的 key（5.0 读不了的分组模式、含 `/` 的名字）时 `apply` 会中止；
   逐个列出你接受不迁移的 key。它在 4.x 中的值不会带过来，所以不能让任何 5.0 生成器发出同一批 ID。
 - `--gap <n>`（0）：每个 5.0 key 从 `lastMaxId + 1` 再加 `n` 开始，是在封存之外自己选的余量。
-- `--machine-from` / `--machine-to`、`--target-config`、`--layout-config`：同 `plan`，用于再次检查。
+- `--target-config`、`--layout-config`：同 `plan`，用于再次检查。`--machine-from` / `--machine-to` 指定的机器号存储从计划中读取，
+  `--machine-from-option` / `--machine-to-option` 用于再次提供它们的选项（如密码）。
 
 `apply` 是幂等的。如果中途停止（崩溃、超时），再运行一次即可。当某个 5.0 运行时已在该命名空间持有槽位，或命名空间的槽位参数不同时，
 它会拒绝执行。结果文件 `apply-result.json` 包含 `T_apply`、W 和 `notBefore`（ISO-8601 格式的 W）。
@@ -321,6 +325,7 @@ public class Ids implements SmartInitializingSingleton, DisposableBean {
 | `cosid-spring-redis`、`cosid-jdbc`、`cosid-mongo`、`cosid-zookeeper` | `cosid-store-redis`、`-jdbc`、`-mongo`、`-zookeeper` |
 | proxy 客户端 / proxy 服务端 | `cosid-store-remote` / cosid-server 镜像（仅新 API） |
 | `cosid-jackson`、`cosid-mybatis`、`cosid-spring-data-jdbc`、`cosid-activiti`、`cosid-flowable`、`cosid-axon` | 同名 artifact（D29），各自只依赖 `cosid-core` 与自己的三方库 |
+| `cosid-jackson` 的 `@AsString` | 属性改名（`value` → `codec`、`radixCharSize` → `width`……，见 [Jackson](../integrations/jackson.md#从-4-x-迁移)）；只支持 Jackson 3，不支持 Jackson 2 |
 | `cosid-accessor` | `cosid-core`（`me.ahoo.cosid.accessor`） |
 | `cosid-test` | `cosid-store-tck` |
 | `cosid-dependencies` | `cosid-bom` |

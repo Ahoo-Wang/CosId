@@ -136,5 +136,11 @@ try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
   [号段](concepts/segment.md)：每种策略做什么以及如何调优。
 - [选择后端](backends/index.md)：各存储支持的版本与前提条件。
 - 上线前阅读[生产检查清单](operations/production.md)。
-- [示例](https://github.com/Ahoo-Wang/CosId/tree/main/examples)：`segment-jdbc`、`snowflake-redis` 与 `server`，
-  均可通过 `./gradlew :examples:<name>:bootRun` 运行。
+- [示例](https://github.com/Ahoo-Wang/CosId/tree/main/examples)：
+
+  | 示例 | 运行 |
+  |---|---|
+  | `segment-jdbc` | `./gradlew :examples:segment-jdbc:bootRun` |
+  | `snowflake-redis` | `REDIS_URI=redis://localhost:6379 ./gradlew :examples:snowflake-redis:bootRun` |
+  | `server`（cosid-server 的客户端，compose 文件会一并启动 server） | `./gradlew :server:dockerImage :examples:server:bootJar && docker compose -f examples/server/compose.yaml up` |
+  | `plain-stores`（只有测试，没有应用；需要 Docker） | `./gradlew :examples:plain-stores:test` |

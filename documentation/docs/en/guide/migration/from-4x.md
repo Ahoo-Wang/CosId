@@ -98,13 +98,18 @@ java -jar cosid-migration.jar apply --plan plan.json --confirm-stopped --layout-
 3. **Write the target**: it raises each 5.0 key to `next`, records `{limit, tolerance}`, and prepares every slot with
    `next_floor = W`. The target only ever rises (`max(current, planned)`).
 
+On Redis, each of these writes (the seal, the raise, the slot preparation) waits for a replica when the written node
+has one: `WAIT 1`, and `apply` stops with an error if no replica acknowledges within 5 s, since a failover would lose
+the write. Check the replication and run `apply` again.
+
 Options of `apply` beyond the defaults:
 
 - `--allow-unmigrated <ns>.<name>`: `apply` aborts while the plan has a `NOT MIGRATED` key (a group pattern 5.0
   cannot read, a name with `/`); name each one you accept to leave behind. Its 4.x value is not carried over, so no 5.0
   generator may issue into the same ids.
 - `--gap <n>` (0): start every 5.0 key `n` above `lastMaxId + 1`, a margin you choose on top of the seal.
-- `--machine-from` / `--machine-to`, `--target-config`, `--layout-config`: as in `plan`, again for the checks.
+- `--target-config`, `--layout-config`: as in `plan`, again for the checks. The machine stores of `--machine-from` /
+  `--machine-to` come from the plan; `--machine-from-option` / `--machine-to-option` give their options (passwords) again.
 
 `apply` is idempotent. If it stops half way (a crash, a timeout), run it again. It refuses when a 5.0 runtime already
 holds a slot in the namespace, or when the namespace has other slot parameters. The result, `apply-result.json`, holds
@@ -357,6 +362,7 @@ public class Ids implements SmartInitializingSingleton, DisposableBean {
 | `cosid-spring-redis`, `cosid-jdbc`, `cosid-mongo`, `cosid-zookeeper` | `cosid-store-redis`, `-jdbc`, `-mongo`, `-zookeeper` |
 | the proxy client / the proxy server | `cosid-store-remote` / the cosid-server image (new API only) |
 | `cosid-jackson`, `cosid-mybatis`, `cosid-spring-data-jdbc`, `cosid-activiti`, `cosid-flowable`, `cosid-axon` | the same artifacts (D29), each depending on `cosid-core` and its library |
+| `@AsString` of `cosid-jackson` | renamed attributes (`value` → `codec`, `radixCharSize` → `width`, …; see [Jackson](../integrations/jackson.md#from-4-x)); Jackson 3 only, Jackson 2 is not supported |
 | `cosid-accessor` | `cosid-core` (`me.ahoo.cosid.accessor`) |
 | `cosid-test` | `cosid-store-tck` |
 | `cosid-dependencies` | `cosid-bom` |

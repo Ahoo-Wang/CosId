@@ -21,8 +21,9 @@ when any row fails, 2 on bad input, 4 on a harness error.
 
 Release rules (default, D34): a row's limit is the more lenient of 4.x with its JMH error and 4.x with a tolerance.
   throughput (thrpt)        score_5 >= min(score_4 - error_4, score_4 x 0.95)
-  latency (sample)          p99 and p99.9 of 5.x <= max(those of 4.x + error_4, those of 4.x x 1.10) (JMH gives no
-                            per-percentile error, so error_4 is the error of the 4.x mean)
+  latency (sample)          p99 and p99.9 of 5.x <= max(those of 4.x + error_4, those of 4.x x 1.10, those of 4.x +
+                            100 ns) (JMH gives no per-percentile error, so error_4 is the error of the 4.x mean; D50:
+                            a tail of tens of nanoseconds moves by the timer's resolution and the runner's noise alone)
   average / single shot     score_5 <= max(score_4 + error_4, score_4 x 1.05); a startup scenario (--startup, P11 by
                             default) is at most 105% of 4.x
   allocation                gc.alloc.rate.norm of 5.x <= max(4.x + its error, 4.x x 1.05, 4.x + 64 B), and always
@@ -30,8 +31,8 @@ Release rules (default, D34): a row's limit is the more lenient of 4.x with its 
                             path allocation); the long hot paths (--zero-alloc) allocate nothing (< 1 B/op)
 Row kinds (D44, the SCENARIOS table below): the gate is end-to-end ID generation. End-to-end rows (P1-P8, P11, P12)
 are judged by the rules above, failing past them. Component rows (P9 codecs, P10 store primitives) pass within the
-rules above, WARN up to throughput 0.80 x / average time 1.20 x / p99 and p99.9 1.30 x / allocation max(1.25 x, +64 B)
-of 4.x (each also allowing 4.x's error), and fail beyond. Only failed rows re-run and fail the comparison; WARN rows get
+rules above, WARN up to throughput 0.80 x / average time 1.20 x / p99 and p99.9 max(1.30 x, +100 ns) / allocation
+max(1.25 x, +64 B) of 4.x (each also allowing 4.x's error), and fail beyond. Only failed rows re-run and fail the comparison; WARN rows get
 a section of their own, and the summary reads PASS (n WARN). A class not in the table is judged as end-to-end.
 Reference rows (5.x only, such as AtomicLongBenchmark for P5) are never judged: a section of their own reports each and
 the scenario it bounds, 4.x and 5.x, as a share of it at the same threads. Trend rows (5.x only, with no 4.x counterpart,
@@ -66,6 +67,11 @@ ALLOC_FLOOR_BYTES = 0.01
 THROUGHPUT_TOLERANCE = 0.05
 TIME_TOLERANCE = 0.05
 PERCENTILE_TOLERANCE = 0.10
+# D50: an absolute floor of the p99 / p99.9 limits, beside the tolerance: below a microsecond a tail moves by the timer's
+# resolution and the runner's noise more than by 10%.
+PERCENTILE_FLOOR_NANOS = 100.0
+# Nanoseconds per unit of a JMH score.
+NANOS = {"ns": 1.0, "us": 1e3, "\u00b5s": 1e3, "ms": 1e6, "s": 1e9}
 ALLOC_TOLERANCE = 0.05
 ALLOC_SLACK_BYTES = 64.0
 # D44: how far a component row may fall behind 4.x and only WARN.
@@ -164,6 +170,12 @@ def bound(limit, warn, at_least):
     return f"{sign} {fmt(limit)}" + ("" if warn is None else f" (WARN {sign} {fmt(warn)})")
 
 
+def percentile_floor(unit):
+    """PERCENTILE_FLOOR_NANOS in a score unit such as us/op; 0 for a unit that is no time per operation."""
+    nanos = NANOS.get(unit.split("/")[0].strip())
+    return PERCENTILE_FLOOR_NANOS / nanos if nanos else 0.0
+
+
 def judge(base, cand, smoke, zero_alloc, startup=re.compile(DEFAULT_STARTUP)):
     """Returns [(metric, baseline, candidate, limit, result)] for one row, result PASS, WARN or FAIL."""
     checks = []
@@ -183,8 +195,9 @@ def judge(base, cand, smoke, zero_alloc, startup=re.compile(DEFAULT_STARTUP)):
             if bp is None or cp is None:
                 checks.append((f"p{percentile}", bp or 0.0, cp or 0.0, "present", FAIL))
                 continue
-            limit = bp / SMOKE_RATIO if smoke else max(bp + error(b), bp * (1 + PERCENTILE_TOLERANCE))
-            warn = max(bp + error(b), bp * (1 + WARN_PERCENTILE_TOLERANCE)) if soft else None
+            floor = bp + percentile_floor(unit)
+            limit = bp / SMOKE_RATIO if smoke else max(bp + error(b), bp * (1 + PERCENTILE_TOLERANCE), floor)
+            warn = max(bp + error(b), bp * (1 + WARN_PERCENTILE_TOLERANCE), floor) if soft else None
             checks.append((f"p{percentile} ({unit})", bp, cp, bound(limit, warn, False), grade(cp, limit, warn, False)))
     elif startup.search(name):
         limit = b["score"] / SMOKE_RATIO if smoke else b["score"] * STARTUP_RATIO

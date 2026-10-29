@@ -221,7 +221,11 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
          - 新增 AtomicLong 参照基准，只报告不判定;
          - 存储组(P7/P10)按 ABBA 交替运行，同一侧两次运行的原始数据合并后重新计算统计量(`merge-results`);
          - dry-run 40828410128 通过。dry-run 的参照数据(smoke 参数)如下:t1 时 4.x 是 AtomicLong 的 73–78%,5.x 是 101%;t4 时 4.x 42–44%,5.x 75–77%;t16 时 4.x 45%,5.x 68–72%。
-       - → 第七次正式门禁 [run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823) @ `457c7266` 运行中(基线 4.1.1,依赖来自 Spring Boot BOM,存储组按 ABBA 顺序运行)。这次结果就是 RC1 的性能依据。
+       - ✅ **第七次正式门禁 [run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823) @ `457c7266`:PASS,8 组中 0 组失败**(基线 4.1.1,依赖来自 Spring Boot BOM,存储组按 ABBA 顺序运行,D44 口径)。**这是 RC1 的性能依据。**
+         - 所有端到端行 PASS。号段链 t1 step=10 吞吐，4.x → 5.x(ops/µs):Mongo 1.75 → 392、MySQL 0.47 → 209、Redis 0.86 → 211、ZK 0.28 → 405;内存号段 t1 141 → 418,t16 24.6 → 44.8。
+         - AtomicLong 参照(正式参数):t1 时 5.x 达到 AtomicLong 的 99%,4.x 为 34%;t4 时 5.x 65–68%,4.x 37%;t16 时 5.x 63–65%,4.x 35%。
+         - 3 个组件行 WARN(不阻塞):Mongo reserve avgt +5.9%,Mongo reserve p99 +21%,MySQL acquire avgt +5.5%。
+         - 第六次运行中唯一失败的 MySQL reserve p99.9,这次是 3.3 → 2.3 ms,PASS,与 P5 的"运行顺序噪声"结论一致。
   6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
   7. **依赖与 MINOR**(进行中;MINOR 分诊 ✅ [#1395](https://github.com/Ahoo-Wang/CosId/pull/1395) `feb0edd5`,ga-review §9:75 条中已修 32、本次修 25(stores 9 / core-javadoc+spring-config 8 / docs+migration 8,分 3 个 PR 串行:✅ stores [#1396](https://github.com/Ahoo-Wang/CosId/pull/1396) `520b1426`;✅ core-javadoc+spring-config [#1397](https://github.com/Ahoo-Wang/CosId/pull/1397) `5b0eb1d3`(含 readiness 改名 `cosidServerStore`,修复 Boot 4.0 下 `- friendly: {}` 的绑定问题);✅ docs+migration [#1399](https://github.com/Ahoo-Wang/CosId/pull/1399) `926a4b2b`。**RC 前的 25 条全部完成**)、GA 后 16、不修 2。协调会话对 §9.4 待定 3 项的决定见 §4.3 第 14 项):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml` → ✅ [#1384](https://github.com/Ahoo-Wang/CosId/pull/1384) `b2e40694`(pnpm overrides:vite 6.4.5、esbuild 0.25.12、source-map-js 1.2.2、vue 3.5.44;73 页渲染与 main 对比一致);剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
   8. ✅ **WP-ci 重构 CI(工程质量、执行效率)**([#1385](https://github.com/Ahoo-Wang/CosId/pull/1385) `157eb656`;试验 PR #1386–#1390 验证后已关闭)。实测:
@@ -312,7 +316,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 ## 5. RC1 准入清单
 
 - [x] 审查 A–E 无未关闭的 BLOCKER(#1355 合入后清零,2026-10-28)
-- [ ] 发布门槛报告:全部 PASS,或每个例外有数据并经用户裁定(D44 口径;第六次正式运行 40810418780 进行中)
+- [x] 发布门槛报告:全部 PASS(第七次运行 40832851823,8/8 组 PASS,3 个组件行 WARN 不阻塞,D44 口径)
 - [x] #1342 合入(L14)
 - [x] 遗留事项 L1–L16 中阻塞 RC 的已关闭(2026-10-29 核对):
   - L1、L2、L15 由 CI 正式门禁接管;

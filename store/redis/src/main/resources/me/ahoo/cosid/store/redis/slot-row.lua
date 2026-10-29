@@ -30,6 +30,10 @@ local function num(value)
     return string.format('%.0f', value)
 end
 
+-- Evolution (R1-redis-01): a row is read by position and only its first 8 fields are read, so a later version may only
+-- append fields, never reorder or reuse one. A version that does not know a field writes the row back without it, so an
+-- appended field must be one whose loss is safe: read as missing, its default may never weaken a check (uniqueness
+-- must not depend on it). A field that cannot be lost needs a format version the old scripts refuse, not an append.
 local function decode(raw)
     if not raw then
         return {key = '', inc = '', last = '', fence = 0, expiresAt = 0, floor = 0, ceiling = 0, nextFloor = 0}

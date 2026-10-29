@@ -196,6 +196,24 @@ class RedisScriptEdgeTest {
     }
 
     @Test
+    void aSlotRowWithFieldsOfALaterVersionIsReadAndWrittenBackWithItsOwn() {
+        String namespace = newKey();
+        try (Store store = open(Map.of())) {
+            SlotLease lease = acquired(store, namespace, new Owner("host-a", UUID.randomUUID()), 2, TTL, OptionalInt.empty()).lease();
+            String slotKey = RedisStore.namespaceKey(namespace, "slot");
+            String slot = Integer.toString(lease.slot());
+            // R1-redis-01: a later version appends fields; this one reads the first 8 and ignores the rest.
+            redis.hset(slotKey, slot, redis.hget(slotKey, slot) + "|9|later");
+            SlotLease renewed = store.slots().renew(lease, TTL, TOLERANCE).orElseThrow();
+            assertEquals(lease.fence(), renewed.fence());
+            assertEquals(lease.floor(), renewed.floor());
+            // It writes the row back with the 8 fields it knows: why an appended field must be safe to lose.
+            assertEquals(8, redis.hget(slotKey, slot).split("\\|", -1).length);
+            assertTrue(store.slots().release(renewed, renewed.floor()));
+        }
+    }
+
+    @Test
     void renewOfASweptLeaseMakesItLiveAgain() {
         String namespace = newKey();
         Owner owner = new Owner("host-a", UUID.randomUUID());

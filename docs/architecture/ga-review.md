@@ -630,3 +630,8 @@ bom:16 个发布模块与 `settings.gradle.kts` 一致,`checkBom` 会守住,无�
 3. **docs + migration**(8 条):R1-remote-01、R1-tck-03、R1-mig-03、R1-int-03、R1-int-04、R1-build-01(R1-build-03、11 §4 的执行器行顺手并入);R1-mig-01、R1-mig-02(代码)。
 
 **需要总调度决定的**:R1-spi-03 是否加 `StoreException` 基类;R1-mongo-01 是否在 RC 前改(这一项严格说也可以后改,老库只是多一个用不到的索引);9.3 是否改名。
+
+**决定(总调度,2026-10-29)**:
+1. **R1-spi-03**:RC 前只写异常契约,不加 `StoreException` 基类;以后在现有异常层次中插入基类是兼容的。
+2. **R1-mongo-01**:RC 前修,因为它属于存储格式,冻结前清掉。`initSchema` 不再创建 `ns_ownerKey`;已有库保留这个无用索引不影响正确性,Mongo 后端文档给出手动删除的命令 `db.cosid_slot.dropIndex("ns_ownerKey")`。
+3. **9.3 server readiness 贡献者**:`cosIdServerStore` 改为 `cosidServerStore`,与 `cosid` 一致,**不保留别名**(alpha.1 不承诺兼容,D33);同步 K8s 指南(中英文)、server 文档、rc.1 release notes 的升级说明以及引用它的测试。放在 core-javadoc + spring-config 的 PR 中。

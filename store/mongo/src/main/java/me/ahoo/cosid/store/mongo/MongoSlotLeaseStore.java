@@ -183,9 +183,11 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
 
         // One read of the slots the key holds or held last, stamped with the store clock: it finds this owner's slot,
         // live leases of other incarnations of the key and the sticky candidates, so the common acquire is one read
-        // and one conditional update.
+        // and one conditional update. A take writes ownerKey and lastOwnerKey together and a release keeps
+        // lastOwnerKey, so the slots a key holds are among those it held last: the ns_lastOwnerKey index finds them all
+        // (R1-mongo-01).
         List<Document> ofKey = slots.aggregate(List.of(
-            Aggregates.match(Filters.and(Filters.eq(NS, namespace), Filters.or(Filters.eq(OWNER_KEY, owner.key()), Filters.eq(LAST_OWNER_KEY, owner.key())))),
+            Aggregates.match(Filters.and(Filters.eq(NS, namespace), Filters.eq(LAST_OWNER_KEY, owner.key()))),
             Aggregates.addFields(new Field<>(READ_AT, NOW)),
             Aggregates.sort(Sorts.ascending(SLOT)))).into(new ArrayList<>());
         List<Integer> liveOfOtherIncarnations = new ArrayList<>();
@@ -346,8 +348,8 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     /** Creates the slot indexes, idempotently. */
     private void createIndexes() {
         slots.createIndex(Indexes.ascending(NS, SLOT), new IndexOptions().unique(true).name("ns_slot"));
-        // The acquire read of the slots a key holds or held last.
-        slots.createIndex(Indexes.ascending(NS, OWNER_KEY), new IndexOptions().name("ns_ownerKey"));
+        // The acquire read of the slots a key holds or held last. Stores of 5.0.0-alpha.1 also created ns_ownerKey, which
+        // no query uses now: a database may drop it (store/mongo/README.md).
         slots.createIndex(Indexes.ascending(NS, LAST_OWNER_KEY), new IndexOptions().name("ns_lastOwnerKey"));
     }
 

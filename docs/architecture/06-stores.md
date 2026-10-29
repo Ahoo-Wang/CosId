@@ -125,7 +125,7 @@ public interface RedisScripts {
 - 槽位,每个命名空间共用一个 hash tag `{ns}`:
   - `cosid:{ns}:meta` 为 Hash,`limit`、`tolerance`、`slotOffset`(命名空间元数据,§1);
   - `cosid:{ns}:slot` 为 Hash,`slot → "ownerKey|incarnation|lastOwnerKey|fence|expiresAt|floor|ceiling|nextFloor"`;
-    owner key 转义(`\` 写作 `\\`,`|` 写作 `\p`),空闲槽位的 ownerKey 与 incarnation 为空;按位置解码,只读前 8 个字段,多余字段被忽略;
+    owner key 转义(`\` 写作 `\\`,`|` 写作 `\p`),空闲槽位的 ownerKey 与 incarnation 为空;按位置解码,只读前 8 个字段,多余字段被忽略。**演进规则**(R1-redis-01):新字段只能追加在末尾,不能调换或复用;不认识它的旧版本写回时会把它丢掉,所以追加的字段必须丢失后也安全(缺失时的默认值不能放宽任何检查,唯一性不能依赖它);丢失不安全的字段需要旧脚本会拒绝的格式版本,而不是追加;
   - `cosid:{ns}:free` 为 ZSet,`slot → slot`(score 即槽位号),存放空闲槽位,首次使用时以 `ZADD NX` 预填 `0..limit-1`;
   - `cosid:{ns}:live` 为 ZSet,`slot → expiresAt`,存放存活租约;
   - `cosid:{ns}:owner` 为 Hash,`ownerKey → 最近槽位`,用于粘性选槽(槽位被别的 key 取走时删除该项,条目数不超过 `limit`);
@@ -144,7 +144,7 @@ public interface RedisScripts {
 
 - `cosid_range`:`{_id: key, next, sealed}`。`findOneAndUpdate`,`upsert`,管道更新 `next = ifNull(next, initialOffset) + size`,过滤 `sealed != true` 且 `next` 留得下 `size`,返回更新后的文档;
   遇到 `E11000`(并发首次 upsert,或已有 key 不满足过滤)时读取该 key,已封存或已满即报告,否则重试,共至多 3 次(`ATTEMPTS`)。
-- `cosid_slot`:`{ns, slot, ownerKey, incarnation, lastOwnerKey, fence, expiresAt, floor, ceiling, nextFloor, writtenAt}`,索引 `ns_slot`(唯一)、`ns_ownerKey`、`ns_lastOwnerKey`,
+- `cosid_slot`:`{ns, slot, ownerKey, incarnation, lastOwnerKey, fence, expiresAt, floor, ceiling, nextFloor, writtenAt}`,索引 `ns_slot`(唯一)、`ns_lastOwnerKey`(take 同时写 `ownerKey` 与 `lastOwnerKey`,release 保留 `lastOwnerKey`,所以 key 持有的槽位都在它上次持有的槽位里,一个索引就够;5.0.0-alpha.1 还建了 `ns_ownerKey`,现已不用,可以手动 `db.cosid_slot.dropIndex("ns_ownerKey")`,R1-mongo-01),
   命名空间首次使用时预建所有槽位。acquire 先用一次聚合(带 `$$NOW`)读出该 owner key 持有或最近持有的槽位(幂等、重复 key 检查、粘性候选);
   05 §2.1 的每次尝试都是一个 `findOneAndUpdate`:过滤条件用 `$expr` 与 `$$NOW` 表达"可取",按 `slot` 升序,条件中带上 `fence`。
   管道更新先写 `writtenAt = $$NOW` 再由它推出过期时间,`storeNow` 与 `expiresAt` 取自同一次写入。

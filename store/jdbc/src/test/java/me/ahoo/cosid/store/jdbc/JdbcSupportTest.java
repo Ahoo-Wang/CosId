@@ -202,6 +202,38 @@ class JdbcSupportTest {
     }
 
     @Test
+    void anUnpooledDataSourceKeepsTheUrlPasswordOutAndTheJvmSettingsAlone() {
+        // R1-jdbc-09.
+        assertEquals("jdbc:mysql://cosid:***@db:3306/cosid", DriverManagerDataSource.redacted("jdbc:mysql://cosid:secret@db:3306/cosid"));
+        assertEquals("jdbc:postgresql://db/cosid?user=cosid&password=***&ssl=true",
+            DriverManagerDataSource.redacted("jdbc:postgresql://db/cosid?user=cosid&password=secret&ssl=true"));
+        assertEquals("jdbc:sqlserver://db;user=sa;pwd=***", DriverManagerDataSource.redacted("jdbc:sqlserver://db;user=sa;pwd=secret"));
+        DriverManagerDataSource dataSource = new DriverManagerDataSource("jdbc:h2:mem:x?password=secret", null, null);
+        assertTrue(!dataSource.toString().contains("secret"), dataSource.toString());
+        int global = java.sql.DriverManager.getLoginTimeout();
+        dataSource.setLoginTimeout(global + 7);
+        assertEquals(global + 7, dataSource.getLoginTimeout());
+        assertEquals(global, java.sql.DriverManager.getLoginTimeout());
+        java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.StringWriter());
+        dataSource.setLogWriter(writer);
+        assertSame(writer, dataSource.getLogWriter());
+    }
+
+    @Test
+    void dialectsAreLoadedFromTheContextClassLoaderElseThisModule() {
+        // R1-jdbc-08.
+        Thread thread = Thread.currentThread();
+        ClassLoader context = thread.getContextClassLoader();
+        try {
+            assertSame(context, JdbcDialects.classLoader());
+            thread.setContextClassLoader(null);
+            assertSame(JdbcDialects.class.getClassLoader(), JdbcDialects.classLoader());
+        } finally {
+            thread.setContextClassLoader(context);
+        }
+    }
+
+    @Test
     void multiStatementOperationsEndAtTheTimeout() throws InterruptedException {
         Jdbc bounded = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ofMillis(20));
         long deadline = bounded.deadline();

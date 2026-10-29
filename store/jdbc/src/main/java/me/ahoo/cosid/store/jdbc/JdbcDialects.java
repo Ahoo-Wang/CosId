@@ -42,6 +42,16 @@ public final class JdbcDialects {
     /** H2 2.x, for development and tests. */
     public static final JdbcDialect H2 = new H2Dialect();
 
+    /**
+     * Where the stores look for registered dialects (R1-jdbc-08): the thread's context class loader, as an application
+     * server or Spring Boot's launcher sets it, else the class loader of this module. {@link JdbcStore#of} and the
+     * provider both use it, so a dialect one finds the other finds too.
+     */
+    static ClassLoader classLoader() {
+        ClassLoader context = Thread.currentThread().getContextClassLoader();
+        return context != null ? context : JdbcDialects.class.getClassLoader();
+    }
+
     private static final List<JdbcDialect> BUILT_IN = List.of(MARIADB, MYSQL, POSTGRESQL, SQL_SERVER, H2);
 
     private JdbcDialects() {

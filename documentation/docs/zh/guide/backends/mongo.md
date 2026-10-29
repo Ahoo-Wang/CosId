@@ -38,7 +38,13 @@ cosid:
 | 集合 | 文档 |
 |---|---|
 | `cosid_range` | `{_id: key, next, sealed}`；使用带 upsert 的 `findOneAndUpdate` 与 pipeline `next = ifNull(next, initialOffset) + size`，过滤条件为 `sealed != true`；E11000（并发 upsert）重试一次 |
-| `cosid_slot` | `{ns, slot, …}`，在 `(ns, slot)` 上建唯一索引，所有槽位预先创建；槽位选择的每一步是一次 `findOneAndUpdate`，其过滤条件用 `$expr` 与 `$$NOW` 判断“空闲”，并带上 fence |
+| `cosid_slot` | `{ns, slot, …}`，在 `(ns, slot)` 上建唯一索引，并在 `(ns, lastOwnerKey)` 上建索引，用于找出某个 owner key 持有或上次持有的槽位；所有槽位预先创建；槽位选择的每一步是一次 `findOneAndUpdate`，其过滤条件用 `$expr` 与 `$$NOW` 判断“空闲”，并带上 fence |
 | `cosid_namespace` | 每个命名空间的 `{limit, toleranceMs}` |
 
 存储时钟是 `$$NOW`。
+
+5.0.0-alpha.1 的 store 还在 `cosid_slot` 上建了索引 `ns_ownerKey`，现在已没有查询用到它。保留它没有坏处；要删除时执行：
+
+```js
+db.cosid_slot.dropIndex("ns_ownerKey")
+```

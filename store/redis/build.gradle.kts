@@ -20,6 +20,7 @@ plugins {
 dependencies {
     api(project(":core"))
     api(libs.lettuce.core)
+    implementation(libs.slf4j.api)
     testImplementation(project(":store:tck"))
     testImplementation(libs.testcontainers)
 }

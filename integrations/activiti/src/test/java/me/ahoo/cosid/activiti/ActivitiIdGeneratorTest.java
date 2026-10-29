@@ -19,7 +19,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 
 import me.ahoo.cosid.runtime.CosIdRuntime;
-import me.ahoo.cosid.store.tck.TestRuntimes;
+import me.ahoo.cosid.store.tck.internal.TestRuntimes;
 
 import org.activiti.engine.ProcessEngine;
 import org.activiti.engine.ProcessEngineConfiguration;

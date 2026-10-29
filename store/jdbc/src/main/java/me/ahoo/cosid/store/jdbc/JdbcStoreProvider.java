@@ -60,8 +60,7 @@ public final class JdbcStoreProvider implements StoreProvider {
             }
             throw new IllegalArgumentException("The client of JDBC store [" + config.name() + "] must be a javax.sql.DataSource, not " + client.getClass().getName());
         }).orElseGet(() -> new DriverManagerDataSource(required(config, "url"), text(options, "username"), text(options, "password")));
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader() == null ? JdbcStoreProvider.class.getClassLoader()
-            : Thread.currentThread().getContextClassLoader();
+        ClassLoader classLoader = JdbcDialects.classLoader();
         String dialectName = text(options, "dialect");
         JdbcDialect dialect = dialectName == null ? JdbcStore.detect(dataSource, classLoader)
             : JdbcDialects.named(dialectName, classLoader).orElseThrow(() -> new IllegalArgumentException(

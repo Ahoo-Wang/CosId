@@ -24,6 +24,8 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.codec.StringCodec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Locale;
 import java.util.Map;
@@ -55,6 +57,8 @@ import java.util.function.ToIntFunction;
  * <p>The uniqueness of the ids rests on acknowledged writes never being lost: see {@link RedisStore}.
  */
 public final class RedisStoreProvider implements StoreProvider {
+    private static final Logger log = LoggerFactory.getLogger(RedisStoreProvider.class);
+
     /** The store type. */
     public static final String TYPE = "redis";
 
@@ -81,14 +85,14 @@ public final class RedisStoreProvider implements StoreProvider {
         }
         if (client instanceof StatefulRedisConnection<?, ?> connection) {
             StatefulRedisConnection<String, String> shared = (StatefulRedisConnection<String, String>) connection;
-            int replicas = replicas(wait, () -> LettuceRedisScripts.connectedReplicas(shared, config.timeout()));
+            int replicas = resolved(config, wait, () -> LettuceRedisScripts.connectedReplicas(shared, config.timeout()));
             requireNoWait(config, replicas);
             return new RedisStore(LettuceRedisScripts.of(shared, config.timeout(), 0), sweepBatch, () -> {
             });
         }
         if (client instanceof StatefulRedisClusterConnection<?, ?> connection) {
             StatefulRedisClusterConnection<String, String> shared = (StatefulRedisClusterConnection<String, String>) connection;
-            int replicas = replicas(wait, () -> LettuceRedisScripts.fewestReplicas(shared, config.timeout()));
+            int replicas = resolved(config, wait, () -> LettuceRedisScripts.fewestReplicas(shared, config.timeout()));
             requireNoWait(config, replicas);
             return new RedisStore(LettuceRedisScripts.of(shared, config.timeout(), 0), sweepBatch, () -> {
             });
@@ -118,17 +122,18 @@ public final class RedisStoreProvider implements StoreProvider {
     }
 
     private static Store standalone(RedisClient client, StoreConfig config, String wait, int sweepBatch, Runnable shutdown) {
-        return opened(() -> client.connect(StringCodec.UTF8), shutdown, connection -> LettuceRedisScripts.connectedReplicas(connection, config.timeout()),
+        return opened(config, () -> client.connect(StringCodec.UTF8), shutdown, connection -> LettuceRedisScripts.connectedReplicas(connection, config.timeout()),
             (connection, replicas) -> LettuceRedisScripts.of(connection, config.timeout(), replicas), wait, sweepBatch);
     }
 
     private static Store cluster(RedisClusterClient client, StoreConfig config, String wait, int sweepBatch, Runnable shutdown) {
-        return opened(() -> client.connect(StringCodec.UTF8), shutdown, connection -> LettuceRedisScripts.fewestReplicas(connection, config.timeout()),
+        return opened(config, () -> client.connect(StringCodec.UTF8), shutdown, connection -> LettuceRedisScripts.fewestReplicas(connection, config.timeout()),
             (connection, replicas) -> LettuceRedisScripts.of(connection, config.timeout(), replicas), wait, sweepBatch);
     }
 
     /** A store on a connection of its own: closing the store closes it, then runs {@code shutdown} (of a client of its own). */
-    private static <C extends StatefulConnection<String, String>> Store opened(Supplier<C> connect, Runnable shutdown, ToIntFunction<C> connectedReplicas,
+    private static <C extends StatefulConnection<String, String>> Store opened(StoreConfig config, Supplier<C> connect, Runnable shutdown,
+                                                                               ToIntFunction<C> connectedReplicas,
                                                                                BiFunction<C, Integer, RedisScripts> scripts, String wait, int sweepBatch) {
         C connection;
         try {
@@ -138,7 +143,7 @@ public final class RedisStoreProvider implements StoreProvider {
             throw e;
         }
         try {
-            int replicas = replicas(wait, () -> connectedReplicas.applyAsInt(connection));
+            int replicas = resolved(config, wait, () -> connectedReplicas.applyAsInt(connection));
             return new RedisStore(scripts.apply(connection, replicas), sweepBatch, () -> {
                 connection.close();
                 shutdown.run();
@@ -148,6 +153,17 @@ public final class RedisStoreProvider implements StoreProvider {
             shutdown.run();
             throw e;
         }
+    }
+
+    /**
+     * {@link #replicas}, logged (R1-redis-03): {@code auto} looks once, when the store opens, so a replica added or
+     * removed later is not seen until the store opens again.
+     */
+    private static int resolved(StoreConfig config, String wait, IntSupplier connected) {
+        int replicas = replicas(wait, connected);
+        log.info("Redis store [{}]: wait={} resolved to WAIT {} after each write{}", config.name(), wait, replicas,
+            "auto".equals(wait) ? " (from the replicas connected now; restart the application after adding or removing replicas)" : "");
+        return replicas;
     }
 
     /** {@code auto}: 1 when the server has replicas (06 §2.2); {@code off}: 0; otherwise the count. */

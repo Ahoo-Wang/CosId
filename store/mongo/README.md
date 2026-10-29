@@ -14,7 +14,9 @@ supported: its `findOneAndUpdate` filters do not carry the shard key, which Mong
   naming the kernel, if its runner ever moves to an affected kernel. This is MongoDB's limit, not the store's.
 - **Options:** `uri` (required unless a `MongoClient` is injected through `StoreConfig.client`), `database`
   (default `cosid_db`), `writeConcern` (default `majority`, see below). `StoreConfig.timeout` becomes the driver's
-  `timeoutMS`; zero means none. An operation that runs out of it fails with `StoreTimeoutException`.
+  `timeoutMS` (it is positive). An operation that runs out of it fails with `StoreTimeoutException`.
+- **Indexes:** `cosid_slot` has `ns_slot` (unique) and `ns_lastOwnerKey`. Stores of 5.0.0-alpha.1 also created
+  `ns_ownerKey`, which no query uses now; it does no harm, and `db.cosid_slot.dropIndex("ns_ownerKey")` drops it.
 
 ## Write concern
 

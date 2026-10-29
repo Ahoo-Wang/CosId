@@ -80,7 +80,7 @@ it off.
 ```bash
 docker run -d -p 8688:8688 \
   -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
-  -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token ahoowang/cosid-server:5.0.0-rc.1
+  -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token ahoowang/cosid-server:5.0.0-alpha.2
 ```
 
 Clients:

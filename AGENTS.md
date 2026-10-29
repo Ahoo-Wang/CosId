@@ -131,6 +131,11 @@ Adding a package means deciding whether `module-info.java` exports it.
   so `benchmark/compare` can match rows. PRs report `benchmark/run-smoke`, never a comparison with stored numbers:
   smoke numbers from another time or a shared machine are noise. Results land in
   `benchmark/*/build/results/jmh/results.json`; committed results go to `docs/jmh/<version>/` with the machine and JDK noted.
+- **JMH jars:** run benchmarks from the jmhJar, as the gate does: a class path of `javac` output hides what the fat
+  jar loses (the `META-INF/services` of all but one module, until `cosid.benchmark` merged them). `checkJmhJar` (CI's
+  Check) checks the merged services and loads every CosId provider. A change under `benchmark/` is pushed to a
+  `release-gate-check/**` branch first (the Release Gate dry run), and its PR links that run. `compare` exits 4 on a
+  harness error (a side without its rows, a JMH `<failure>` in a log): no result, never re-run, never a FAIL row.
 - **Store integration tests** (R2) will follow the 4.x convention: `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/
   `_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/…, `COSID_TEST_MONGODB_URI`; Testcontainers otherwise; one CI job
   per `store/*` module running the TCK. Each backend registers a `checkContractsRan` task like `store/tck/build.gradle.kts`

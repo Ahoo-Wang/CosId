@@ -179,8 +179,9 @@ jobs:
           bash -n benchmark/run-release
           python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' benchmark/aggregate-release
 
-      - name: Compile the benchmarks
-        run: ./gradlew :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
+      # Builds the JMH jars and checks their services: every provider of every module, each loading (checkJmhJar).
+      - name: Compile and check the benchmark jars
+        run: ./gradlew :benchmark:baseline-4x:checkJmhJar :benchmark:v5:checkJmhJar
 
       - name: Upload the coverage
         uses: codecov/codecov-action@v7

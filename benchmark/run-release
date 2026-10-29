@@ -25,7 +25,9 @@
 # passes only if that re-run passes (compare --rerun); the report keeps both. DIR (default build/benchmark-release/report)
 # receives baseline-4x.json, v5.json (and rerun-*.json), report.md, machine.json and verdict.json; the logs stay in
 # build/benchmark-release. --dry-run proves the pipeline in minutes with smoke JMH settings and tolerates missing
-# stores; it is never a result. Exits with the status of the final compare (0 PASS, 1 FAIL).
+# stores; it is never a result. Exits with the status of the final compare (0 PASS, 1 FAIL, 4 harness error). A
+# harness error (a side without its rows, a JMH <failure> in a log) is no result: nothing re-runs, and the report shows
+# the first lines of each exception.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -100,7 +102,10 @@ then
 fi
 
 # The machine and the JDK, recorded before the run.
-./gradlew -q :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
+# checkJmhJar builds the jars and checks their services (a jar without a store's provider fails every setup on it).
+# A build that fails is a harness error (4), never a result: on CI a status of 1 would read as FAIL rows.
+./gradlew -q :benchmark:baseline-4x:checkJmhJar :benchmark:v5:checkJmhJar \
+    || { echo "run-release: harness error: the JMH jars did not build or failed checkJmhJar" >&2; exit 4; }
 java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
 JAVA="$java" python3 -I - "$work.machine.json" <<'PY'
 import datetime, json, os, platform, re, subprocess, sys
@@ -165,10 +170,16 @@ if ((status == 3)); then
     exit 3
 fi
 
-# A row that failed runs again, 4.x then 5.x in fresh forks; compare --rerun judges it on that run alone.
+# A row that failed runs again, 4.x then 5.x in fresh forks; compare --rerun judges it on that run alone. A harness
+# error is not re-run: it is no result, and running it again would only take the time of another failure.
 rm -f "$work"/rerun-* "$work"/failed*.json "$work"/warned*.json
+first=0
 "$root/benchmark/compare" "$work/baseline-4x.all.json" "$work/v5.all.json" ${compare_args[@]+"${compare_args[@]}"} \
-    --failed "$work/failed.json" >/dev/null || true
+    --logs "$work" --failed "$work/failed.json" >/dev/null 2>&1 || first=$?
+if ((first == 4)); then
+    echo "run-release: harness error (missing rows or a JMH failure), not a result; skipping the re-run" >&2
+    rerun=false
+fi
 # COSID_RELEASE_RERUN_ALL=true re-runs every row (the CI check of this script exercises the re-run path with it); only
 # the rows that failed are judged on their re-run.
 if [[ ${COSID_RELEASE_RERUN_ALL:-} == true ]]; then
@@ -202,7 +213,8 @@ for row in json.load(open(sys.argv[1])):
 fi
 status=0
 "$root/benchmark/compare" "$work/baseline-4x.all.json" "$work/v5.all.json" ${compare_args[@]+"${compare_args[@]}"} \
-    --report "$work/report.md" --failed "$work/failed-final.json" --warned "$work/warned-final.json" >/dev/null || status=$?
+    --logs "$work" --report "$work/report.md" --failed "$work/failed-final.json" --warned "$work/warned-final.json" \
+    >/dev/null || status=$?
 
 # The published files: the results with local paths shortened, the machine, the verdict, and the report.
 python3 -I - "$work" "$out" "$root" "$HOME" "$dry_run" "${scenarios[*]}" "$status" <<'PY'

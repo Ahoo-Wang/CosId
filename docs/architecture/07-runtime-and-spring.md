@@ -75,6 +75,7 @@ public final class CosIdRuntime implements AutoCloseable {
 
 `PartsIdGenerator { IdParts nextParts(); }`(`TimeBasedGenerator` 实现)与 `GroupedIdGenerator { GroupedId generate(); }`(`PeriodicSegmentGenerator` 实现):
 cosid80 与周期号段的 Bean 按接口注册,被禁用时可以是调用即抛 `GeneratorDisabledException` 的代理(D24)。生成计数由 `RuntimeOptions` 的计数开关在运行时统一挂上,关闭时热路径不受影响。
+uuidv7(D46)没有视图接口,它的 Bean 是具体的 final 类 `UuidV7Generator`,即运行时持有的那一个实例:计数在它自身(经由时间源,每个 id 读一次),所以 Bean、`text(name)` 与 `get(name, UuidV7Generator.class)` 都计数,且彼此保持单调;运行时关闭后它与其他策略一样进入终止状态;被禁用时 Bean 是一个时间源调用即抛 `GeneratorDisabledException` 的 `UuidV7Generator`(R2-uuid-01、R2-uuid-03)。
 
 ### 1.0.1 自定义生成器(D41,R1-core-02)
 

@@ -26,7 +26,7 @@ benchmark/
 | P4 | CosIdGenerator 80 位 Radix62 / Friendly 字符串 | `Radix62CosIdGenerator` / `FriendlyCosIdGenerator` | 吞吐、每次分配字节 | 端到端 |
 | P5 | 号段,内存存储,1 / 4 / 16 / 64 线程 | `SegmentChainId` + 内存分发器 | 吞吐、p99 / p999 延迟 | 端到端 |
 | P6 | 号段,step = 1(无预取) | `DefaultSegmentId` | 吞吐 | 端到端 |
-| P7 | 号段,真实 MySQL / Redis / MongoDB / ZooKeeper | `MySqlChainIdBenchmark` / `RedisChainIdBenchmark` / `MongoChainIdBenchmark` / `ZookeeperChainIdBenchmark` | 吞吐、p99 / p999 延迟 | 端到端 |
+| P7 | 号段,真实 MySQL / Redis / MongoDB / ZooKeeper;5.x 一律走生产路径(`CosIdRuntime` 发出的生成器,运行时打开并包装的存储) | `MySqlChainIdBenchmark` / `RedisChainIdBenchmark` / `MongoChainIdBenchmark` / `ZookeeperChainIdBenchmark` | 吞吐、p99 / p999 延迟 | 端到端 |
 | P8 | 周期号段(按天)含跨期 | grouped `SegmentChainId` | 吞吐、跨期 p999 延迟 | 端到端 |
 | P9 | 编解码:Radix62/36 encode/decode、Friendly parse | 各 `IdConverter` | 吞吐、每次分配字节 | 组件 |
 | P10 | 存储原语延迟:reserve、acquire、renew(各后端) | 4.x 对应操作 | 平均与 p99 延迟 | 组件 |

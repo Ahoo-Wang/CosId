@@ -13,10 +13,8 @@
 
 package me.ahoo.cosid.benchmark;
 
-import me.ahoo.cosid.observe.GeneratorListener;
-import me.ahoo.cosid.segment.SegmentGenerator;
-import me.ahoo.cosid.store.Store;
-import me.ahoo.cosid.time.TimeSource;
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.runtime.CosIdRuntime;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -33,7 +31,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * P7 (Redis): segments on a real Redis, 1 / 4 / 16 threads, step 10 and 100; throughput and sampled latency.
+ * P7 (Redis): segments on a real Redis, 1 / 4 / 16 threads, step 10 and 100; throughput and sampled latency. End to end
+ * (D44): the generator a {@code CosIdRuntime} hands out, on the {@code redis} store ({@link RedisV5#chainStore()}).
  */
 @State(Scope.Benchmark)
 @BenchmarkMode({Mode.Throughput, Mode.SampleTime})
@@ -43,20 +42,19 @@ public class RedisChainIdBenchmark {
     @Param({"10", "100"})
     long step;
 
-    Store store;
-    SegmentGenerator segment;
+    CosIdRuntime runtime;
+    IdGenerator segment;
 
     @Setup
     public void setup() {
-        store = RedisV5.open();
         String name = "p7-" + UUID.randomUUID();
-        segment = new SegmentGenerator(name, "bench/" + name, store.ranges(), V5.batch(step), V5.EXECUTOR, TimeSource.SYSTEM, GeneratorListener.NOOP);
+        runtime = V5.storeRuntime(name, RedisV5.chainStore(), null, step);
+        segment = runtime.generator(name);
     }
 
     @TearDown
     public void tearDown() {
-        segment.close();
-        store.close();
+        runtime.close();
     }
 
     @Benchmark

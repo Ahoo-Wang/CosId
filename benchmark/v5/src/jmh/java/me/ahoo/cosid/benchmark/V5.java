@@ -111,15 +111,19 @@ final class V5 {
 
     /**
      * A runtime with one segment generator {@code name} at {@code step} on the store {@code store}, opened by its
-     * provider from {@code client}: the production path of P7 (the generator the runtime hands out, on the store as
-     * the runtime wraps it).
+     * provider from {@code client} (null: from its options): the production path of every P7 (D44; the generator the
+     * runtime hands out, on the store as the runtime wraps it).
      */
     static CosIdRuntime storeRuntime(String name, StoreSpec store, Object client, long step) {
         RuntimeSpec spec = RuntimeSpec.builder("bench")
             .store("store", store)
             .generator(name, GeneratorSpec.Segment.builder("store").batch(batch(step)).codec(List.of()).build())
             .build();
-        return CosIdRuntime.start(spec, RuntimeOptions.builder().executor(EXECUTOR).client("store", client).build());
+        RuntimeOptions.Builder options = RuntimeOptions.builder().executor(EXECUTOR);
+        if (client != null) {
+            options.client("store", client);
+        }
+        return CosIdRuntime.start(spec, options.build());
     }
 
     /**

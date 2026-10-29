@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.benchmark;
 
+import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.redis.RedisStoreProvider;
@@ -27,12 +28,20 @@ final class RedisV5 {
     private RedisV5() {
     }
 
-    static Store open() {
+    static String uri() {
         String uri = System.getenv("COSID_TEST_REDIS_URI");
-        uri = uri == null || uri.isBlank() ? "redis://localhost:6379" : uri;
+        return uri == null || uri.isBlank() ? "redis://localhost:6379" : uri;
+    }
+
+    static Store open() {
         return new RedisStoreProvider().open(StoreConfig.builder("bench", RedisStoreProvider.TYPE)
             .timeout(Duration.ofSeconds(10))
-            .option("uri", uri)
+            .option("uri", uri())
             .build());
+    }
+
+    /** The store of P7: the same Redis, the store timeout within the reserve timeout of {@code BatchPolicy.DEFAULT}. */
+    static StoreSpec chainStore() {
+        return StoreSpec.builder(RedisStoreProvider.TYPE).timeout(Duration.ofSeconds(2)).option("uri", uri()).build();
     }
 }

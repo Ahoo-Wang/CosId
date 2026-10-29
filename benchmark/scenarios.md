@@ -10,7 +10,8 @@ twice with the same JMH class and method names so that [`compare`](compare) can 
 Every class is `me.ahoo.cosid.benchmark.<Class>`; a method name ends with `_t<threads>` and carries a `@Threads`. P9 and
 P10 measure one component; every other scenario measures ID generation end to end. The gate judges them differently
 (D44, [10 §1.3](../docs/architecture/10-performance-and-parity.md)), by the `SCENARIOS` table of [`compare`](compare),
-which every class here must be in (`compare_test.py` checks it).
+which every class here must be in (`compare_test.py` checks it). The 5.x side of every P7 runs the production path: the
+generator a `CosIdRuntime` hands out, on the store as the runtime opens and wraps it (`V5.storeRuntime`).
 
 | # | Class | Methods | Modes | 4.x configuration | 5.x configuration |
 |---|---|---|---|---|---|
@@ -21,7 +22,7 @@ which every class here must be in (`compare_test.py` checks it).
 | P5 | `SegmentBenchmark` | `generate_t1/t4/t16/t64`, `@Param step` = 10, 100 | thrpt, sample (p99, p99.9) | `SegmentChainId(distributor)`; in-memory distributor at `step`, no simulated latency; other settings default | the `long` generator a `CosIdRuntime` hands out (counted, on its store wrapped by `ObservedStores`, as in production) on an in-memory range store, one atomic add per reservation (`V5.MemoryRangeStore`, `V5.segmentRuntime`); `BatchPolicy.DEFAULT` with `step` (and `maxBatch = BatchPolicy.defaultMaxBatch(step)`, `max(step × 1000, 2^20)` rounded to `step`) |
 | P6 | `SegmentNoPrefetchBenchmark` | `generate_t1` | thrpt | `DefaultSegmentId`, in-memory distributor, step 1, no ttl | the same runtime path as P5, step 1, `lookahead = 0`, `maxBatch = 1`, no `rangeTtl` |
 | P7 (MySQL) | `MySqlChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | see [P7 / P10 on JDBC](#p7--p10-on-jdbc-r2-jdbc) | |
-| P7 (Redis) | `RedisChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(SpringRedisIdSegmentDistributor)`, offset 0, on a `StringRedisTemplate` (Lettuce) at `COSID_TEST_REDIS_URI` (default `redis://localhost:6379`) | `SegmentGenerator` on the `redis` store opened from the same URI (`wait=auto`), `V5.batch(step)` |
+| P7 (Redis) | `RedisChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(SpringRedisIdSegmentDistributor)`, offset 0, on a `StringRedisTemplate` (Lettuce) at `COSID_TEST_REDIS_URI` (default `redis://localhost:6379`) | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `redis` store opened from the same URI (`wait=auto`, timeout 2s), `V5.batch(step)` |
 | P7 (MongoDB) | `MongoChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(MongoIdSegmentDistributor)`, offset 0, on the replica set at `COSID_BENCHMARK_MONGODB_URI` | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `mongo` store opened from the same client (timeout 2s), `V5.batch(step)` |
 | P7 (ZooKeeper) | `ZookeeperChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(ZookeeperIdSegmentDistributor)` (no call timeout), on one in-process ZooKeeper 3.9 (curator-test) per trial | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `zookeeper` store opened from the same Curator client (timeout 2s), `V5.batch(step)` |
 | P8 | `PeriodicSegmentBenchmark` | `generate_t1/t4` | thrpt, sample (p99, p99.9) | grouped `SegmentChainId` (`DefaultGroupedIdSegmentDistributor`, in-memory distributor), step 100; a `GroupBySupplier` keyed `yyyyMMdd` whose day lasts 2s of real time | `PeriodicSegmentGenerator` on the same accelerated `yyyyMMdd` day, `BatchPolicy.DEFAULT` with step 100, prewarm 1/1440 of the day (the default minute, scaled) |
@@ -119,7 +120,7 @@ start one first (`docker run -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=co
 
 | # | 4.x | 5.x |
 |---|---|---|
-| P7 | `SegmentChainId` on `JdbcIdSegmentDistributor` at `step` | `SegmentGenerator` on `JdbcStore` (MySQL dialect), `BatchPolicy.DEFAULT` with `step` |
+| P7 | `SegmentChainId` on `JdbcIdSegmentDistributor` at `step` | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `jdbc` store (MySQL dialect) opened from the same data source (timeout 2s), `BatchPolicy.DEFAULT` with `step` |
 | P10 reserve | `JdbcIdSegmentDistributor.nextMaxId(100)` | `JdbcStore.ranges().reserve(key, 100, 0)` |
 | P10 acquire | `MachineLeaseManager.acquire` on `JdbcMachineLeaseStore`, a new instance each call, released after it (not measured) | `acquire` by a new owner in a namespace of 1024 slots, released after it (not measured) |
 | P10 renew | `MachineLeaseManager.renew` of one lease | `renew` of one lease |

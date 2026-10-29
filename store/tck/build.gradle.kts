@@ -19,7 +19,6 @@ plugins {
 
 dependencies {
     api(project(":core"))
-    api(platform(libs.junit.bom))
     api(libs.junit.jupiter.api)
 }
 

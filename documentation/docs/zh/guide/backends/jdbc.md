@@ -15,7 +15,6 @@
 
 方言根据连接元数据探测（使用 MySQL 驱动时也能识别 MariaDB）。存储时钟是来自数据库的 UTC 纪元毫秒，不受会话时区影响；
 唯一性不依赖它。
-MariaDB Connector/J 4 默认要求 TLS：服务端未启用 TLS 时，在 URL 中加上 `sslMode=disable`。
 
 低于最低版本的实测结果，**不承诺支持**：MySQL 8.0、MariaDB 10.6、PostgreSQL 12–14 与 SQL Server 2017
 通过了 TCK（[全部结果](index.md#supported-versions-and-measured-compatibility)）。

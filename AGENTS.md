@@ -94,12 +94,15 @@ Adding a package means deciding whether `module-info.java` exports it.
 ## Build logic (`build-logic/`)
 
 - `cosid.java`: Java 21, `-parameters`, Checkstyle, SpotBugs, JaCoCo (XML reports for Codecov), JUnit 5 + Hamcrest,
-  Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK.
-- `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`) + `checkPublishedMetadata`
-  (in `check`): every dependency has a version (or a published platform manages it), and no enforced platform or build
-  platform is published.
-- `cosid.spring` (`spring/*`, `integrations/*`; `server` applies `cosid.java` + the Spring Boot plugin and the BOM itself, since it is not published): `cosid.library` + the Spring Boot BOM on the build's
-  classpaths only (never published), published versions of `spring-boot-minimum`,
+  Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK. The Spring Boot BOM manages every build
+  classpath (D45; `-PspringBootVersion` swaps it), never the published metadata; `cosid.bootBom=false` in a project's
+  `gradle.properties` opts out (only `benchmark/baseline-4x`). A dependency the BOM manages has no version in
+  `gradle/libs.versions.toml`.
+- `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`), which publishes the
+  versions the build resolved, + `checkPublishedMetadata` (in `check`): every dependency has a version (or a published
+  platform manages it), and no enforced platform or build platform is published.
+- `cosid.spring` (`spring/*`, `integrations/*`; `server` applies `cosid.java` + the Spring Boot plugin, since it is not
+  published): `cosid.library` + published versions of `spring-boot-minimum`,
   and the compatibility matrix: `-PspringBootVersion=4.0.9` builds and tests on another Boot (02 §5), with
   `-PtestJavaVersion=25`; CI job `spring-compatibility`.
 - `cosid.platform`: the BOM. `cosid.benchmark`: `cosid.java` + JMH (`me.champeau.jmh`) — JMH is applied nowhere else.

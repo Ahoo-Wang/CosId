@@ -25,7 +25,6 @@ dependencies {
     implementation(project(":store:redis"))
     implementation(project(":store:mongo"))
     implementation(project(":store:zookeeper"))
-    implementation(platform(libs.jackson.bom))
     implementation(libs.jackson.databind)
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.slf4j.api)
@@ -36,7 +35,6 @@ dependencies {
     runtimeOnly(libs.mssql.jdbc)
     runtimeOnly(libs.h2)
 
-    testImplementation(platform(libs.testcontainers.bom))
     testImplementation(libs.testcontainers.core)
     testImplementation(libs.testcontainers.mongodb)
     testImplementation(libs.curator.test)

@@ -39,8 +39,7 @@ import javax.sql.DataSource;
 enum TestDatabase {
     H2(JdbcDialects.H2, null),
     MYSQL(JdbcDialects.MYSQL, () -> new MySQLContainer(image("MYSQL", "mysql:8.4"))),
-    // MariaDB Connector/J 4 asks for TLS by default; the 10.11 image has none.
-    MARIADB(JdbcDialects.MARIADB, () -> new MariaDBContainer(image("MARIADB", "mariadb:10.11")).withUrlParam("sslMode", "disable")),
+    MARIADB(JdbcDialects.MARIADB, () -> new MariaDBContainer(image("MARIADB", "mariadb:10.11"))),
     POSTGRES(JdbcDialects.POSTGRESQL, () -> new PostgreSQLContainer(image("POSTGRES", "postgres:15-alpine"))),
     SQLSERVER(JdbcDialects.SQL_SERVER, () -> new MSSQLServerContainer(image("SQLSERVER", "mcr.microsoft.com/mssql/server:2019-latest")).acceptLicense());
 

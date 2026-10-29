@@ -20,7 +20,6 @@ plugins {
 dependencies {
     api(project(":core"))
     testImplementation(project(":store:tck"))
-    testImplementation(platform(libs.testcontainers.bom))
     testImplementation(libs.testcontainers.core)
     testImplementation(libs.testcontainers.mysql)
     testImplementation(libs.testcontainers.mariadb)

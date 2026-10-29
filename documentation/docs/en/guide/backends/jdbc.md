@@ -15,7 +15,6 @@
 
 The dialect is detected from the connection metadata (MariaDB also behind the MySQL driver). The store clock is UTC
 epoch milliseconds from the database, unaffected by session time zones; uniqueness does not depend on it.
-MariaDB Connector/J 4 asks for TLS by default: against a server without TLS, add `sslMode=disable` to the URL.
 
 Measured below the minimum, **not a support commitment**: MySQL 8.0, MariaDB 10.6, PostgreSQL 12–14 and SQL Server
 2017 passed the TCK ([all results](index.md#supported-versions-and-measured-compatibility)).

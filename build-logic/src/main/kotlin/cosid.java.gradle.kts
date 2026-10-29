@@ -59,8 +59,32 @@ tasks.withType<Javadoc>().configureEach {
     }
 }
 
+// D45: the Spring Boot BOM manages the versions of every build classpath, never the published metadata (a library
+// publishes the versions it resolved: cosid.library, cosid.spring). -PspringBootVersion replaces it rather than
+// competing with it: an enforced platform, so a higher BOM a dependency brings loses (the compatibility matrix).
+// A project with cosid.bootBom=false in its gradle.properties takes none (benchmark/baseline-4x: its 4.x jars keep the
+// versions they bring).
+fun Configuration.isBuildClasspath() = isCanBeResolved &&
+    (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor")
+
+if (findProperty("cosid.bootBom")?.toString() != "false") {
+    val springBootVersion = findProperty("springBootVersion")?.toString()
+    val managedVersions = configurations.create("managedVersions") {
+        isCanBeConsumed = false
+        isCanBeResolved = false
+    }
+    configurations.configureEach {
+        if (this != managedVersions && name != "minimumVersions" && isBuildClasspath()) {
+            extendsFrom(managedVersions)
+        }
+    }
+    dependencies {
+        val bom = "org.springframework.boot:spring-boot-dependencies"
+        managedVersions(if (springBootVersion == null) platform("$bom:${version("spring-boot")}") else enforcedPlatform("$bom:$springBootVersion"))
+    }
+}
+
 dependencies {
-    testImplementation(platform(library("junit-bom")))
     testImplementation(library("junit-jupiter"))
     testImplementation(library("hamcrest"))
     testRuntimeOnly(library("junit-platform-launcher"))

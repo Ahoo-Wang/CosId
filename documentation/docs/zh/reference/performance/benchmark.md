@@ -45,22 +45,19 @@ benchmark/compare BASELINE.json CANDIDATE.json
 
 ## 5.0 结果
 
-<!-- R2-perf-01: the summary of the gate on the GA commit, committed to docs/jmh/5.0.0/, goes here. -->
-
-候选发布版通过了门槛：第七次对照 4.1.1 运行（[run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823)），8 组全部通过，
-3 个组件行 WARN（D44）。端到端的号段链在单线程、step 10 下的发号速度，4.x → 5.0：
+GA 提交上的门槛，即第八次对照 4.1.1 运行（[run 40887469149](https://github.com/Ahoo-Wang/CosId/actions/runs/40887469149)，`be35de36`），按 D50 的规则 8 组全部通过，另有 1 个经用户裁定的例外：
+组件行 `MySqlStoreBenchmark.acquire_t1` 的 p99.9（4.1.1 为 2.7 / 2.4 ms，5.0 为 4.0 / 3.4 ms，首轮 / 重跑）；所有行的吞吐、平均耗时与内存分配都通过。
+报告、按旧规则的判定结果以及 4.1.1 一侧都在 [`docs/jmh/5.0.0/`](https://github.com/Ahoo-Wang/CosId/tree/main/docs/jmh/5.0.0)。端到端的号段链在单线程、step 10 下的发号速度，4.x → 5.0：
 
 | 存储 | 4.1.1（ops/µs） | 5.0（ops/µs） |
 |---|---|---|
-| MongoDB | 1.75 | 392 |
-| MySQL | 0.47 | 209 |
-| Redis | 0.86 | 211 |
-| ZooKeeper | 0.28 | 405 |
+| MongoDB | 6.52 | 207 |
+| MySQL | 0.62 | 348 |
+| Redis | 2.15 | 406 |
+| ZooKeeper | 0.33 | 401 |
 
-::: info GA
-门槛会在 GA 提交上再跑一次；其摘要（`report.md`，以及 4.1.1 一侧的 `baseline-4x.md`）会提交到
-[`docs/jmh/`](https://github.com/Ahoo-Wang/CosId/tree/main/docs/jmh)（`docs/jmh/5.0.0/`），并在此处汇总。
-:::
+每组在各自的 runner 上运行，不同组或不同次运行的数据不能相互比较：候选发布版的门槛（第七次运行，[run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823)）
+在另一台 runner 上测得 MongoDB 1.75 → 392。
 
 ## 历史结果
 

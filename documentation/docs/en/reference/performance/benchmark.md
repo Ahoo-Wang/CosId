@@ -53,23 +53,22 @@ benchmark/compare BASELINE.json CANDIDATE.json
 
 ## 5.0 results
 
-<!-- R2-perf-01: the summary of the gate on the GA commit, committed to docs/jmh/5.0.0/, goes here. -->
-
-The gate passed on the release candidate: the seventh run against 4.1.1
-([run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823)), 8 of 8 groups, with 3 component rows
-warning (D44). End to end, the segment chains at one thread, step 10, issue 4.x → 5.0:
+The gate on the GA commit, the eighth run against 4.1.1 ([run 40887469149](https://github.com/Ahoo-Wang/CosId/actions/runs/40887469149), `be35de36`), passes 8
+of 8 groups by the rules of D50, with one exception the user accepted: the p99.9 of `MySqlStoreBenchmark.acquire_t1`, a
+component row (4.1.1 2.7 / 2.4 ms, 5.0 4.0 / 3.4 ms, first run / re-run); throughput, average time and allocation pass
+on every row. The report, its verdict under the earlier rules and the 4.1.1 side are in
+[`docs/jmh/5.0.0/`](https://github.com/Ahoo-Wang/CosId/tree/main/docs/jmh/5.0.0). End to end, the segment chains at one thread, step 10, issue 4.x → 5.0:
 
 | Store | 4.1.1 (ops/µs) | 5.0 (ops/µs) |
 |---|---|---|
-| MongoDB | 1.75 | 392 |
-| MySQL | 0.47 | 209 |
-| Redis | 0.86 | 211 |
-| ZooKeeper | 0.28 | 405 |
+| MongoDB | 6.52 | 207 |
+| MySQL | 0.62 | 348 |
+| Redis | 2.15 | 406 |
+| ZooKeeper | 0.33 | 401 |
 
-::: info GA
-The gate runs again on the GA commit; its summary (`report.md`, and the 4.1.1 side as `baseline-4x.md`) is committed to
-[`docs/jmh/`](https://github.com/Ahoo-Wang/CosId/tree/main/docs/jmh) (`docs/jmh/5.0.0/`) and summarized here.
-:::
+Each group runs on a runner of its own, so numbers of different groups or runs do not compare: the release candidate's
+gate (the seventh run, [run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823)) measured
+MongoDB 1.75 → 392 on another runner.
 
 ## Historical results
 

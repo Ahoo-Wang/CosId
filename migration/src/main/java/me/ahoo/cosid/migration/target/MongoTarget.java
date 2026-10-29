@@ -125,7 +125,6 @@ public final class MongoTarget implements TargetAdmin {
     @Override
     public NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor) {
         slots.createIndex(Indexes.ascending("ns", "slot"), new IndexOptions().unique(true).name("ns_slot"));
-        slots.createIndex(Indexes.ascending("ns", "ownerKey"), new IndexOptions().name("ns_ownerKey"));
         slots.createIndex(Indexes.ascending("ns", "lastOwnerKey"), new IndexOptions().name("ns_lastOwnerKey"));
         namespaces.updateOne(Filters.eq("_id", namespace), new Document("$setOnInsert", new Document("limit", limit).append("toleranceMs", toleranceMillis)
             .append("slotOffset", slotOffset)), new UpdateOptions().upsert(true));

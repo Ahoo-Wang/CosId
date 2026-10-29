@@ -42,7 +42,14 @@ duplicate ids. The provider logs a start-up `WARN` for every store with a weaker
 | Collection | Documents |
 |---|---|
 | `cosid_range` | `{_id: key, next, sealed}`; `findOneAndUpdate` with upsert and a pipeline `next = ifNull(next, initialOffset) + size`, filtered on `sealed != true`; E11000 (a concurrent upsert) is retried once |
-| `cosid_slot` | `{ns, slot, …}` with a unique index on `(ns, slot)`, all slots created up front; each step of the slot choice is a `findOneAndUpdate` whose filter tests "free" with `$expr` and `$$NOW` and carries the fence |
+| `cosid_slot` | `{ns, slot, …}` with a unique index on `(ns, slot)` and one on `(ns, lastOwnerKey)` for the slots an owner key holds or held last, all slots created up front; each step of the slot choice is a `findOneAndUpdate` whose filter tests "free" with `$expr` and `$$NOW` and carries the fence |
 | `cosid_namespace` | `{limit, toleranceMs}` of each namespace |
 
 The store clock is `$$NOW`.
+
+Stores of 5.0.0-alpha.1 also created the index `ns_ownerKey` on `cosid_slot`, which no query uses any more. It does
+no harm; to drop it:
+
+```js
+db.cosid_slot.dropIndex("ns_ownerKey")
+```

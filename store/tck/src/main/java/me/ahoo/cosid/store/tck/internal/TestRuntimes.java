@@ -12,7 +12,7 @@
  */
 
 
-package me.ahoo.cosid.store.tck;
+package me.ahoo.cosid.store.tck.internal;
 
 import me.ahoo.cosid.runtime.CodecSpec;
 import me.ahoo.cosid.runtime.CosIdRuntime;
@@ -30,6 +30,7 @@ import me.ahoo.cosid.segment.PeriodicPolicy;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
+import me.ahoo.cosid.store.tck.InMemoryStore;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeSource;
@@ -39,7 +40,11 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
-/** Runtimes of every strategy on {@link InMemoryStore}s, for the tests of the integrations and other runtime users. */
+/**
+ * Runtimes of every strategy on {@link InMemoryStore}s, for the tests of CosId's own integrations and other runtime users.
+ * <b>Not part of the TCK</b> (R1-tck-01): it may change or go in any release; a store implementation needs the
+ * contracts of {@code me.ahoo.cosid.store.tck} only.
+ */
 public final class TestRuntimes {
     /** Snowflake, decimal. */
     public static final String DEFAULT = "default";

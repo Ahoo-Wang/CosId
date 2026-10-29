@@ -152,7 +152,7 @@ Adding a package means deciding whether `module-info.java` exports it.
   `InMemoryStore`), H2 for JDBC, and Redis from `COSID_TEST_REDIS_URI` or Testcontainers (`-Pcosid.test.redis.image`).
   Generator beans are registered in a `BeanDefinitionRegistryPostProcessor`, so `RuntimeSpecCustomizer` beans must be
   dependency-free (`static @Bean`).
-- **integrations** (`integrations/*`): tests run each adapter end to end on `store/tck`'s `TestRuntimes` (every
+- **integrations** (`integrations/*`): tests run each adapter end to end on `store/tck`'s `internal.TestRuntimes` (CosId's own fixture, not part of the TCK) (every
   strategy on `InMemoryStore`): MyBatis and Spring Data JDBC on H2, Activiti and Flowable as in-memory engines, Axon through
   `IdentifierFactory.getInstance()`. `CosIdIdentifierFactory` keeps the only static state of the project (its bindings);
   a test that binds must unbind; unbound, it throws. Text ids of any strategy come from `CosIdRuntime.text(name)`

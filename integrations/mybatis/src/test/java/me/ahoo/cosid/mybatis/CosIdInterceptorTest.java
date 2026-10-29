@@ -20,7 +20,7 @@ import static org.hamcrest.Matchers.startsWith;
 
 import me.ahoo.cosid.accessor.CosId;
 import me.ahoo.cosid.runtime.CosIdRuntime;
-import me.ahoo.cosid.store.tck.TestRuntimes;
+import me.ahoo.cosid.store.tck.internal.TestRuntimes;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;

@@ -27,7 +27,7 @@ import me.ahoo.cosid.codec.Radix;
 import me.ahoo.cosid.jackson.AsString.Codec;
 import me.ahoo.cosid.jackson.AsString.Preset;
 import me.ahoo.cosid.runtime.CosIdRuntime;
-import me.ahoo.cosid.store.tck.TestRuntimes;
+import me.ahoo.cosid.store.tck.internal.TestRuntimes;
 import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.AfterAll;

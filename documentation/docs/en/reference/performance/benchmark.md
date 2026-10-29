@@ -34,11 +34,12 @@ benchmark/
 | P13 | UUIDv7 (5.x only, a trend, not judged), 1 / 4 / 16 threads | throughput |
 
 A row's limit is the wider of 4.x with its error (JMH's 99.9% confidence interval) and 4.x with a tolerance: 5% for
-throughput and average time, 10% for p99 / p99.9, and the larger of 5% and +64 B for allocation. A row that fails runs
+throughput and average time, the larger of 10% and +100 ns for p99 / p99.9 (D50: a tail below a microsecond moves by
+the timer's resolution and the runner's noise more than by 10%), and the larger of 5% and +64 B for allocation. A row that fails runs
 again in fresh forks, and only a failed re-run counts as a regression. The store scenarios (P7, P10) run each side
 twice in ABBA order (4.x, 5.x, 5.x, 4.x), so that neither side always runs right after the other on the store. The gate is end-to-end ID generation (D44): a
 row of a component (P9 codecs, P10 store primitives) that misses these limits only warns, up to 20% for throughput and
-average time, 30% for p99 / p99.9 and the larger of 25% and +64 B for allocation, and fails beyond them. The gate runs
+average time, the larger of 30% and +100 ns for p99 / p99.9 and the larger of 25% and +64 B for allocation, and fails beyond them. The gate runs
 on GitHub's shared runners (D31): both sides of a scenario run on the same runner, interleaved, and are judged against
 each other with these tolerances, never against numbers from another runner or another run, which are noise.
 

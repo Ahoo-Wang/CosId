@@ -10,7 +10,8 @@ twice with the same JMH class and method names so that [`compare`](compare) can 
 Every class is `me.ahoo.cosid.benchmark.<Class>`; a method name ends with `_t<threads>` and carries a `@Threads`. P9 and
 P10 measure one component; every other scenario measures ID generation end to end. The gate judges them differently
 (D44, [10 §1.3](../docs/architecture/10-performance-and-parity.md)), by the `SCENARIOS` table of [`compare`](compare),
-which every class here must be in (`compare_test.py` checks it). The 5.x side of every P7 runs the production path: the
+which every class here must be in (`compare_test.py` checks it). A p99 / p99.9 limit is never below 4.x + 100 ns (D50): in the
+sample modes below a microsecond, a tail moves by the timer's resolution and the runner's noise more than by 10%. The 5.x side of every P7 runs the production path: the
 generator a `CosIdRuntime` hands out, on the store as the runtime opens and wraps it (`V5.storeRuntime`).
 
 | # | Class | Methods | Modes | 4.x configuration | 5.x configuration |

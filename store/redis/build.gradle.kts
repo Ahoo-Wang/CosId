@@ -20,6 +20,7 @@ plugins {
 dependencies {
     api(project(":core"))
     api(libs.lettuce.core)
+    implementation(libs.slf4j.api)
     testImplementation(project(":store:tck"))
     testImplementation(libs.testcontainers)
 }
@@ -31,7 +32,7 @@ tasks.test {
 }
 
 // The contracts really ran against Redis (roadmap R2): a run that skipped them fails, as in store/tck.
-val checkContractsRan by tasks.registering(JavaExec::class) {
+val checkContractsRan = tasks.register<JavaExec>("checkContractsRan") {
     description = "Checks from the JUnit reports that every store contract case ran."
     group = "verification"
     val reports = layout.buildDirectory.dir("test-results/test")

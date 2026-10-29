@@ -106,6 +106,8 @@ public final class MongoTarget implements TargetAdmin {
         }
         int limit = ((Number) meta.get("limit")).intValue();
         long tolerance = ((Number) meta.get("toleranceMs")).longValue();
+        // A document of 5.0.0-alpha.1 has no slotOffset: offset 0.
+        int slotOffset = meta.get("slotOffset") == null ? 0 : ((Number) meta.get("slotOffset")).intValue();
         long now = now();
         int count = 0;
         int live = 0;
@@ -117,19 +119,18 @@ public final class MongoTarget implements TargetAdmin {
                 live++;
             }
         }
-        return Optional.of(new NamespaceState(limit, tolerance, count, minNextFloor, live));
+        return Optional.of(new NamespaceState(limit, tolerance, slotOffset, count, minNextFloor, live));
     }
 
     @Override
-    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor) {
+    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor) {
         slots.createIndex(Indexes.ascending("ns", "slot"), new IndexOptions().unique(true).name("ns_slot"));
-        slots.createIndex(Indexes.ascending("ns", "ownerKey"), new IndexOptions().name("ns_ownerKey"));
         slots.createIndex(Indexes.ascending("ns", "lastOwnerKey"), new IndexOptions().name("ns_lastOwnerKey"));
-        namespaces.updateOne(Filters.eq("_id", namespace), new Document("$setOnInsert", new Document("limit", limit).append("toleranceMs", toleranceMillis)),
-            new UpdateOptions().upsert(true));
+        namespaces.updateOne(Filters.eq("_id", namespace), new Document("$setOnInsert", new Document("limit", limit).append("toleranceMs", toleranceMillis)
+            .append("slotOffset", slotOffset)), new UpdateOptions().upsert(true));
         NamespaceState before = namespace(namespace).orElseThrow();
-        if (before.limit() != limit || before.toleranceMillis() != toleranceMillis) {
-            throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, before.limit(), before.toleranceMillis());
+        if (!TargetAdmin.matches(before, limit, toleranceMillis, slotOffset)) {
+            throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, slotOffset, before);
         }
         if (before.live() > 0) {
             throw TargetAdmin.live(namespace, before.live());

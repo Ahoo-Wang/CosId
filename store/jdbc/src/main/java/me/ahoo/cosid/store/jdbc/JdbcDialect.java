@@ -30,8 +30,20 @@ import java.util.OptionalLong;
  * {@link #nowMillis()}. The
  * tables are those of {@link #schema}: {@code cosid_range(range_key, next_value, sealed)},
  * {@code cosid_slot(namespace, slot, owner_key, incarnation, last_owner_key, fence, expires_at, floor_ms, ceiling_ms,
- * next_floor_ms)} and {@code cosid_namespace(namespace, slot_limit, tolerance_ms)}, under the names of
- * {@link JdbcSession#tables()}.
+ * next_floor_ms)} and {@code cosid_namespace(namespace, slot_limit, tolerance_ms, slot_offset)}, under the names of
+ * {@link JdbcSession#tables()}. Tables of 5.0.0-alpha.1 have no {@code cosid_namespace.slot_offset}: a missing value
+ * reads as 0, and {@code options.initSchema} adds the column ({@link #addColumn}).
+ *
+ * <p>Two kinds of method, with different promises (R1-jdbc-07):
+ * <ul>
+ *   <li>The <b>operations</b> ({@link #reserve}, {@link #insertNamespaceIfAbsent}, {@link #provisionSlots}, {@link #nowMillis},
+ *   {@link #schema}, {@link #checkKey} and the error classification) are the contract a dialect implements: their
+ *   meaning does not change in 5.x.</li>
+ *   <li>The <b>SQL hooks</b> ({@link #firstRows}, {@link #createIndex}, {@link #addColumn}, {@link #selectNowMillis})
+ *   only spell a piece of SQL the store builds its own statements from. The store may stop calling one or start
+ *   calling a new one in a minor version; a new hook always has a default that suits most databases. Override a hook
+ *   only where the database's syntax differs.</li>
+ * </ul>
  */
 public interface JdbcDialect {
     /**
@@ -67,6 +79,17 @@ public interface JdbcDialect {
     String nowMillis();
 
     /**
+     * A query of one row and one column, the store clock ({@link #nowMillis()}): what a renewal reads before its
+     * compare-and-set.
+     *
+     * @return {@code select} and the clock, without a table; a database that needs one overrides it (Oracle:
+     *         {@code from dual})
+     */
+    default String selectNowMillis() {
+        return "select " + nowMillis();
+    }
+
+    /**
      * Reserves {@code size} values of {@code key} in one round trip where the database allows it: a key that does
      * not exist is created with {@code next_value = initialOffset + size}; an existing key that is not sealed and has
      * {@code next_value <= Long.MAX_VALUE - size} gets {@code next_value + size}. The caller guarantees
@@ -97,21 +120,49 @@ public interface JdbcDialect {
     }
 
     /**
-     * Records the parameters of a namespace on its first use; a namespace that exists is left as it is.
+     * The statement that creates an index, for {@code options.initSchema} on a table that lacks it
+     * ({@code cosid_slot}'s index on {@code (namespace, last_owner_key)} came after 5.0.0-alpha.1). The store runs it
+     * only when the index is missing.
+     *
+     * @param table   the table, as {@link JdbcTables} names it
+     * @param name    the index name, unqualified
+     * @param columns the indexed columns, in order
+     * @return the statement
+     */
+    default String createIndex(String table, String name, List<String> columns) {
+        return "create index " + name + " on " + table + " (" + String.join(", ", columns) + ")";
+    }
+
+    /**
+     * The statement that adds a column to an existing table, for {@code options.initSchema} on tables created by an
+     * earlier 5.0 pre-release ({@code cosid_namespace.slot_offset} came after 5.0.0-alpha.1). The store runs it only
+     * when the column is missing.
+     *
+     * @param table      the table, as {@link JdbcTables} names it
+     * @param column     the column
+     * @param definition its type, nullability and default, such as {@code integer not null default 0}
+     * @return the statement: {@code alter table <table> add column <column> <definition>} by default
+     */
+    default String addColumn(String table, String column, String definition) {
+        return "alter table " + table + " add column " + column + " " + definition;
+    }
+
+    /**
+     * Records the parameters of a namespace on its first use; a namespace that exists is left as it is. A slot offset
+     * of 0 is the column default: the statement then leaves {@code slot_offset} out, so that it also runs on a table of
+     * 5.0.0-alpha.1 that has no such column.
      *
      * @param session         the session
      * @param namespace       the namespace
      * @param limit           the slot limit
      * @param toleranceMillis the tolerance
+     * @param slotOffset      the slot offset, not negative
      * @return whether this call inserted the row: the one first use that creates the slot rows
      * @throws SQLException if the database fails; a duplicate key counts as "not inserted"
      */
-    default boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
-        try (PreparedStatement insert = session.prepare("insert into " + session.tables().namespace()
-            + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?)")) {
-            insert.setString(1, namespace);
-            insert.setInt(2, limit);
-            insert.setLong(3, toleranceMillis);
+    default boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis, int slotOffset) throws SQLException {
+        try (PreparedStatement insert = session.prepare("insert into " + session.tables().namespace() + " " + JdbcDialects.namespaceInsert(slotOffset))) {
+            JdbcDialects.bindNamespace(insert, namespace, limit, toleranceMillis, slotOffset);
             return insert.executeUpdate() > 0;
         }
     }

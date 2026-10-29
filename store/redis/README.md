@@ -31,7 +31,7 @@ is strict, prefer the JDBC or ZooKeeper store. For the same reason the keys must
 |---|---|---|
 | `uri` | — | a Redis URI, when no client is given |
 | `cluster` | `false` | `uri` names a Redis Cluster |
-| `wait` | `auto` | `auto`: `WAIT 1` after every write when the server has replicas (`INFO replication` at open; in a cluster, each primary serving slots is asked for its replicas, `INFO replication` and `CLUSTER REPLICAS`, and the open fails when some primaries have replicas and others none); `off`; or the replica count |
+| `wait` | `auto` | `auto`: `WAIT 1` after every write when the server has replicas (`INFO replication` at open; in a cluster, each primary serving slots is asked for its replicas, `INFO replication` and `CLUSTER REPLICAS`, and the open fails when some primaries have replicas and others none); `off`; or the replica count. `auto` is resolved once, when the store opens, and logged at INFO: **restart the application after adding or removing replicas** |
 | `sweepBatch` | 16 | how many expired leases one acquire moves back to the free set at most |
 
 `StoreConfig.timeout` bounds every command and is the `WAIT` timeout; a command that gets no answer within it fails
@@ -52,12 +52,16 @@ Each group shares one hash tag, so every script runs on one Redis Cluster node. 
 |---|---|---|
 | `cosid:{key}` | string | the next value of a range key, a decimal string (exact beyond 2^53) |
 | `cosid:{key}:sealed` | string | the seal marker |
-| `cosid:{ns}:meta` | hash | `limit`, `tolerance`: what the namespace was first used with |
+| `cosid:{ns}:meta` | hash | `limit`, `tolerance`, `slotOffset`: what the namespace was first used with (a meta written by 5.0.0-alpha.1 has no `slotOffset`, read as `0`) |
 | `cosid:{ns}:slot` | hash | slot → `ownerKey\|incarnation\|lastOwnerKey\|fence\|expiresAt\|floor\|ceiling\|nextFloor` (owner keys escaped: `\` as `\\`, `\|` as `\p`) |
 | `cosid:{ns}:free` | sorted set | free slots, scored by slot number; prefilled with `0..limit-1` by `ZADD NX` |
 | `cosid:{ns}:live` | sorted set | live leases, scored by `expiresAt` |
 | `cosid:{ns}:owner` | hash | owner key → the slot it took last (sticky choice); an entry goes once another key takes that slot, so at most `limit` entries |
 | `cosid:{ns}:held` | hash | owner key → the slots whose row names it (idempotent retries and duplicate owner keys) |
+
+A slot row is read by position, and only its first 8 fields are read. A later version may only **append** fields: a
+version that does not know a field writes the row back without it, so an appended field must be safe to lose (its
+default never weakens a check). A field that is not safe to lose needs a format version the old scripts refuse.
 
 Every slot below the limit is in exactly one of `free` and `live`. An acquire sweeps at most `sweepBatch` expired
 leases into `free`, then tries the held, preferred, sticky and lowest free slot (05-machine-lease.md §2.1): a few hash

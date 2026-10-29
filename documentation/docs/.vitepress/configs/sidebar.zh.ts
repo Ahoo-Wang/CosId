@@ -79,6 +79,7 @@ const guide: DefaultTheme.SidebarItem[] = [
         collapsed: false,
         items: [
             {text: '生产环境清单', link: 'production'},
+            {text: 'Kubernetes', link: 'kubernetes'},
             {text: '指标与健康检查', link: 'monitoring'},
             {text: '故障排查', link: 'troubleshooting'},
             {text: '常见问题', link: 'faq'},

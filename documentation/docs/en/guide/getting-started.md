@@ -1,11 +1,11 @@
 # Getting Started
 
-CosId 5 needs **Java 21** or later. With Spring Boot it supports Boot 4.0 and later.
+CosId 5 needs **Java 21** or later. With Spring Boot it needs **Boot 4.1.2** or later (D49); Boot 4.0.x is not supported.
 
-::: warning Preview
-`5.0.0-alpha.x` is a preview with no compatibility promise. The API, configuration, storage format and cosid-server
-HTTP API may change between alphas and before GA, and no data migration is provided between alphas. Do not use it in
-production: stay on 4.x there ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
+::: warning Release candidate
+`5.0.0-rc.x` is a release candidate. From RC1 on, the Java API, the `cosid.*` configuration and the storage formats
+and protocols are frozen: later 5.x releases only add to them. Production use should still wait for GA; until then,
+stay on 4.x there ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
 :::
 
 ## 1. Add the dependencies
@@ -110,19 +110,18 @@ an insert: see [@CosId field filling](integrations/annotation.md).
 `CosIdRuntime` is the one assembly path; Spring only binds `cosid.*` to a `RuntimeSpec`. The same configuration in code:
 
 ```java
-RuntimeSpec spec = new RuntimeSpec("shop",
-    Map.of("db", new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of("initSchema", "true"))),
-    Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1),
-        OptionalInt.empty(), Optional.empty())),
-    Map.of(
-        "default", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT,
-            List.of(new CodecSpec.Radix(62, 11, true))),
-        "order", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of())));
+RuntimeSpec spec = RuntimeSpec.builder("shop")
+    .store("db", StoreSpec.builder("jdbc").option("initSchema", "true").build())
+    .machine(MachineSpec.Leased.builder("db").build())        // default 10 bits, ttl 30s, tolerance 1s
+    .generator("default", GeneratorSpec.Snowflake.builder()
+        .codec(List.of(new CodecSpec.Radix(62, 11, true)))
+        .build())
+    .generator("order", GeneratorSpec.Segment.builder("db").build())
+    .build();
 
-RuntimeOptions defaults = RuntimeOptions.defaults();
-RuntimeOptions options = new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(),
-    defaults.storeProviders(), Map.of("db", dataSource),           // existing clients by store name
-    defaults.hostResolver(), defaults.port(), defaults.codecs());
+RuntimeOptions options = RuntimeOptions.builder()
+    .client("db", dataSource)                                 // existing clients by store name
+    .build();
 
 try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
     long id = runtime.generator("default").generate();
@@ -140,5 +139,11 @@ what the runtime opened. See [the runtime](concepts/runtime.md).
   [segments](concepts/segment.md): what each strategy does and how to tune it.
 - [Choosing a backend](backends/index.md): supported versions and the preconditions of each store.
 - [Production checklist](operations/production.md) before going live.
-- [Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples): `segment-jdbc`, `snowflake-redis` and `server`,
-  each runnable with `./gradlew :examples:<name>:bootRun`.
+- [Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples):
+
+  | Example | Run |
+  |---|---|
+  | `segment-jdbc` | `./gradlew :examples:segment-jdbc:bootRun` |
+  | `snowflake-redis` | `REDIS_URI=redis://localhost:6379 ./gradlew :examples:snowflake-redis:bootRun` |
+  | `server` (a client of cosid-server, which the compose file starts too) | `./gradlew :server:dockerImage :examples:server:bootJar && docker compose -f examples/server/compose.yaml up` |
+  | `plain-stores` (a test only, no application; needs Docker) | `./gradlew :examples:plain-stores:test` |

@@ -22,12 +22,13 @@
 - [ ] **Scrape the metrics and alert** (below). Expose `/actuator/health` to the orchestrator.
 - [ ] **Shut down gracefully** (SIGTERM, not SIGKILL). A clean close releases the slot with the exact last timestamp,
   and the next holder starts right after it. A kill only delays the slot's reuse by up to `ttl + tolerance`.
+- [ ] **On Kubernetes**: probes, slot count and the grace period as in [Kubernetes](kubernetes.md).
 
 ## Alerts worth having
 
 | Signal | Meaning |
 |---|---|
-| health `cosId` `DOWN` | the slot lease was lost and not acquired again: time-based generators fail fast |
+| health `cosid` `DOWN` | the slot lease was lost and not acquired again: time-based generators fail fast |
 | `cosid.machine.lease.renew.failures` rising | the store is unreachable or slow; ids continue until the ceiling |
 | `cosid.machine.window.remaining` near 0 | renewals are not getting through; issuing is about to pause |
 | `cosid.machine.clock.skew` beyond `tolerance / 2` | fix NTP |

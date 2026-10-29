@@ -15,7 +15,6 @@ package me.ahoo.cosid.spring.autoconfigure;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import me.ahoo.cosid.observe.GeneratorInfo;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.aot.hint.MemberCategory;
@@ -62,7 +61,7 @@ class CosIdRuntimeHintsTest {
         assertTrue(RuntimeHintsPredicates.reflection().onType(me.ahoo.cosid.store.remote.RemoteStoreProvider.class)
             .withMemberCategory(MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS).test(hints), "the remote store provider");
         assertTrue(RuntimeHintsPredicates.reflection().onType(CosIdGeneratorRegistrar.GeneratorBean.class).test(hints));
-        assertTrue(RuntimeHintsPredicates.reflection().onType(GeneratorInfo.class).test(hints));
+        assertTrue(RuntimeHintsPredicates.reflection().onType(CosIdEndpoint.Generator.class).test(hints));
     }
 
     @Test
@@ -81,14 +80,17 @@ class CosIdRuntimeHintsTest {
         String metadata = cosIdMetadata();
         for (String property : List.of(
             "\"name\":\"cosid.enabled\",\"type\":\"java.lang.Boolean\"",
-            "\"defaultValue\":\"cosid\"",
+            "\"name\":\"cosid.namespace\"",
+            "\"name\":\"cosid.machines\"",
+            "\"name\":\"cosid.machine.leased.acquire-timeout\"",
+            "\"name\":\"cosid.machine.leased.slot-offset\"",
             "\"name\":\"cosid.machine.leased.ttl\"",
             "\"defaultValue\":\"30s\"",
             "\"name\":\"cosid.machine.static.slot\"",
             "\"name\":\"cosid.machine.leased.preferred-slot\"",
             "\"name\":\"cosid.stores\"",
             "\"name\":\"cosid.generators\"",
-            "\"name\":\"cosid.metrics.generated\"")) {
+            "\"name\":\"cosid.metrics.generated.enabled\"")) {
             assertTrue(metadata.contains(property), property);
         }
     }

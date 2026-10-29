@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | [JDBC](jdbc.md) | `cosid-store-jdbc` | `jdbc` | MySQL 8.4、MariaDB 10.11、PostgreSQL 15、SQL Server 2019、H2 2.x | 数据库事务 |
 | [Redis](redis.md) | `cosid-store-redis` | `redis` | Redis 7.0 | **已确认的写入不会丢失**：AOF `appendfsync always`，或对每个副本 `WAIT` |
-| [MongoDB](mongo.md) | `cosid-store-mongo` | `mongo` | MongoDB 6.0，副本集或分片集群 | `majority` 读写（`writeConcern: majority`，默认值） |
+| [MongoDB](mongo.md) | `cosid-store-mongo` | `mongo` | MongoDB 6.0，副本集（分片集群[未经验证](mongo.md)） | `majority` 读写（`writeConcern: majority`，默认值） |
 | [ZooKeeper](zookeeper.md) | `cosid-store-zookeeper` | `zookeeper` | ZooKeeper 3.8（主要目标 3.9） | ZooKeeper 的 quorum 写入 |
 | [Remote](../server.md) | `cosid-store-remote` | `remote` | 同版本的 cosid-server | 服务端的后备存储 |
 

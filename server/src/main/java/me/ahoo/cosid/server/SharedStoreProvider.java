@@ -25,6 +25,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.core.Ordered;
 
+import java.util.Set;
+
 /**
  * Hands the server's own {@link BackingStore} to the runtime for the same store (R1-server-03), so the id endpoints and
  * the {@code cosid} endpoint do not open a second client (or, for JDBC, a second, unpooled data source) on it. Other
@@ -49,6 +51,13 @@ final class SharedStoreProvider implements StoreProvider, Ordered {
     @Override
     public String type() {
         return type;
+    }
+
+    /** The options of the provider of the type it shares: the same store options apply. */
+    @Override
+    public Set<String> options() {
+        return BackingStore.provider(type, providers.orderedStream().filter(provider -> !(provider instanceof SharedStoreProvider)).toList())
+            .map(StoreProvider::options).orElse(Set.of());
     }
 
     @Override

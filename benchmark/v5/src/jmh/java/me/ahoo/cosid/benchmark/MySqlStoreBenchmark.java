@@ -20,6 +20,7 @@ import me.ahoo.cosid.lease.SlotLeaseStore;
 import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.store.jdbc.JdbcStore;
+import me.ahoo.cosid.store.jdbc.JdbcTables;
 
 import com.zaxxer.hikari.HikariDataSource;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -33,6 +34,9 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -40,8 +44,12 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * P10: the store primitives on a real MySQL ({@link MySql}), one thread; average and sampled latency.
- * {@code reserve} of 100 values; {@code acquire} in a namespace of 1024 slots by a new owner, released after each call
- * (outside the measurement); {@code renew} renews one lease.
+ * {@code reserve} of 100 values; {@code acquire} in a namespace of 1024 slots by a new owner key, released after each
+ * call (outside the measurement); {@code renew} renews one lease.
+ *
+ * <p>Kept symmetric with the 4.x side (ga-review §5.11): the owners of {@code acquire} differ by key and share one
+ * incarnation made in setup, as 4.x makes {@code InstanceId.of(...)} with no random number; and the release after each
+ * call is one {@code update}, as in 4.x, since the GC profiler counts what an invocation teardown allocates.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode({Mode.AverageTime, Mode.SampleTime})
@@ -72,7 +80,7 @@ public class MySqlStoreBenchmark {
     }
 
     SlotLease acquire(Owner owner) {
-        return ((AcquireResult.Acquired) slots.acquire(namespace, owner, LIMIT, TTL, TOLERANCE, OptionalInt.empty())).lease();
+        return ((AcquireResult.Acquired) slots.acquire(namespace, owner, LIMIT, TTL, TOLERANCE, 0, OptionalInt.empty())).lease();
     }
 
     @TearDown
@@ -80,15 +88,34 @@ public class MySqlStoreBenchmark {
         dataSource.close();
     }
 
-    /** The lease of the last {@code acquire}, released after each call. */
+    /** The lease of the last {@code acquire}, released after each call by one {@code update}. */
     @State(Scope.Thread)
     public static class Acquiring {
+        final UUID incarnation = UUID.randomUUID();
         int next;
         SlotLease lease;
+        Connection connection;
+        PreparedStatement release;
+
+        @Setup(Level.Trial)
+        public void open(MySqlStoreBenchmark benchmark) throws SQLException {
+            connection = benchmark.dataSource.getConnection();
+            // What SlotLeaseStore.release writes for a lease released at its floor, in one statement.
+            release = connection.prepareStatement("update " + JdbcTables.DEFAULT.slot() + " set owner_key = null, incarnation = null,"
+                + " expires_at = 0, next_floor_ms = floor_ms, fence = fence + 1 where namespace = ? and slot = ?");
+        }
 
         @TearDown(Level.Invocation)
-        public void release(MySqlStoreBenchmark benchmark) {
-            benchmark.slots.release(lease, lease.floor());
+        public void release(MySqlStoreBenchmark benchmark) throws SQLException {
+            release.setString(1, benchmark.namespace);
+            release.setInt(2, lease.slot());
+            release.executeUpdate();
+        }
+
+        @TearDown(Level.Trial)
+        public void close() throws SQLException {
+            release.close();
+            connection.close();
         }
     }
 
@@ -101,7 +128,7 @@ public class MySqlStoreBenchmark {
     @Benchmark
     @Threads(1)
     public SlotLease acquire_t1(Acquiring acquiring) {
-        acquiring.lease = acquire(new Owner("host-" + acquiring.next++, UUID.randomUUID()));
+        acquiring.lease = acquire(new Owner("host-" + acquiring.next++, acquiring.incarnation));
         return acquiring.lease;
     }
 

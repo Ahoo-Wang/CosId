@@ -19,12 +19,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.RangeExhaustedException;
 import me.ahoo.cosid.RangeSealedException;
+import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.segment.RangeStore;
+import me.ahoo.cosid.store.StoreKeys;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -200,6 +204,42 @@ public abstract class RangeStoreContract {
             Range previous = sorted.get(i - 1);
             Range next = sorted.get(i);
             assertTrue(next.start() >= previous.end(), () -> "ranges overlap: " + previous + " and " + next);
+        }
+    }
+
+    /**
+     * Keys: the longest portable range key ({@code StoreKeys}, R1-spi-02) is a key of its own, every allowed
+     * punctuation and non-ASCII letters included; keys that differ in the last character stay apart.
+     */
+    @Test
+    public void storesTheLongestPortableKey() {
+        String prefix = "tck._:-" + UUID.randomUUID() + "/订单-";
+        String key = prefix + "k".repeat(StoreKeys.MAX_KEY_LENGTH - prefix.length());
+        String sibling = key.substring(0, key.length() - 1) + "j";
+        try (RangeStore store = newStore()) {
+            assertEquals(new Range(1, 11), store.reserve(key, 10, 1));
+            assertEquals(new Range(1, 6), store.reserve(sibling, 5, 1));
+            assertEquals(new Range(11, 21), store.reserve(key, 10, 1));
+        }
+    }
+
+    /**
+     * Keys: the range keys of a generator named with a dot, as Wow names one per aggregate ({@code <context>.<aggregate>}):
+     * {@code <namespace>/eshop-ordering.order} for a segment and {@code <namespace>/eshop-ordering.order/<period>} for a
+     * periodic segment, each a key of its own, apart from the keys of {@code eshop-ordering} and {@code eshop-ordering/order}.
+     */
+    @Test
+    public void storesTheKeysOfDottedGeneratorNames() {
+        String namespace = "tck-" + UUID.randomUUID();
+        String segment = namespace + "/eshop-ordering.order";
+        String periodic = segment + "/" + Period.YEAR_MONTH.keyOf(Instant.parse("2026-10-29T00:00:00Z"), ZoneOffset.UTC);
+        try (RangeStore store = newStore()) {
+            assertEquals(new Range(1, 11), store.reserve(segment, 10, 1));
+            assertEquals(new Range(1, 6), store.reserve(periodic, 5, 1));
+            assertEquals(new Range(1, 4), store.reserve(namespace + "/eshop-ordering", 3, 1));
+            assertEquals(new Range(1, 3), store.reserve(namespace + "/eshop-ordering/order", 2, 1));
+            assertEquals(new Range(11, 21), store.reserve(segment, 10, 1));
+            assertEquals(new Range(6, 11), store.reserve(periodic, 5, 1));
         }
     }
 }

@@ -2,8 +2,10 @@
 
 The MongoDB store of CosId 5 (`docs/architecture/06-stores.md` §2.3): `MongoRangeStore` (`cosid_range`) and
 `MongoSlotLeaseStore` (`cosid_slot`, `cosid_namespace`) over `mongodb-driver-sync`, opened by `MongoStoreProvider`
-(type `mongo`). It needs a replica set (or a sharded cluster): every operation reads with `majority` concern and, by
-default, writes with `majority` concern.
+(type `mongo`). It needs a replica set: every operation reads with `majority` concern and, by default, writes with
+`majority` concern. Sharded clusters are not verified (no test runs through `mongos`); on one, leave the cosid
+collections unsharded, so that they stay on the primary shard as on a replica set. A sharded `cosid_slot` is not
+supported: its `findOneAndUpdate` filters do not carry the shard key, which MongoDB before 7.1 refuses.
 
 - **Supported:** MongoDB **6.0 or later**. CI runs the store TCK on `mongo:6.0` (the minimum) and `mongo:8.0`.
   MongoDB 8.0.21 and later refuse to start on Linux 6.19 up to 7.0.13
@@ -12,7 +14,9 @@ default, writes with `majority` concern.
   naming the kernel, if its runner ever moves to an affected kernel. This is MongoDB's limit, not the store's.
 - **Options:** `uri` (required unless a `MongoClient` is injected through `StoreConfig.client`), `database`
   (default `cosid_db`), `writeConcern` (default `majority`, see below). `StoreConfig.timeout` becomes the driver's
-  `timeoutMS`; zero means none. An operation that runs out of it fails with `StoreTimeoutException`.
+  `timeoutMS` (it is positive). An operation that runs out of it fails with `StoreTimeoutException`.
+- **Indexes:** `cosid_slot` has `ns_slot` (unique) and `ns_lastOwnerKey`. Stores of 5.0.0-alpha.1 also created
+  `ns_ownerKey`, which no query uses now; it does no harm, and `db.cosid_slot.dropIndex("ns_ownerKey")` drops it.
 
 ## Write concern
 

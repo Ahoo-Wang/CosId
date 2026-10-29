@@ -124,6 +124,11 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
         this.active = new Active("", null, Long.MIN_VALUE + 1);
     }
 
+    /**
+     * The generator name.
+     *
+     * @return the name
+     */
     public String name() {
         return name;
     }
@@ -280,6 +285,26 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
      */
     public String currentPeriod() {
         return active.period();
+    }
+
+    /**
+     * The values at hand in the period being issued, for {@code describe()}.
+     *
+     * @return the rest of its current range plus its ready ranges; 0 before the first id
+     */
+    public long held() {
+        SegmentGenerator generator = active.generator();
+        return generator == null ? 0 : Math.max(0, generator.held());
+    }
+
+    /**
+     * The size of the next reservation in the period being issued, for {@code describe()}.
+     *
+     * @return the batch size the rate estimate gives now; the step before the first id
+     */
+    public long batch() {
+        SegmentGenerator generator = active.generator();
+        return generator == null ? policy.step() : generator.batch();
     }
 
     /**

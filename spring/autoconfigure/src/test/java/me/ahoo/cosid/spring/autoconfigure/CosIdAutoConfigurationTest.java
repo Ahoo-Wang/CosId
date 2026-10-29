@@ -44,6 +44,7 @@ import me.ahoo.cosid.runtime.HostResolver;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.time.TimeBasedGenerator;
+import me.ahoo.cosid.time.UuidV7Generator;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -54,18 +55,26 @@ import org.apache.curator.retry.RetryOneTime;
 import org.apache.curator.test.TestingServer;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.PropertySource;
+import org.springframework.core.io.ByteArrayResource;
 import org.testcontainers.mongodb.MongoDBContainer;
 
-import java.util.HashMap;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -75,6 +84,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * {@link CosIdAutoConfiguration} in a context (07-runtime-and-spring.md §4): stores and strategies, customizers,
  * disabled generators, bean names and types, clients, listeners, shutdown order and startup failures.
  */
+@ExtendWith(OutputCaptureExtension.class)
 class CosIdAutoConfigurationTest {
     static final String[] MIXED = {
         "cosid.namespace=mixed",
@@ -139,6 +149,56 @@ class CosIdAutoConfigurationTest {
             MemoryStores stores = context.getBean(MemoryStores.class);
             assertEquals(List.of("open mem", "open other"), stores.events);
             assertTrue(stores.configs.stream().allMatch(config -> config.client().isEmpty()));
+        });
+    }
+
+    @Test
+    void aContextOfUuidV7GeneratorsAloneStartsWithoutAMachine() {
+        // D46: no cosid.machine.*, no store.
+        RUNNER.withPropertyValues("cosid.namespace=app", "cosid.generators.order.strategy=uuidv7").run(context -> {
+            assertNull(context.getStartupFailure());
+            CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+            assertTrue(runtime.machines().isEmpty());
+            UuidV7Generator order = context.getBean("order", UuidV7Generator.class);
+            assertSame(runtime.get("order", UuidV7Generator.class), order);
+            assertEquals(7, order.generateUuid().version());
+            assertEquals(7, java.util.UUID.fromString(runtime.text("order").get()).version());
+            assertEquals("uuidv7", runtime.describe().get("order").strategy());
+        });
+    }
+
+    @Test
+    void aDottedGeneratorNameInBracketsInYamlIsTheGeneratorOfThatName() {
+        // Wow's <context>.<aggregate>: the YAML key "[eshop-ordering.order]" keeps the dot, and the unknown-key check passes.
+        String yaml = """
+            cosid:
+              namespace: shop
+              stores:
+                mem:
+                  type: memory
+              generators:
+                "[eshop-ordering.order]":
+                  strategy: segment
+                  store: mem
+            """;
+        withStores().withInitializer(context -> {
+            try {
+                for (PropertySource<?> source : new YamlPropertySourceLoader().load("dotted", new ByteArrayResource(yaml.getBytes(StandardCharsets.UTF_8)))) {
+                    context.getEnvironment().getPropertySources().addFirst(source);
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }).run(context -> {
+            assertNull(context.getStartupFailure());
+            CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+            assertEquals(List.of("eshop-ordering.order"), List.copyOf(runtime.describe().keySet()));
+            IdGenerator order = runtime.generator("eshop-ordering.order");
+            assertSame(order, runtime.get("eshop-ordering.order", IdGenerator.class));
+            assertSame(order, context.getBean("eshop-ordering.order", IdGenerator.class));
+            long first = order.generate();
+            assertThat(order.generate(), greaterThan(first));
+            assertFalse(runtime.stringGenerator("eshop-ordering.order").generate().isEmpty());
         });
     }
 
@@ -211,6 +271,16 @@ class CosIdAutoConfigurationTest {
                 assertEquals(PartsIdGenerator.class, context.getType("token"));
                 assertEquals(GroupedIdGenerator.class, context.getType("bill"));
                 assertTrue(context.getBean(MemoryStores.class).events.isEmpty(), "the store of a disabled generator is not opened");
+            });
+    }
+
+    @Test
+    void anEmptyCodecItemIsItsDefaultsInThePropertiesBeanToo() {
+        // R1-spring-10: YAML "- friendly: {}" on every supported Spring Boot (4.0 converts the empty text).
+        withStores().withPropertyValues("cosid.namespace=app", "cosid.machine.static.slot=1", "cosid.generators.g.strategy=snowflake",
+            "cosid.generators.g.codec[0].friendly=").run(context -> {
+                assertNull(context.getStartupFailure());
+                assertNotNull(context.getBean(CosIdProperties.class).generators().get("g").codec().get(0).friendly());
             });
     }
 
@@ -396,7 +466,7 @@ class CosIdAutoConfigurationTest {
             assertNotNull(failure);
             String message = root(failure).getMessage();
             assertThat(message, containsString("Invalid cosid.* configuration"));
-            assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, not [uuid]"));
+            assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, custom, uuidv7, not [uuid]"));
             assertThat(message, containsString("cosid.generators.b.store: required"));
         });
     }
@@ -418,6 +488,99 @@ class CosIdAutoConfigurationTest {
             .withPropertyValues("cosid.stores.mem.type=memory", "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem")
             .run(context -> assertThat(root(context.getStartupFailure()).getMessage(),
                 containsString("The bean name [order] of the CosId generator [order] is taken by another bean")));
+    }
+
+    @Test
+    void theNamespaceComesFromTheApplicationName(CapturedOutput output) {
+        // D38: cosid.namespace, else spring.application.name, else cosid with a warning.
+        String warning = "cosid.namespace and spring.application.name are both unset";
+        withStores().withPropertyValues("spring.application.name=orders", "cosid.stores.mem.type=memory", "cosid.generators.order.strategy=segment",
+            "cosid.generators.order.store=mem").run(context -> assertEquals("orders", context.getBean(CosIdRuntime.class).namespace()));
+        withStores().withPropertyValues("spring.application.name=orders", "cosid.namespace=billing", "cosid.stores.mem.type=memory",
+            "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem")
+            .run(context -> assertEquals("billing", context.getBean(CosIdRuntime.class).namespace()));
+        assertFalse(output.getAll().contains(warning));
+        withStores().withPropertyValues("cosid.stores.mem.type=memory", "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem")
+            .run(context -> assertEquals("cosid", context.getBean(CosIdRuntime.class).namespace()));
+        assertTrue(output.getAll().contains(warning));
+        withStores().withPropertyValues("spring.application.name=Order Service").run(context ->
+            assertThat(root(context.getStartupFailure()).getMessage(), containsString("spring.application.name [Order Service] is no valid namespace")));
+    }
+
+    @Test
+    void anUnknownKeyFailsTheStart() {
+        // R1-spring-03.
+        withStores().withPropertyValues("cosid.stores.mem.type=memory", "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem",
+            "cosid.generators.order.stpe=10").run(context -> {
+                assertNotNull(context.getStartupFailure());
+                StringBuilder messages = new StringBuilder();
+                for (Throwable current = context.getStartupFailure(); current != null; current = current.getCause()) {
+                    messages.append(current.getMessage());
+                }
+                assertThat(messages.toString(), containsString("cosid.generators.order.stpe"));
+            });
+        // System properties and environment variables are shared with the rest of the process: not checked.
+        withStores().withSystemProperties("cosid.example.server.jar=build/libs/x.jar").withPropertyValues("cosid.stores.mem.type=memory",
+            "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem").run(context -> assertNull(context.getStartupFailure()));
+    }
+
+    @Test
+    void aCustomGeneratorIsABeanByName() {
+        // D41: the runtime hands the bean out and does not close it.
+        AtomicInteger closed = new AtomicInteger();
+        withStores().withBean("legacyIds", IdGenerator.class, () -> new LegacyIds(closed))
+            .withPropertyValues("cosid.generators.legacy.strategy=custom", "cosid.generators.legacy.ref=legacyIds",
+                "cosid.generators.legacy.codec[0].prefix=L")
+            .run(context -> {
+                assertNull(context.getStartupFailure());
+                assertEquals(1001L, context.getBean("legacy", IdGenerator.class).generate());
+                CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+                assertEquals("L1002", runtime.stringGenerator("legacy").generate());
+                assertEquals("custom", runtime.describe().get("legacy").strategy());
+                // Closing the runtime leaves the bean open: the context closes its own bean.
+                runtime.close();
+                assertEquals(0, closed.get());
+            });
+        assertEquals(1, closed.get());
+        withStores().withPropertyValues("cosid.generators.legacy.strategy=custom", "cosid.generators.legacy.ref=nothing").run(context ->
+            assertThat(root(context.getStartupFailure()).getMessage(), containsString("generator [legacy]: no generator [nothing] to refer to")));
+    }
+
+    /** A user generator; the bean closes it, the runtime never. */
+    static final class LegacyIds implements IdGenerator, AutoCloseable {
+        private final AtomicInteger next = new AtomicInteger(1000);
+        private final AtomicInteger closed;
+
+        LegacyIds(AtomicInteger closed) {
+            this.closed = closed;
+        }
+
+        @Override
+        public long generate() {
+            return next.incrementAndGet();
+        }
+
+        @Override
+        public void close() {
+            closed.incrementAndGet();
+        }
+    }
+
+    @Test
+    void namedMachinesFromTheProperties() {
+        // D37.
+        withStores().withPropertyValues("cosid.namespace=order-service", "cosid.stores.mem.type=memory",
+                "cosid.machine.leased.store=mem",
+                "cosid.machines.global.namespace=global-ids", "cosid.machines.global.leased.store=mem", "cosid.machines.global.leased.slot-offset=512",
+                "cosid.generators.trace.strategy=snowflake", "cosid.generators.token.strategy=cosid80", "cosid.generators.token.machine=global")
+            .run(context -> {
+                assertNull(context.getStartupFailure());
+                CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+                assertEquals(java.util.Set.of("default", "global"), runtime.machines());
+                assertEquals("order-service", runtime.slot().orElseThrow().namespace());
+                assertEquals("global-ids", runtime.slot("global").orElseThrow().namespace());
+                assertEquals(512, context.getBean("token", PartsIdGenerator.class).nextParts().node());
+            });
     }
 
     @Test
@@ -462,9 +625,7 @@ class CosIdAutoConfigurationTest {
         static RuntimeSpecCustomizer add() {
             return spec -> {
                 CALLS.add("add");
-                Map<String, GeneratorSpec> generators = new HashMap<>(spec.generators());
-                generators.put("extra", new GeneratorSpec.Segment("mem", BatchPolicy.DEFAULT, List.of()));
-                return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
+                return spec.toBuilder().generator("extra", GeneratorSpec.Segment.builder("mem").batch(BatchPolicy.DEFAULT).codec(List.of()).build()).build();
             };
         }
 
@@ -474,9 +635,7 @@ class CosIdAutoConfigurationTest {
             return spec -> {
                 CALLS.add("remove");
                 assertTrue(spec.generators().containsKey("extra"), "runs after add");
-                Map<String, GeneratorSpec> generators = new HashMap<>(spec.generators());
-                generators.remove("gone");
-                return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
+                return spec.toBuilder().removeGenerator("gone").build();
             };
         }
     }

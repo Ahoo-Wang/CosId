@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
 
@@ -42,7 +41,11 @@ class ReplicaWaitTest {
     private static final Duration SHORT = Duration.ofMillis(500);
 
     private static Store open(Object client, Duration timeout, Map<String, Object> options) {
-        return new RedisStoreProvider().open(new StoreConfig("wait", RedisStoreProvider.TYPE, timeout, options, Optional.of(client)));
+        return new RedisStoreProvider().open(StoreConfig.builder("wait", RedisStoreProvider.TYPE)
+            .timeout(timeout)
+            .options(options)
+            .client(client)
+            .build());
     }
 
     @Test
@@ -66,7 +69,7 @@ class ReplicaWaitTest {
             RedisStoreException failure = assertThrows(RedisStoreException.class, () -> store.ranges().reserve("wait-" + UUID.randomUUID(), 10, 0));
             assertThat(failure.getMessage(), containsString("acknowledged by 1 of 2 replicas"));
             assertThrows(RedisStoreException.class, () -> store.slots().acquire("wait-" + UUID.randomUUID(), new Owner("host", UUID.randomUUID()), 4,
-                Duration.ofSeconds(10), Duration.ofSeconds(1), OptionalInt.empty()));
+                Duration.ofSeconds(10), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         }
     }
 
@@ -118,7 +121,7 @@ class ReplicaWaitTest {
         try (StatefulRedisClusterConnection<String, String> shared = RedisServers.cluster().connect();
              Store store = open(shared, SHORT, Map.of())) {
             assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire("cluster-" + UUID.randomUUID(), new Owner("host", UUID.randomUUID()), 4,
-                Duration.ofSeconds(10), Duration.ofSeconds(1), OptionalInt.empty()));
+                Duration.ofSeconds(10), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         }
     }
 }

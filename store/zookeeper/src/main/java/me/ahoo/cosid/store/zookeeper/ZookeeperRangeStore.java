@@ -22,9 +22,12 @@ import me.ahoo.cosid.segment.RangeStore;
 import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.common.PathUtils;
+import org.apache.zookeeper.data.Stat;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * {@link RangeStore} on ZooKeeper (06-stores.md §2.4): the node {@code /cosid/range/{key}} holds the next value as
@@ -36,9 +39,19 @@ import java.util.Objects;
 final class ZookeeperRangeStore implements RangeStore {
     static final String ROOT = "/cosid/range";
     static final String SEALED = ":sealed";
+    private static final String RESERVE = "reserve";
     private static final byte[] SEALED_BYTES = Ascii.bytes(SEALED);
+    private static final byte[] NO_BYTES = new byte[0];
+    /** At most this many validated paths are kept; a store has a few keys (and one per period of a periodic one). */
+    static final int MAX_CACHED_PATHS = 4096;
 
     private final Zk zk;
+    /** The validated path of each key (R1-zk-01): validation copies the path into a char array. */
+    private final Map<String, String> paths = new ConcurrentHashMap<>();
+    /** What this store last read or wrote of each key, by path: a reserve first tries a compare-and-set on it. */
+    private final Map<String, Seen> seen = new ConcurrentHashMap<>();
+    /** After a compare-and-set on a stale {@link Seen}, this many reserves of the key read it first. */
+    static final int CONTENDED_RESERVES = 8;
 
     ZookeeperRangeStore(Zk zk) {
         this.zk = Objects.requireNonNull(zk, "zk");
@@ -55,6 +68,18 @@ final class ZookeeperRangeStore implements RangeStore {
         return path;
     }
 
+    /** {@link #path(String)}, validated once per key. */
+    String cachedPath(String key) {
+        String path = paths.get(Objects.requireNonNull(key, "key"));
+        if (path == null) {
+            path = path(key);
+            if (paths.size() < MAX_CACHED_PATHS) {
+                paths.put(key, path);
+            }
+        }
+        return path;
+    }
+
     @Override
     public Range reserve(String key, long size, long initialOffset) {
         if (size <= 0) {
@@ -63,11 +88,38 @@ final class ZookeeperRangeStore implements RangeStore {
         if (initialOffset < 0) {
             throw new IllegalArgumentException("initialOffset must not be negative: " + initialOffset);
         }
-        String path = path(key);
-        String what = "reserve " + path;
+        String path = cachedPath(key);
         long deadline = zk.deadline();
+        // One round trip while no other client wrote the key since this store did: setData at the version it saw, which
+        // matches only while the node still holds the value seen (a seal or another reserve changes the version).
+        Seen last = seen.get(path);
+        if (last != null && last.contended == 0) {
+            long start = last.next;
+            byte[] data = new Value(next(key, start, size), false).bytes();
+            int version = last.version;
+            CuratorEvent write = zk.call(RESERVE, path, deadline,
+                callback -> zk.client().setData().withVersion(version).inBackground(callback).forPath(path, data));
+            switch (Zk.code(write)) {
+                case OK -> {
+                    Stat stat = Zk.stat(RESERVE, path, write);
+                    if (stat.getCzxid() != last.czxid) {
+                        // ABA: the version counts from 0 again on a recreated node, which may have reached the version
+                        // seen. The write cannot be taken back; the range it wrote is never issued (as the generator's
+                        // highWater refuses a store that went back), and the key is read again next time.
+                        seen.remove(path);
+                        throw new IllegalStateException("Range node " + path + " was deleted and recreated while this store held key [" + key
+                            + "] (czxid " + Long.toHexString(last.czxid) + ", now " + Long.toHexString(stat.getCzxid()) + "): the range ["
+                            + start + ", " + (start + size) + ") written on it is not issued; a range node must not be deleted while a store uses it");
+                    }
+                    see(path, stat.getVersion(), stat.getCzxid(), start + size, 0);
+                    return new Range(start, start + size);
+                }
+                case BADVERSION, NONODE -> see(path, -1, 0, 0, CONTENDED_RESERVES);
+                default -> throw Zk.unexpected(RESERVE, path, write);
+            }
+        }
         for (int attempt = 0; ; attempt++) {
-            CuratorEvent read = zk.call(what, deadline, callback -> zk.client().getData().inBackground(callback).forPath(path));
+            CuratorEvent read = zk.call(RESERVE, path, deadline, callback -> zk.client().getData().inBackground(callback).forPath(path));
             switch (Zk.code(read)) {
                 case OK -> {
                     Value value = Value.parse(path, read.getData());
@@ -77,31 +129,57 @@ final class ZookeeperRangeStore implements RangeStore {
                     long start = value == null ? initialOffset : value.next();
                     byte[] data = new Value(next(key, start, size), false).bytes();
                     int version = read.getStat().getVersion();
-                    CuratorEvent write = zk.call(what, deadline,
+                    CuratorEvent write = zk.call(RESERVE, path, deadline,
                         callback -> zk.client().setData().withVersion(version).inBackground(callback).forPath(path, data));
                     switch (Zk.code(write)) {
                         case OK -> {
+                            Seen before = seen.get(path);
+                            Stat stat = Zk.stat(RESERVE, path, write);
+                            see(path, stat.getVersion(), stat.getCzxid(), start + size, before == null ? 0 : Math.max(0, before.contended - 1));
                             return new Range(start, start + size);
                         }
-                        case BADVERSION, NONODE -> Zk.backoff(attempt, deadline, what);
-                        default -> throw Zk.unexpected(what, write);
+                        case BADVERSION, NONODE -> Zk.backoff(attempt, deadline, RESERVE, path);
+                        default -> throw Zk.unexpected(RESERVE, path, write);
                     }
                 }
                 case NONODE -> {
                     byte[] data = new Value(next(key, initialOffset, size), false).bytes();
-                    CuratorEvent create = zk.call(what, deadline, callback -> zk.client().create().creatingParentsIfNeeded()
+                    CuratorEvent create = zk.call(RESERVE, path, deadline, callback -> zk.client().create().creatingParentsIfNeeded()
                         .withMode(CreateMode.PERSISTENT).inBackground(callback).forPath(path, data));
                     switch (Zk.code(create)) {
                         case OK -> {
                             return new Range(initialOffset, initialOffset + size);
                         }
-                        case NODEEXISTS -> Zk.backoff(attempt, deadline, what);
-                        default -> throw Zk.unexpected(what, create);
+                        case NODEEXISTS -> Zk.backoff(attempt, deadline, RESERVE, path);
+                        default -> throw Zk.unexpected(RESERVE, path, create);
                     }
                 }
-                default -> throw Zk.unexpected(what, read);
+                default -> throw Zk.unexpected(RESERVE, path, read);
             }
         }
+    }
+
+    /**
+     * Records the version and value of a key after a write, or only how many reserves read it first ({@code version}
+     * -1). At most {@link #MAX_CACHED_PATHS} keys are kept.
+     */
+    private void see(String path, int version, long czxid, long next, int contended) {
+        if (version < 0 && contended == 0) {
+            seen.remove(path);
+        } else if (seen.size() < MAX_CACHED_PATHS || seen.containsKey(path)) {
+            seen.put(path, version < 0 ? new Seen(-1, 0, 0, contended) : new Seen(version, czxid, next, contended));
+        }
+    }
+
+    /**
+     * The node of a key as this store last wrote it.
+     *
+     * @param version   its version, -1 when unknown
+     * @param czxid     the transaction that created it: a recreated node has another one, whatever its version
+     * @param next      the value then
+     * @param contended reserves that read the node first, after a compare-and-set on a stale value
+     */
+    private record Seen(int version, long czxid, long next, int contended) {
     }
 
     private static long next(String key, long start, long size) {
@@ -119,7 +197,8 @@ final class ZookeeperRangeStore implements RangeStore {
      */
     @Override
     public boolean seal(String key) {
-        String path = path(key);
+        String path = cachedPath(key);
+        seen.remove(path);
         String what = "seal " + path;
         long deadline = zk.deadline();
         for (int attempt = 0; ; attempt++) {
@@ -167,8 +246,7 @@ final class ZookeeperRangeStore implements RangeStore {
      */
     record Value(long next, boolean sealed) {
         byte[] bytes() {
-            Ascii.Writer data = new Ascii.Writer(32).number(next);
-            return (sealed ? data.raw(SEALED_BYTES) : data).toBytes();
+            return Ascii.number(next, sealed ? SEALED_BYTES : NO_BYTES);
         }
 
         /**

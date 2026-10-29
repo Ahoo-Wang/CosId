@@ -21,6 +21,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import javax.sql.DataSource;
 
@@ -28,9 +29,13 @@ import javax.sql.DataSource;
  * The JDBC store (06-stores.md §2.1): ranges and slot leases over a {@link DataSource}, which should be pooled. Every
  * statement carries the store timeout as its {@code queryTimeout}. Closing the store does not close the data source.
  *
- * <p>The tables are those of the dialect's {@code schema-*.sql}; {@link #initSchema()} creates them when missing.
+ * <p>The tables are those of the dialect's {@code schema-*.sql}; {@link #initSchema()} creates them when missing, and
+ * adds {@code cosid_namespace.slot_offset} to a table of 5.0.0-alpha.1. Without it, such a table still serves
+ * namespaces of slot offset 0.
  */
 public final class JdbcStore implements Store {
+    /** The columns of the slot table's index of an acquire's own rows (R1-jdbc-01). */
+    static final List<String> LAST_OWNER_INDEX_COLUMNS = List.of("namespace", "last_owner_key");
     private final Jdbc jdbc;
     private final JdbcRangeStore ranges;
     private final JdbcSlotLeaseStore slots;
@@ -41,14 +46,28 @@ public final class JdbcStore implements Store {
      * @param dataSource the data source
      * @param dialect    the dialect of its database
      * @param tables     the table names
-     * @param timeout    the timeout of each statement, rounded up to seconds; zero for none
+     * @param timeout    the timeout of each statement, rounded up to seconds; positive
      */
     public JdbcStore(DataSource dataSource, JdbcDialect dialect, JdbcTables tables, Duration timeout) {
+        this(dataSource, dialect, tables, timeout, FetchPlan.STATEMENT);
+    }
+
+    /**
+     * A store on a database of the given dialect, reserving ranges with the given plan.
+     *
+     * @param dataSource the data source
+     * @param dialect    the dialect of its database
+     * @param tables     the table names
+     * @param timeout    the timeout of each statement, rounded up to seconds; positive
+     * @param fetchPlan  how a reserve reads the value it wrote ({@code options.fetchPlan}, R1-jdbc-06)
+     */
+    public JdbcStore(DataSource dataSource, JdbcDialect dialect, JdbcTables tables, Duration timeout, FetchPlan fetchPlan) {
         Objects.requireNonNull(dataSource, "dataSource");
         Objects.requireNonNull(dialect, "dialect");
         Objects.requireNonNull(tables, "tables");
         Objects.requireNonNull(timeout, "timeout");
-        this.jdbc = new Jdbc(dataSource, dialect, tables, timeout);
+        Objects.requireNonNull(fetchPlan, "fetchPlan");
+        this.jdbc = new Jdbc(dataSource, dialect, tables, timeout, fetchPlan);
         this.ranges = new JdbcRangeStore(jdbc);
         this.slots = new JdbcSlotLeaseStore(jdbc);
     }
@@ -57,13 +76,13 @@ public final class JdbcStore implements Store {
      * A store on the default tables, with the dialect detected from the database ({@link JdbcDialects#detect}).
      *
      * @param dataSource the data source
-     * @param timeout    the timeout of each statement; zero for none
+     * @param timeout    the timeout of each statement; positive
      * @return the store
      * @throws JdbcStoreException       if the database cannot be reached
      * @throws IllegalArgumentException if no dialect supports the database
      */
     public static JdbcStore of(DataSource dataSource, Duration timeout) {
-        return new JdbcStore(dataSource, detect(dataSource, JdbcStore.class.getClassLoader()), JdbcTables.DEFAULT, timeout);
+        return new JdbcStore(dataSource, detect(dataSource, JdbcDialects.classLoader()), JdbcTables.DEFAULT, timeout);
     }
 
     static JdbcDialect detect(DataSource dataSource, ClassLoader classLoader) {
@@ -93,7 +112,9 @@ public final class JdbcStore implements Store {
     }
 
     /**
-     * Creates the tables that do not exist ({@code options.initSchema}); existing tables are left as they are.
+     * Creates the tables that do not exist ({@code options.initSchema}); existing tables are left as they are, except
+     * that a {@code cosid_namespace} of 5.0.0-alpha.1 gets the {@code slot_offset} column it lacks
+     * ({@link JdbcDialect#addColumn}; its rows read 0, the column default).
      *
      * @throws JdbcStoreException if a statement fails
      */
@@ -105,8 +126,33 @@ public final class JdbcStore implements Store {
                     statement.execute(ddl);
                 }
             }
+            slots.addMissingColumns(session);
+            addMissingIndex(session.connection(), jdbc.dialect, jdbc.tables);
             return null;
         });
+    }
+
+    /**
+     * Adds the slot table's index on {@code (namespace, last_owner_key)} (R1-jdbc-01) when the table lacks it, as a
+     * table of 5.0.0-alpha.1 does; {@code initSchema} runs it, and so does the migration tool on its target. Idempotent:
+     * when a concurrent caller created the index first, the failure is ignored.
+     *
+     * @param connection a connection that may create indexes
+     * @param dialect    the dialect
+     * @param tables     the tables
+     * @throws SQLException if creating the index fails and it still does not exist
+     */
+    public static void addMissingIndex(Connection connection, JdbcDialect dialect, JdbcTables tables) throws SQLException {
+        if (Jdbc.hasIndex(connection, tables.slot(), LAST_OWNER_INDEX_COLUMNS)) {
+            return;
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(dialect.createIndex(tables.slot(), tables.lastOwnerIndex(), LAST_OWNER_INDEX_COLUMNS));
+        } catch (SQLException e) {
+            if (!Jdbc.hasIndex(connection, tables.slot(), LAST_OWNER_INDEX_COLUMNS)) {
+                throw e;
+            }
+        }
     }
 
     @Override

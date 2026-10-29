@@ -79,6 +79,7 @@ const guide: DefaultTheme.SidebarItem[] = [
         collapsed: false,
         items: [
             {text: 'Production Checklist', link: 'production'},
+            {text: 'Kubernetes', link: 'kubernetes'},
             {text: 'Metrics and Health', link: 'monitoring'},
             {text: 'Troubleshooting', link: 'troubleshooting'},
             {text: 'FAQ', link: 'faq'},

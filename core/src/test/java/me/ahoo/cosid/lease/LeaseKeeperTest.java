@@ -88,7 +88,7 @@ class LeaseKeeperTest {
     }
 
     private SlotLease hold(String key, int bits, Duration ttl, OptionalInt preferred) {
-        AcquireResult result = memory.acquire(NS, owner(key), 1 << bits, ttl, TOLERANCE, preferred);
+        AcquireResult result = memory.acquire(NS, owner(key), 1 << bits, ttl, TOLERANCE, 0, preferred);
         assertThat(result, instanceOf(AcquireResult.Acquired.class));
         return ((AcquireResult.Acquired) result).lease();
     }
@@ -259,6 +259,30 @@ class LeaseKeeperTest {
     }
 
     @Test
+    void aZeroAcquireTimeoutTriesOnce() {
+        hold("host-x", 1, Duration.ofSeconds(5), OptionalInt.empty());
+        hold("host-y", 1, Duration.ofSeconds(8), OptionalInt.empty());
+        LeaseKeeper keeper = keeper(store, owner("host-a"), 1, Duration.ZERO, tasks::add, clock);
+        CosIdException error = assertThrows(CosIdException.class, keeper::start);
+        assertThat(error.getMessage(), containsString("within PT0S: every slot is held"));
+        // No wait for the expiry at 5s.
+        assertThat(clock.currentMillis(), lessThan(START + 5_000));
+        assertThat(tasks.isEmpty(), is(true));
+    }
+
+    @Test
+    void aLongerAcquireTimeoutWaitsForALaterExpiry() {
+        hold("host-x", 1, Duration.ofSeconds(50), OptionalInt.empty());
+        hold("host-y", 1, Duration.ofSeconds(80), OptionalInt.empty());
+        // The default (the 30s ttl) gives up before the first expiry at 50s; 60s waits for it.
+        LeaseKeeper keeper = keeper(store, owner("host-a"), 1, Duration.ofSeconds(60), tasks::add, clock);
+        keeper.start();
+        assertThat(keeper.current().isValid(), is(true));
+        assertThat(clock.currentMillis(), greaterThan(START + 50_000));
+        keeper.close();
+    }
+
+    @Test
     void startRetriesStoreErrorsAndPropagatesANamespaceMismatch() {
         faults.once(Operation.ACQUIRE, new Fault.Fail(() -> new CosIdException("down")));
         LeaseKeeper keeper = keeper(2);
@@ -281,8 +305,8 @@ class LeaseKeeperTest {
         List<Boolean> validAtRelease = new ArrayList<>();
         SlotLeaseStore observing = new SlotLeaseStore() {
             @Override
-            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-                return store.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+                return store.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
             }
 
             @Override
@@ -424,8 +448,8 @@ class LeaseKeeperTest {
         AtomicReference<LeaseKeeper> self = new AtomicReference<>();
         SlotLeaseStore closingOnAcquire = new SlotLeaseStore() {
             @Override
-            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-                AcquireResult result = store.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+                AcquireResult result = store.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
                 self.get().close();
                 return result;
             }
@@ -515,8 +539,8 @@ class LeaseKeeperTest {
         }
 
         @Override
-        public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-            return stall(Operation.ACQUIRE, () -> store.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot));
+        public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+            return stall(Operation.ACQUIRE, () -> store.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot));
         }
 
         @Override

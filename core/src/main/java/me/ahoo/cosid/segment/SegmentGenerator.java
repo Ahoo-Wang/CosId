@@ -78,6 +78,11 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     private final TimeSource time;
     private final GeneratorListener listener;
     private final boolean prefetching;
+    /**
+     * Whether the switch lock reads the clock on every switch: for range expiry and for the rate estimate, which only
+     * a lookahead uses. Without either (P6: step 1, no lookahead) it reads the clock only around a failure backoff.
+     */
+    private final boolean clocked;
     private final long rangeTtlMillis;
     private final long reserveTimeoutNanos;
     private final ReentrantLock switchLock = new ReentrantLock();
@@ -149,6 +154,7 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
         this.prefetching = !policy.lookahead().isZero();
         this.rangeTtlMillis = policy.rangeTtl().map(Duration::toMillis).orElse(0L);
         this.reserveTimeoutNanos = policy.reserveTimeout().toNanos();
+        this.clocked = prefetching || rangeTtlMillis > 0;
         this.sizer = new BatchSizer(policy.step(), policy.maxBatch(), policy.lookahead());
     }
 
@@ -206,14 +212,18 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
                 if (current == CLOSED) {
                     throw closed();
                 }
-                long now = time.currentMillis();
+                long now = nowLocked();
                 RangeCursor at = current;
                 if (at == cursor || !at.usable(now)) {
                     resizedFrom = advanceLocked(at, now);
                     resizedTo = sizer.batch();
                 }
                 start = maybeRefillLocked(now);
-                if (!current.usable(now)) {
+                // The hot path takes from the current cursor outside the lock, so it may have run out since it was
+                // checked above: ready ranges then come first, on the next turn of the loop. Only with no value left
+                // at all does a caller wait for the reservation in flight or make it itself; one it made would
+                // otherwise issue its first value ahead of the ready ranges, which close() would then drop.
+                if (current.remaining(now) + readyValues == 0) {
                     if (refilling && !refillClaimed) {
                         // A caller that would only wait for a reservation the executor has not started makes it
                         // itself, still outside the lock: no hand-off when nothing is prefetched (P6), and no wait
@@ -238,9 +248,9 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
                 fireResized(resizedFrom, resizedTo);
             }
             if (reserveHereSize > 0) {
-                Throwable error = reserve(start, reserveHereSize);
-                if (error != null) {
-                    throw current == CLOSED ? closed() : unavailable(error);
+                long first = reserve(start, reserveHereSize, true);
+                if (first >= 0) {
+                    return first;
                 }
             } else if (start != 0) {
                 submit(start);
@@ -284,6 +294,13 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     }
 
     /**
+     * Under the switch lock: the current time, or 0 when nothing reads it (see {@link #clocked}).
+     */
+    private long nowLocked() {
+        return clocked || retryAfterMillis != 0 ? time.currentMillis() : 0;
+    }
+
+    /**
      * Moves from {@code used} (the current cursor, used up or expired) to the next ready range that has not expired,
      * or to an empty cursor, so that the used-up cursor is not incremented any further. A range used up (not expired)
      * feeds the rate estimate.
@@ -292,7 +309,8 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
      */
     private long advanceLocked(RangeCursor used, long now) {
         long resizedFrom = -1;
-        if (currentSize > 0 && !(used instanceof ExpiringRangeCursor expiring && now >= expiring.expiresAtMillis())) {
+        // Without a lookahead the estimate never changes the batch (it stays at step): no sample is taken.
+        if (prefetching && currentSize > 0 && !(used instanceof ExpiringRangeCursor expiring && now >= expiring.expiresAtMillis())) {
             resizedFrom = sizer.record(currentSize, now - currentSinceMillis);
         }
         currentSize = 0;
@@ -340,12 +358,12 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
             refillExecutor.execute(() -> {
                 long size = claim(seq);
                 if (size > 0) {
-                    reserve(seq, size);
+                    reserve(seq, size, false);
                 }
             });
         } catch (RuntimeException rejected) {
             if (claim(seq) > 0) {
-                complete(seq, 0, 0, rejected, 0);
+                complete(seq, 0, 0, rejected, 0, false);
             }
         }
     }
@@ -369,39 +387,52 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     }
 
     /**
-     * Makes refill {@code seq}.
+     * Makes refill {@code seq}. A caller that makes it itself ({@code here}) takes the first value of the range
+     * directly (R1-core-04): with step 1 the range is that one value, and no cursor is allocated or installed for it.
      *
-     * @return null once the range is ready, otherwise why not
+     * @param here whether a caller with no value left makes it, rather than the executor
+     * @return the first value of the range, taken by the caller; {@code -1} if none was taken
+     * @throws RuntimeException {@code here}: if the refill failed, as {@link #generate()} reports it
      */
-    private Throwable reserve(long seq, long size) {
-        if (current == CLOSED) {
-            return complete(seq, 0, 0, closed(), 0);
-        }
-        long started = listener == GeneratorListener.NOOP ? 0 : System.nanoTime();
+    private long reserve(long seq, long size, boolean here) {
+        long started = 0;
         long start = 0;
         long end = 0;
         Throwable error = null;
-        try {
-            // Only the bounds are kept: the Range itself does not escape, so it need not be allocated.
-            Range range = Objects.requireNonNull(store.reserve(key, size, policy.initialOffset()), "reserved range");
-            start = range.start();
-            end = range.end();
-        } catch (Throwable e) {
-            error = e;
+        if (current == CLOSED) {
+            error = closed();
+        } else {
+            started = listener == GeneratorListener.NOOP ? 0 : System.nanoTime();
+            try {
+                // Only the bounds are kept: the Range itself does not escape, so it need not be allocated.
+                Range range = Objects.requireNonNull(store.reserve(key, size, policy.initialOffset()), "reserved range");
+                start = range.start();
+                end = range.end();
+            } catch (Throwable e) {
+                error = e;
+            }
         }
-        Throwable outcome = complete(seq, start, end, error, started == 0 ? 0 : System.nanoTime() - started);
+        boolean take = here && error == null && start < RangeCursor.cap(end);
+        Throwable outcome = complete(seq, start, end, error, started == 0 ? 0 : System.nanoTime() - started, take);
         if (error instanceof Error fatal) {
             throw fatal;
         }
-        return outcome;
+        if (outcome != null) {
+            if (here) {
+                throw current == CLOSED ? closed() : unavailable(outcome);
+            }
+            return -1;
+        }
+        return take ? start : -1;
     }
 
     /**
      * Records the outcome of refill {@code seq}: the range goes to the ready queue, or the failure starts a backoff.
      *
+     * @param takeFirst whether the caller takes {@code rangeStart} itself, so that only the rest is queued
      * @return null if the range was delivered, otherwise the failure (or why it was dropped)
      */
-    private Throwable complete(long seq, long rangeStart, long rangeEnd, Throwable failure, long latencyNanos) {
+    private Throwable complete(long seq, long rangeStart, long rangeEnd, Throwable failure, long latencyNanos, boolean takeFirst) {
         Throwable error = failure;
         long chained = 0;
         boolean delivered = false;
@@ -415,11 +446,11 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
                 refillDone = null;
             }
             if (current != CLOSED) {
-                long now = time.currentMillis();
                 if (error == null && rangeStart <= highWater) {
                     error = new IllegalStateException("Range store returned [" + rangeStart + ", " + rangeEnd
                         + ") for key [" + key + "], overlapping the ranges before it, which end at " + highWater);
                 }
+                long now = error != null ? time.currentMillis() : nowLocked();
                 if (error == null) {
                     delivered = true;
                     highWater = rangeEnd - 1;
@@ -427,16 +458,29 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
                     retryAfterMillis = 0;
                     lastFailure = null;
                     long end = RangeCursor.cap(rangeEnd);
-                    if (rangeStart < end) {
-                        ready.add(rangeTtlMillis > 0
-                            ? new ExpiringRangeCursor(rangeStart, end, saturatedAdd(now, rangeTtlMillis), time)
-                            : new RangeCursor(rangeStart, end));
-                        readyValues += end - rangeStart;
+                    long first = takeFirst ? rangeStart + 1 : rangeStart;
+                    RangeCursor rest = null;
+                    if (first < end) {
+                        rest = rangeTtlMillis > 0
+                            ? new ExpiringRangeCursor(first, end, saturatedAdd(now, rangeTtlMillis), time)
+                            : new RangeCursor(first, end);
+                        ready.add(rest);
+                        readyValues += end - first;
                     }
                     if (current == empty) {
                         advanceLocked(current, now);
                     }
-                    chained = maybeRefillLocked(now);
+                    if (takeFirst) {
+                        // The value the caller takes counts for the rate estimate as part of its range.
+                        if (rest != null && current == rest) {
+                            currentSize++;
+                        } else if (current == empty) {
+                            currentSize = 1;
+                            currentSinceMillis = now;
+                        }
+                    }
+                    // Without a lookahead a refill starts when no value is left; the caller holds the one it took.
+                    chained = takeFirst && !prefetching ? 0 : maybeRefillLocked(now);
                 } else {
                     backoffMillis = backoffMillis == 0 ? INITIAL_BACKOFF_MILLIS : Math.min(MAX_BACKOFF_MILLIS, backoffMillis * 2);
                     retryAfterMillis = saturatedAdd(now, backoffMillis);

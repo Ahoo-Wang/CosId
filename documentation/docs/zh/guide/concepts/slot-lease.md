@@ -91,9 +91,10 @@ public record Owner(String key, UUID incarnation) {}
 |---|---|---|
 | `ttl` | 30s | 崩溃实例的槽位最多 30s（+ `tolerance`）后再次空闲 |
 | 续约 | `ttl/3` | |
-| `tolerance` | 1s | 按命名空间（D20）：命名空间记录 `{limit, tolerance}`，其他取值会被拒绝 |
+| `tolerance` | 1s | 按命名空间（D20）：命名空间记录 `{limit, tolerance, slotOffset}`，其他取值会被拒绝 |
 | `bits` | 10 | 1024 个槽位；不超过布局的 node 位数 |
-| 获取超时 | `ttl` | |
+| `acquire-timeout` | `ttl` | 启动时等待空闲槽位的时长；0 表示只尝试一次（D42） |
+| `slot-offset` | 0 | [槽位偏移](#槽位偏移) |
 
 ## 静态槽位
 
@@ -112,3 +113,49 @@ cosid:
 - 重启时 `floor = max(ceiling in the file, not-before)`：崩溃后再发生时钟回跳也不会重复发出 ID。
 - **没有 `state-file` 时，无法防范跨重启的时钟回拨。** 生产环境请使用它。
 - `not-before` 是文件尚不存在时的 floor。迁移工具会写入它（见[迁移指南](../migration/from-4x.md)中的 W）。
+
+## 命名 machine
+
+一个运行时有一个默认 machine（`cosid.machine`）和任意多个命名 machine（`cosid.machines.<name>`，代码中为
+`RuntimeSpec.Builder.machine(name, spec)`）。每个 machine 在自己的命名空间里持有一个槽位；时间型生成器用 `machine: <name>`
+选择其中一个，并用它的槽位发号。规则：
+
+- 已启动的 machine 的命名空间两两不同；名字 `default` 保留。
+- 只有被启用的生成器选中的 machine 才会启动，也只打开它们的存储。
+- 依次启动（先默认 machine，再按名字），逆序释放，各自带上自己那些生成器的最后时间戳。
+- 指标带 `machine` 标签，健康检查详情逐个列出 machine（见[监控](../operations/monitoring.md)）。
+
+### 槽位偏移
+
+`leased.slot-offset`（默认 0）平移节点号：**节点号 = slot-offset + slot**。存储中的槽位仍是 `[0, 2^bits)`，只是 ID 中的节点号移动。
+对使用该 machine 的每个生成器都必须满足 `slot-offset + 2^bits <= 2^node-bits`。命名空间记录 `{limit, tolerance, slotOffset}`，
+取值不同的运行时会被拒绝（`NamespaceMismatchException`），所以同一命名空间的所有使用者取值一致。
+
+偏移让它下方的节点号保持空闲，于是在[滚动迁移](../migration/from-4x.md)期间，4.x 实例（机器号都低于偏移）与 5.0 实例可以同时在一个命名空间里发号。
+偏移一旦用过就不要调小。
+
+## 跨服务全局唯一
+
+一个服务的 ID 靠自己的命名空间保证唯一。需要**跨服务**唯一的 ID（cosid80 令牌、多个服务写进同一张表的 ID）时，
+让这些服务共用一个命名 machine，放在一个共享的命名空间里：
+
+```yaml
+# 共享 ID 的每个服务都写同样的配置
+cosid:
+  namespace: ${spring.application.name}   # 默认 machine 与号段仍按服务隔离
+  stores:
+    cache: { type: redis, options: { uri: "redis://redis:6379" } }
+  machine:
+    leased: { store: cache }
+  machines:
+    global:
+      namespace: global-ids
+      leased: { store: cache, bits: 12 }   # 4096 个槽位：所有服务合计的 Pod 峰值，含滚动发布的 surge
+  generators:
+    token: { strategy: cosid80, machine: global }
+```
+
+- 每个服务对 `global-ids` 使用相同的存储、`bits`、`tolerance` 与 `slot-offset`；第一个启动的服务把它们记录下来，取值不同的服务启动失败。
+- `bits` 按所有服务合计的 Pod 数计算，含滚动发布的 surge。cosid80 的节点号有 20 位，可以调大。
+- 受限的 cosid-server 令牌要同时列出两个命名空间。
+- 其他语言的客户端，或发号很少的客户端，可以调用 cosid-server 的 `/ids`，而不必自己持有 machine（见[服务端](../server.md)）。

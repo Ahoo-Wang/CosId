@@ -96,41 +96,49 @@ class CosIdRuntimeTest {
 
     static RuntimeOptions options(TimeSource time, GeneratorListener listener, StoreProvider... providers) {
         RuntimeOptions defaults = RuntimeOptions.defaults();
-        return new RuntimeOptions(time, Optional.empty(), listener, List.of(providers), Map.of(), () -> "host-a",
-            OptionalInt.empty(), defaults.codecs());
+        RuntimeOptions.Builder options = RuntimeOptions.builder().time(time).listener(listener).hostResolver(() -> "host-a").codecs(defaults.codecs());
+        for (StoreProvider provider : providers) {
+            options.storeProvider(provider);
+        }
+        return options.build();
     }
 
     static MachineSpec.Leased leased(String store) {
-        return new MachineSpec.Leased(store, 10, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty(), Optional.empty());
+        return MachineSpec.Leased.builder(store).bits(10).ttl(Duration.ofSeconds(30)).tolerance(Duration.ofSeconds(1)).build();
     }
 
     static GeneratorSpec.Segment segment(String store, CodecSpec... codec) {
-        return new GeneratorSpec.Segment(store, BatchPolicy.DEFAULT, List.of(codec));
+        return GeneratorSpec.Segment.builder(store).batch(BatchPolicy.DEFAULT).codec(List.of(codec)).build();
     }
 
     static GeneratorSpec.Snowflake snowflake(Layout layout, CodecSpec... codec) {
-        return new GeneratorSpec.Snowflake(layout, ClockRegressionPolicy.DEFAULT, List.of(codec));
+        return GeneratorSpec.Snowflake.builder().layout(layout).regression(ClockRegressionPolicy.DEFAULT).codec(List.of(codec)).build();
     }
 
     static StoreSpec store(String type) {
-        return new StoreSpec(type, TIMEOUT, Map.of());
+        return StoreSpec.builder(type).timeout(TIMEOUT).build();
     }
 
     @Test
     void mixedStrategiesOnMixedStores() {
         TestStores db = new TestStores("db-type");
         TestStores cache = new TestStores("cache-type");
-        RuntimeSpec spec = new RuntimeSpec("app",
-            Map.of("db", store("db-type"), "cache", store("cache-type"), "unused", store("nowhere")),
-            Optional.of(leased("cache")),
-            Map.of(
-                "default", snowflake(Layout.SNOWFLAKE_MS, new CodecSpec.Radix(62, 11, true)),
-                "seconds", snowflake(Layout.SNOWFLAKE_S),
-                "trace", snowflake(Layout.SNOWFLAKE_MS, new CodecSpec.Friendly(SHANGHAI, true)),
-                "token", new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62)),
-                "order", segment("db", new CodecSpec.Radix(62, 11, false), new CodecSpec.Prefix("O")),
-                "bill", new GeneratorSpec.PeriodicSegment("cache", Period.YEAR_MONTH_DAY, SHANGHAI, BatchPolicy.DEFAULT,
-                    PeriodicPolicy.DEFAULT, new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true))))));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("db", store("db-type"))
+            .store("cache", store("cache-type"))
+            .store("unused", store("nowhere"))
+            .machine(leased("cache"))
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS, new CodecSpec.Radix(62, 11, true)))
+            .generator("seconds", snowflake(Layout.SNOWFLAKE_S))
+            .generator("trace", snowflake(Layout.SNOWFLAKE_MS, new CodecSpec.Friendly(SHANGHAI, true)))
+            .generator("token", GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build())
+            .generator("order", segment("db", new CodecSpec.Radix(62, 11, false), new CodecSpec.Prefix("O")))
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("cache", Period.YEAR_MONTH_DAY, SHANGHAI)
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true))))
+                .build())
+            .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(db, cache))) {
             assertThat(runtime.namespace(), is("app"));
             // Only the stores in use are opened; the unknown type of "unused" is never looked up.
@@ -214,12 +222,11 @@ class CosIdRuntimeTest {
     @Test
     void noTimeBasedGeneratorMeansNoSlot() {
         TestStores db = new TestStores("memory");
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store("memory")), Optional.of(leased("db")),
-            Map.of("order", segment("db")));
+        RuntimeSpec spec = RuntimeSpec.builder("app").store("db", store("memory")).machine(leased("db")).generator("order", segment("db")).build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(db))) {
             assertThat(runtime.slot(), is(Optional.empty()));
             assertThat(db.backing("db").acquire("app", new me.ahoo.cosid.lease.Owner("other", java.util.UUID.randomUUID()), 1024,
-                Duration.ofSeconds(1), Duration.ZERO, OptionalInt.empty()), instanceOf(me.ahoo.cosid.lease.AcquireResult.Acquired.class));
+                Duration.ofSeconds(1), Duration.ZERO, 0, OptionalInt.empty()), instanceOf(me.ahoo.cosid.lease.AcquireResult.Acquired.class));
             assertThat(runtime.generator("order").generate(), is(1L));
         }
     }
@@ -234,10 +241,17 @@ class CosIdRuntimeTest {
             }
         };
         TestStores shared = new TestStores("memory");
-        MachineSpec.Leased machine = new MachineSpec.Leased("cache", 10, Duration.ofSeconds(30), Duration.ofSeconds(1),
-            OptionalInt.empty(), Optional.of("pod-0"));
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("cache", store("memory")), Optional.of(machine),
-            Map.of("default", snowflake(Layout.SNOWFLAKE_MS)));
+        MachineSpec.Leased machine = MachineSpec.Leased.builder("cache")
+            .bits(10)
+            .ttl(Duration.ofSeconds(30))
+            .tolerance(Duration.ofSeconds(1))
+            .ownerKey("pod-0")
+            .build();
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("cache", store("memory"))
+            .machine(machine)
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
         try (CosIdRuntime one = CosIdRuntime.start(spec, options(TimeSource.SYSTEM, listener, shared));
              CosIdRuntime two = CosIdRuntime.start(spec, options(TimeSource.SYSTEM, listener, shared))) {
             SlotLease a = one.slot().orElseThrow();
@@ -258,11 +272,13 @@ class CosIdRuntimeTest {
     @Test
     void ownerKeyFromHostAndPort() {
         TestStores cache = new TestStores("memory");
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("cache", store("memory")), Optional.of(leased("cache")),
-            Map.of("default", snowflake(Layout.SNOWFLAKE_MS)));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("cache", store("memory"))
+            .machine(leased("cache"))
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
         RuntimeOptions base = options(cache);
-        RuntimeOptions withPort = new RuntimeOptions(base.time(), base.executor(), base.listener(), base.storeProviders(),
-            base.clients(), () -> "web-1", OptionalInt.of(8080), base.codecs());
+        RuntimeOptions withPort = base.toBuilder().hostResolver(() -> "web-1").port(8080).build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, withPort)) {
             assertThat(runtime.slot().orElseThrow().owner().key(), is("web-1:8080"));
         }
@@ -272,11 +288,12 @@ class CosIdRuntimeTest {
     void clientsReachTheirStores() {
         TestStores cache = new TestStores("memory");
         Object client = new Object();
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("cache", new StoreSpec("memory", TIMEOUT, Map.of("wait", "auto"))),
-            Optional.empty(), Map.of("order", segment("cache")));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("cache", StoreSpec.builder("memory").timeout(TIMEOUT).option("wait", "auto").build())
+            .generator("order", segment("cache"))
+            .build();
         RuntimeOptions base = options(cache);
-        RuntimeOptions withClient = new RuntimeOptions(base.time(), base.executor(), base.listener(), base.storeProviders(),
-            Map.of("cache", client), base.hostResolver(), base.port(), base.codecs());
+        RuntimeOptions withClient = base.toBuilder().client("cache", client).build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, withClient)) {
             assertThat(runtime.generator("order").generate(), is(1L));
             assertThat(cache.configs.getFirst().client().orElseThrow(), sameInstance(client));
@@ -289,12 +306,13 @@ class CosIdRuntimeTest {
     @Test
     void disabledGeneratorsAreNotCreated() {
         TestStores db = new TestStores("memory");
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store("memory")), Optional.empty(),
-            Map.of(
-                "order", segment("db"),
-                // Neither a machine nor the store it names is needed.
-                "default", new GeneratorSpec.Disabled(snowflake(Layout.SNOWFLAKE_MS)),
-                "bill", new GeneratorSpec.Disabled(segment("gone"))));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("db", store("memory"))
+            .generator("order", segment("db"))
+            // Neither a machine nor the store it names is needed.
+            .generator("default", new GeneratorSpec.Disabled(snowflake(Layout.SNOWFLAKE_MS)))
+            .generator("bill", new GeneratorSpec.Disabled(segment("gone")))
+            .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(db))) {
             assertThat(runtime.slot(), is(Optional.empty()));
             GeneratorDisabledException disabled = assertThrows(GeneratorDisabledException.class, () -> runtime.generator("default"));
@@ -316,9 +334,10 @@ class CosIdRuntimeTest {
     void staticSlotWritesTheExactLastIssuedTime(@TempDir Path dir) throws Exception {
         Path state = dir.resolve("state");
         me.ahoo.cosid.store.tck.ManualClock clock = new me.ahoo.cosid.store.tck.ManualClock(1_800_000_000_000L);
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of(),
-            Optional.of(new MachineSpec.Static(10, 7, Optional.of(state), Duration.ofSeconds(10), Optional.empty())),
-            Map.of("default", snowflake(Layout.SNOWFLAKE_MS)));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .machine(MachineSpec.Static.builder(7).bits(10).stateFile(state).ahead(Duration.ofSeconds(10)).build())
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(clock, GeneratorListener.NOOP))) {
             assertThat(runtime.slot(), is(Optional.empty()));
             clock.advance(Duration.ofMillis(5));
@@ -338,8 +357,11 @@ class CosIdRuntimeTest {
                 throw new IllegalStateException("listener bug");
             }
         };
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("cache", store("memory")), Optional.of(leased("cache")),
-            Map.of("default", snowflake(Layout.SNOWFLAKE_MS)));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("cache", store("memory"))
+            .machine(leased("cache"))
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(TimeSource.SYSTEM, failing, cache))) {
             assertThat(runtime.generator("default").generate(), greaterThan(0L));
         }
@@ -348,9 +370,11 @@ class CosIdRuntimeTest {
     @Test
     void customCodecsByReference() {
         TestStores db = new TestStores("memory");
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store("memory")), Optional.empty(),
-            Map.of("byClass", segment("db", new CodecSpec.Custom(HexCodec.class.getName()), new CodecSpec.Suffix("h")),
-                "byInstance", segment("db", new CodecSpec.Instance(new HexCodec()))));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("db", store("memory"))
+            .generator("byClass", segment("db", new CodecSpec.Custom(HexCodec.class.getName()), new CodecSpec.Suffix("h")))
+            .generator("byInstance", segment("db", new CodecSpec.Instance(new HexCodec())))
+            .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(db))) {
             for (int i = 0; i < 10; i++) {
                 runtime.generator("byClass").generate();
@@ -362,8 +386,7 @@ class CosIdRuntimeTest {
 
     @Test
     void storeProvidersFromServiceLoaderAndExplicitOnesWin() {
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store(ServiceLoadedStores.TYPE)), Optional.empty(),
-            Map.of("order", segment("db")));
+        RuntimeSpec spec = RuntimeSpec.builder("app").store("db", store(ServiceLoadedStores.TYPE)).generator("order", segment("db")).build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options())) {
             assertThat(runtime.generator("order").generate(), is(1L));
             assertThat(ServiceLoadedStores.OPENED.get(), greaterThan(0));
@@ -379,8 +402,7 @@ class CosIdRuntimeTest {
 
     @Test
     void defaultOptionsStartARuntime() {
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store(ServiceLoadedStores.TYPE)), Optional.empty(),
-            Map.of("order", segment("db")));
+        RuntimeSpec spec = RuntimeSpec.builder("app").store("db", store(ServiceLoadedStores.TYPE)).generator("order", segment("db")).build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, RuntimeOptions.defaults())) {
             assertThat(runtime.generator("order").generate(), is(1L));
         }
@@ -394,12 +416,13 @@ class CosIdRuntimeTest {
         CodecSpec.DatePrefix date = new CodecSpec.DatePrefix("yyyyMMdd", "-", DatePrefix.Source.NOW, ZoneOffset.UTC);
         CodecSpec.Radix digits = new CodecSpec.Radix(10, 6, true);
         TestStores db = new TestStores("memory");
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store("memory")), Optional.empty(),
-            Map.of(
-                // Each decorator wraps the text built so far: the date prefix last puts the date before the "O".
-                "dateOutside", segment("db", digits, new CodecSpec.Prefix("O"), date),
-                // The date prefix before the "O" prefix puts the "O" before the date.
-                "dateInside", segment("db", digits, date, new CodecSpec.Prefix("O"))));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("db", store("memory"))
+            // Each decorator wraps the text built so far: the date prefix last puts the date before the "O".
+            .generator("dateOutside", segment("db", digits, new CodecSpec.Prefix("O"), date))
+            // The date prefix before the "O" prefix puts the "O" before the date.
+            .generator("dateInside", segment("db", digits, date, new CodecSpec.Prefix("O")))
+            .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(clock, GeneratorListener.NOOP, db))) {
             StringIdGenerator outside = runtime.stringGenerator("dateOutside");
             String outsideText = outside.generate();
@@ -459,8 +482,8 @@ class CosIdRuntimeTest {
         CountDownLatch renewed = new CountDownLatch(1);
         SlotLeaseStore recording = new SlotLeaseStore() {
             @Override
-            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-                return memory.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+                return memory.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
             }
 
             @Override
@@ -477,13 +500,18 @@ class CosIdRuntimeTest {
         };
         RuntimeOptions defaults = RuntimeOptions.defaults();
         assertThat(defaults.executor(), is(Optional.empty()));
-        RuntimeOptions withStore = new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(),
-            List.of(wrapping("recording", memory, recording)), defaults.clients(), defaults.hostResolver(), defaults.port(), defaults.codecs());
+        RuntimeOptions withStore = defaults.toBuilder().storeProvider(wrapping("recording", memory, recording)).build();
         // A short ttl: the keeper renews every ttl/3.
-        MachineSpec.Leased machine = new MachineSpec.Leased("lease", 10, Duration.ofMillis(300), Duration.ofMillis(100), OptionalInt.empty(),
-            Optional.empty());
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("lease", store("recording")), Optional.of(machine),
-            Map.of("default", snowflake(Layout.SNOWFLAKE_MS)));
+        MachineSpec.Leased machine = MachineSpec.Leased.builder("lease")
+            .bits(10)
+            .ttl(Duration.ofMillis(300))
+            .tolerance(Duration.ofMillis(100))
+            .build();
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("lease", store("recording"))
+            .machine(machine)
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, withStore)) {
             assertThat(runtime.generator("default").generate(), greaterThan(0L));
             assertThat(renewed.await(10, TimeUnit.SECONDS), is(true));
@@ -507,10 +535,12 @@ class CosIdRuntimeTest {
             }
         };
         // One bit: two slots, so two strangers leave none to re-acquire. A short ttl: the keeper renews every 200ms.
-        MachineSpec.Leased machine = new MachineSpec.Leased("lease", 1, Duration.ofMillis(600), Duration.ZERO, OptionalInt.empty(),
-            Optional.empty());
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("lease", store("faulty")), Optional.of(machine),
-            Map.of("default", snowflake(Layout.SNOWFLAKE_MS)));
+        MachineSpec.Leased machine = MachineSpec.Leased.builder("lease").bits(1).ttl(Duration.ofMillis(600)).tolerance(Duration.ZERO).build();
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("lease", store("faulty"))
+            .machine(machine)
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
         StoreProvider faulty = wrapping("faulty", memory, new FaultySlotLeaseStore(memory, faults));
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(clock, listener, faulty))) {
             IdGenerator ids = runtime.generator("default");
@@ -521,10 +551,10 @@ class CosIdRuntimeTest {
             faults.always(FaultInjector.Operation.RENEW, new Fault.Fail(() -> new CosIdException("down")));
             clock.advance(Duration.ofSeconds(10));
             AcquireResult stolen = memory.acquire("app", new Owner("stranger", UUID.randomUUID()), 2, Duration.ofSeconds(30),
-                Duration.ZERO, OptionalInt.of(slot));
+                Duration.ZERO, 0, OptionalInt.of(slot));
             assertThat(((AcquireResult.Acquired) stolen).lease().slot(), is(slot));
             AcquireResult other = memory.acquire("app", new Owner("stranger-2", UUID.randomUUID()), 2, Duration.ofSeconds(30),
-                Duration.ZERO, OptionalInt.of(1 - slot));
+                Duration.ZERO, 0, OptionalInt.of(1 - slot));
             assertThat(((AcquireResult.Acquired) other).lease().slot(), is(1 - slot));
 
             // The clock is past the ceiling of the stolen lease: refused by the window check, or as lost if the keeper
@@ -557,5 +587,50 @@ class CosIdRuntimeTest {
         public long decode(String text) {
             return Long.parseLong(text, 16);
         }
+    }
+
+    @Test
+    void aCosId80GeneratorUsesItsLayout() {
+        Layout wide = new Layout(Instant.EPOCH, java.time.temporal.ChronoUnit.MILLIS, 43, 12, 20, Layout.defaultSeqResetThreshold(20));
+        TestStores db = new TestStores("memory");
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("db", store("memory"))
+            .machine(MachineSpec.Leased.builder("db").bits(12).build())
+            .generator("token", GeneratorSpec.CosId80.builder().layout(wide).build())
+            .generator("trace", GeneratorSpec.CosId80.builder().layout(wide).codec(new PartsCodecSpec.Friendly(ZoneOffset.UTC, false)).build())
+            .build();
+        try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(db))) {
+            assertThat(runtime.describe().get("token").details().get("nodeBits"), is(12));
+            assertThat(runtime.describe().get("token").details().get("seqBits"), is(20));
+            PartsCodec radix = runtime.get("token", PartsCodec.class);
+            IdParts parts = runtime.get("token", me.ahoo.cosid.PartsIdGenerator.class).nextParts();
+            assertThat(radix.decode(radix.encode(parts)), is(parts));
+            assertThat(radix, not(sameInstance(runtime.get("trace", PartsCodec.class))));
+            PartsCodec friendly = runtime.get("trace", PartsCodec.class);
+            IdParts traced = runtime.get("trace", me.ahoo.cosid.PartsIdGenerator.class).nextParts();
+            String text = friendly.encode(traced);
+            assertThat(text, matchesPattern("\\d{17}-\\d{1,4}-\\d{1,7}"));
+            assertThat(friendly.decode(text), is(traced));
+        }
+    }
+
+    @Test
+    void theAcquireTimeoutBoundsTheStart() {
+        TestStores db = new TestStores("memory");
+        for (int i = 0; i < 2; i++) {
+            assertThat(db.backing("db").acquire("app", new Owner("other-" + i, UUID.randomUUID()), 2, Duration.ofMinutes(5), Duration.ofSeconds(1),
+                0,
+                OptionalInt.empty()), instanceOf(AcquireResult.Acquired.class));
+        }
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("db", store("memory"))
+            .machine(MachineSpec.Leased.builder("db").bits(1).acquireTimeout(Duration.ZERO).build())
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
+        long started = System.nanoTime();
+        CosIdException failed = assertThrows(CosIdException.class, () -> CosIdRuntime.start(spec, options(db)));
+        // ZERO tries once: the default (the 30s ttl) would wait for an expiry.
+        assertThat(TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - started) < 10, is(true));
+        assertThat(failed.getMessage(), containsString("within PT0S: every slot is held"));
     }
 }

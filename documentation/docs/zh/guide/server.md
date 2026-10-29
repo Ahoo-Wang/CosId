@@ -25,10 +25,14 @@ docker run -d -p 8688:8688 \
 每项设置都可以来自环境变量（`COSID_SERVER_AUTH_TOKENS_0`）或挂载的 `application.yaml`。镜像以非 root 用户在 8688 端口运行；
 `/actuator/health/liveness` 不访问存储即可应答，用作容器健康检查。`/actuator/health/readiness` 还会检查后备存储
 （在 key `cosid-server/readiness` 上预留大小为 1 的区间，同一时间最多一次，结果复用 1 秒，2 秒内无应答即为 `DOWN`），
-存储宕机时负载均衡器就不再向该实例发送调用。带 `options.url` 的 JDBC 后备存储会得到一个大小为
+存储宕机时负载均衡器就不再向该实例发送调用。这项检查是健康贡献者 `cosidServerStore`（`/actuator/health/cosidServerStore`），自定义 readiness 组时按这个名字包含它。带 `options.url` 的 JDBC 后备存储会得到一个大小为
 `blocking.threads` 的 HikariCP 连接池，镜像内置 MySQL、MariaDB、PostgreSQL 与 SQL Server 驱动。
 [`examples/server/compose.yaml`](https://github.com/Ahoo-Wang/CosId/tree/main/examples/server) 在 Redis 上运行服务端，并附带一个客户端。
 从源码构建镜像：`./gradlew :server:dockerImage`（或 `:server:bootBuildImage`）。
+
+**镜像运行在 JDK 25 上**（`eclipse-temurin:25-jre`，D48）；jar 仍是 Java 21 字节码，各个库仍然支持 Java 21。从 JDK 24 起
+（JEP 491），虚拟线程在 `synchronized` 中不再固定在载体线程上，而服务端的请求运行在虚拟线程上（见下文）。JVM 参数无需调整：
+`JAVA_OPTS`（默认 `-XX:MaxRAMPercentage=75.0`，堆大小随容器内存限制）用于追加参数。
 
 ## 客户端
 
@@ -78,7 +82,7 @@ key 与命名空间放在 JSON 请求体中，从不放在路径里。错误为 
 | POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | 租约；`409 lease_lost` |
 | POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`；`409 lease_lost` |
 | GET | `/ids[/{generator}]?count=n` | | `{ids: [...]}`（可选） |
-| GET | `/ids[/{generator}]/strings?count=n` | | `{ids: ["..."]}`，经生成器的编解码器编码（可选） |
+| GET | `/ids[/{generator}]/strings?count=n` | | `{ids: ["..."]}`：任意策略的文本 id（可选）：`long` id 经生成器的编解码器编码，cosid80、周期号段与 uuidv7 用各自的文本 |
 | GET | `/ids/{generator}/periodic?count=n` | | `{period, values: [...]}`，全部属于同一周期（可选） |
 
 租约为 `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`。路径中没有生成器时，
@@ -195,6 +199,6 @@ cosid:
 curl -H "Authorization: Bearer $TOKEN" 'http://cosid-server:8688/ids/ticket?count=10'
 ```
 
-此时服务端就是一个普通的 `CosIdRuntime`：时间型生成器同样需要 `cosid.machine`，每个服务端实例租用自己的槽位。
+此时服务端就是一个普通的 `CosIdRuntime`：时间型生成器同样需要 `cosid.machine`，每个服务端实例租用自己的槽位。同一服务端命名空间发出的 ID 对所有调用方都唯一，这是实现跨服务唯一的一种方式；另一种是在各服务里使用[共享的命名 machine](concepts/slot-lease.md#跨服务全局唯一)，每个 ID 不需要一次调用。
 
 全部 `cosid.server.*` 属性见[配置参考](../reference/config/server.md)。

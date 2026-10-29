@@ -1,7 +1,7 @@
 # Spring Boot Starter
 
 `cosid-spring-boot-starter` is the only starter (D14). It brings `cosid-core` and `cosid-spring-boot-autoconfigure`
-and nothing else; add the store artifacts you use. It supports Spring Boot 4.0 and later on Java 21+.
+and nothing else; add the store artifacts you use. It supports Spring Boot 4.1.2 and later (D49; not 4.0.x) on Java 21+: its published metadata requires the versions of Boot 4.1.2.
 
 ```kotlin
 implementation(platform("me.ahoo.cosid:cosid-bom:__COSID_VERSION__"))
@@ -12,8 +12,10 @@ implementation("me.ahoo.cosid:cosid-store-redis")
 ## One configuration model
 
 Stores are declared once and referenced by name, generators of different strategies can use different stores, and
-there are no per-feature `enabled` switches: what is used follows from what is declared. The one master switch is
-`cosid.enabled` (default `true`).
+generators, stores and machines have no `enabled` switches: what is used follows from what is declared (a generator is
+switched off with `disabled: true`). The master switch is `cosid.enabled` (default `true`); the integrations keep
+switches of their own (`cosid.mybatis.enabled`, `cosid.jdbc.enabled`, `cosid.activiti.enabled`,
+`cosid.flowable.enabled`, see the [configuration reference](../../reference/config/basic.md)).
 
 ```yaml
 cosid:
@@ -90,26 +92,39 @@ store types of your own.
 ```java
 @Bean
 static RuntimeSpecCustomizer moreGenerators() {          // static: it runs while bean definitions are processed
-    return spec -> {
-        var generators = new HashMap<>(spec.generators());
-        generators.put("audit", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()));
-        return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
-    };
+    return spec -> spec.toBuilder()
+        .generator("audit", GeneratorSpec.Segment.builder("db").build())
+        .build();
 }
 ```
 
 Customizers run in `@Order` before the runtime starts, and the generators they add get beans too. A customizer must
 not depend on other beans (it is a `static @Bean`), as in 4.x.
 
+An `IdGenerator` of your own joins the runtime by its bean name (4.x `IdGeneratorProvider.set`):
+
+```yaml
+cosid:
+  generators:
+    legacy: { strategy: custom, ref: legacyIdGenerator, codec: [ { radix: { radix: 62 } } ] }
+```
+
+The runtime serves it like the others (bean, `IdFiller`, endpoint) but does not close it, and the bean must not depend
+on `CosIdRuntime`. In code, `GeneratorSpec.Instance.builder(ids).build()` takes the instance itself.
+
 ## Actuator, metrics, health
 
 - Endpoint `cosid`: `GET /actuator/cosid` describes every generator, `/actuator/cosid/{name}` one, and
   `/actuator/cosid/{name}/long` or `/string` generates one id. It is read-only (D17); the 4.x delete operation became the
   `disabled` property.
-- Health `cosId` (`/actuator/health/cosId`, switch `management.health.cosid.enabled`): the slot lease.
+- Health `cosid` (`/actuator/health/cosid`, switch `management.health.cosid.enabled`): the slot lease.
 - Micrometer: 19 `cosid.*` meters. See [metrics and health](../operations/monitoring.md).
 - The integrations (Jackson, MyBatis, Spring Data JDBC, Activiti, Flowable, Axon) set themselves up when their library
   and the matching CosId artifact (`cosid-jackson`, `cosid-mybatis`, …) are on the classpath.
-- Native images: `CosIdRuntimeHints` registers the reflection the runtime needs.
+- Native images: `CosIdRuntimeHints` registers the reflection the runtime needs. Under AOT (a native image, or
+  `spring.aot.enabled`) **the set of generator beans is fixed at build time**: the runtime still binds `cosid.*` when it
+  starts, so a generator's settings may change at deploy time, but a generator added then has no bean (use
+  `CosIdRuntime.generator(name)`), and the bean of one removed then fails when used. Add or remove generators in the
+  configuration the build sees.
 
 Each Spring context gets its own runtime (4.x's `provider.isolated` is the default and only mode).

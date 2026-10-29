@@ -40,7 +40,7 @@ final class RemoteSlotLeaseStore implements SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("namespace", namespace);
         body.put("ownerKey", owner.key());
@@ -48,6 +48,7 @@ final class RemoteSlotLeaseStore implements SlotLeaseStore {
         body.put("limit", limit);
         body.put("ttlMs", ttl.toMillis());
         body.put("toleranceMs", tolerance.toMillis());
+        body.put("slotOffset", slotOffset);
         if (preferredSlot.isPresent()) {
             body.put("preferredSlot", preferredSlot.getAsInt());
         }
@@ -55,7 +56,7 @@ final class RemoteSlotLeaseStore implements SlotLeaseStore {
         if (response.status() == 200) {
             AcquireReason reason = AcquireReason.valueOf(response.textField("reason"));
             boolean duplicateOwnerKey = Boolean.TRUE.equals(response.body().get("duplicateOwnerKey"));
-            return new AcquireResult.Acquired(lease(response), reason, duplicateOwnerKey);
+            return AcquireResult.Acquired.builder(lease(response), reason).duplicateOwnerKey(duplicateOwnerKey).build();
         }
         if (RemoteApi.SLOTS_EXHAUSTED.equals(response.code())) {
             return new AcquireResult.Exhausted(response.longField("earliestExpiresAt"));
@@ -109,9 +110,16 @@ final class RemoteSlotLeaseStore implements SlotLeaseStore {
 
     private static SlotLease lease(RemoteClient.Response response) {
         Owner owner = new Owner(response.textField("ownerKey"), UUID.fromString(response.textField("incarnation")));
-        return new SlotLease(response.textField("namespace"), Math.toIntExact(response.longField("slot")), owner,
-            response.longField("fence"), response.longField("expiresAt"), response.longField("floor"),
-            response.longField("ceiling"), response.longField("storeNow"));
+        return SlotLease.builder()
+            .namespace(response.textField("namespace"))
+            .slot(Math.toIntExact(response.longField("slot")))
+            .owner(owner)
+            .fence(response.longField("fence"))
+            .expiresAt(response.longField("expiresAt"))
+            .floor(response.longField("floor"))
+            .ceiling(response.longField("ceiling"))
+            .storeNow(response.longField("storeNow"))
+            .build();
     }
 
     private static RuntimeException failure(RemoteClient.Response response, String namespace, String call) {

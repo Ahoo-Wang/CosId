@@ -2,7 +2,8 @@
 
 `cosid.server.*`, bound by `ServerProperties` of cosid-server. Besides these, the server reads the ordinary `cosid.*`
 properties ([runtime, stores, machine](basic.md), [generators](generators.md)): its backing store is one of
-`cosid.stores`. Every property can be set from the environment, as in `COSID_SERVER_AUTH_TOKENS_0`.
+`cosid.stores`. Every property can be set from the environment, as in `COSID_SERVER_AUTH_TOKENS_0`, store options included
+(`COSID_STORES_MAIN_OPTIONS_CONNECTSTRING` sets `connectString`: their case does not count).
 
 | Property | Default | Meaning |
 |---|---|---|
@@ -34,5 +35,5 @@ Actuator and springdoc included, needs a token of `tokens`. The server refuses a
 
 The image's own defaults (`application.yaml`): `server.port: 8688`, requests on virtual threads
 (`spring.threads.virtual.enabled: true`; `SPRING_THREADS_VIRTUAL_ENABLED=false` turns it off), the health probes on with
-the backing store in the readiness group, and Actuator exposing `health`, `info`, `prometheus` and `cosid`. `cosid.namespace` defaults to `${spring.application.name}`
+the backing store in the readiness group (the contributor `cosidServerStore`), and Actuator exposing `health`, `info`, `prometheus` and `cosid`. `cosid.namespace` defaults to `${spring.application.name}`
 (`cosid-server`).

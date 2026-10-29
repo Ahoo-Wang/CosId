@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.autoconfigure;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.accessor.IdFiller;
 import me.ahoo.cosid.codec.IdCodec;
 import me.ahoo.cosid.lease.SlotLease;
@@ -35,11 +36,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
+import org.springframework.core.convert.converter.GenericConverter;
 import org.springframework.core.env.Environment;
 
 import java.time.Duration;
@@ -66,6 +69,13 @@ public class CosIdAutoConfiguration {
         return new CosIdGeneratorRegistrar();
     }
 
+    /** Binds the {@link CosIdProperties} bean as {@link CosIdSpecs#bind} does: {@code - friendly: {}} is its defaults. */
+    @Bean
+    @ConfigurationPropertiesBinding
+    public static GenericConverter cosIdEmptyItems() {
+        return new CosIdSpecs.EmptyItems();
+    }
+
     @Bean(CosIdGeneratorRegistrar.SPEC_BEAN)
     public RuntimeSpec cosIdRuntimeSpec(CosIdGeneratorRegistrar registrar) {
         return registrar.spec();
@@ -77,16 +87,20 @@ public class CosIdAutoConfiguration {
                                      ObjectProvider<HostResolver> hostResolver, ConfigurableListableBeanFactory beanFactory,
                                      Environment environment) {
         RuntimeOptions defaults = RuntimeOptions.defaults();
-        RuntimeOptions options = new RuntimeOptions(TimeSource.SYSTEM, Optional.empty(),
-            CompositeListener.of(listeners.orderedStream().toList()),
-            storeProviders.orderedStream().toList(),
-            CosIdStoreClients.resolve(spec, properties, beanFactory, CosIdGeneratorRegistrar.RUNTIME_BEAN),
-            hostResolver.getIfAvailable(() -> HostResolver.LOCAL),
-            port(environment),
-            reference -> beanFactory.containsBean(reference) && beanFactory.isTypeMatch(reference, IdCodec.class)
-                ? Optional.of(beanFactory.getBean(reference, IdCodec.class)) : defaults.codecs().apply(reference),
-            properties.metrics().generated());
-        return CosIdRuntime.start(spec, options);
+        RuntimeOptions.Builder options = RuntimeOptions.builder()
+            .time(TimeSource.SYSTEM)
+            .listener(CompositeListener.of(listeners.orderedStream().toList()))
+            .hostResolver(hostResolver.getIfAvailable(() -> HostResolver.LOCAL))
+            .codecs(reference -> beanFactory.containsBean(reference) && beanFactory.isTypeMatch(reference, IdCodec.class)
+                ? Optional.of(beanFactory.getBean(reference, IdCodec.class)) : defaults.codecs().apply(reference))
+            // strategy: custom refers to a bean by name (D41); the bean must not depend on the runtime.
+            .generators(reference -> beanFactory.containsBean(reference) && beanFactory.isTypeMatch(reference, IdGenerator.class)
+                ? Optional.of(beanFactory.getBean(reference, IdGenerator.class)) : Optional.empty())
+            .countGenerated(properties.metrics().generated().enabled());
+        storeProviders.orderedStream().forEach(options::storeProvider);
+        CosIdStoreClients.resolve(spec, properties, beanFactory, CosIdGeneratorRegistrar.RUNTIME_BEAN).forEach(options::client);
+        port(environment).ifPresent(options::port);
+        return CosIdRuntime.start(spec, options.build());
     }
 
     @Bean

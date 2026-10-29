@@ -34,7 +34,16 @@ public final class RedisSource implements SourceReader {
     private final RedisConnection redis;
 
     public RedisSource(StoreLocation location) {
-        this.redis = RedisConnection.open(location);
+        this(RedisConnection.open(location));
+    }
+
+    /**
+     * A reader on a connection of its own.
+     *
+     * @param redis the connection, closed with the reader
+     */
+    public RedisSource(RedisConnection redis) {
+        this.redis = redis;
     }
 
     static String segmentKey(String namespace, String name) {
@@ -58,27 +67,33 @@ public final class RedisSource implements SourceReader {
         }
         Map<String, String> machines = new TreeMap<>();
         long maxTimestamp = 0;
+        int maxMachineId = -1;
         String machinePrefix = "cosid:{" + namespace + "}:";
         for (Map.Entry<String, String> entry : hash(commands, machinePrefix + "itc_idx").entrySet()) {
             machines.put("itc_idx/" + entry.getKey(), entry.getValue());
+            maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(entry.getValue()));
             maxTimestamp = Math.max(maxTimestamp, numbers(entry.getValue(), 1));
         }
         for (Map.Entry<String, String> entry : hash(commands, machinePrefix + "revert").entrySet()) {
             machines.put("revert/" + entry.getKey(), entry.getValue());
+            maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(entry.getKey()));
             maxTimestamp = Math.max(maxTimestamp, numbers(entry.getValue(), 0));
         }
         for (Map.Entry<String, String> entry : hash(commands, machinePrefix + "lease").entrySet()) {
             machines.put("lease/" + entry.getKey(), entry.getValue());
+            maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(entry.getKey()));
             maxTimestamp = Math.max(maxTimestamp, numbers(entry.getValue(), 0));
         }
         String adder = commands.get(machinePrefix + "adder");
         if (adder != null) {
             machines.put("adder", adder);
+            // The last machine id ever handed out.
+            maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(adder));
         }
         for (String stable : commands.smembers(machinePrefix + "stable")) {
             machines.put("stable/" + stable, "1");
         }
-        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized);
+        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized, maxMachineId);
     }
 
     private static Map<String, String> hash(RedisClusterCommands<String, String> commands, String key) {
@@ -106,13 +121,16 @@ public final class RedisSource implements SourceReader {
     @Override
     public long seal(String namespace, String name, long increment) {
         String key = segmentKey(namespace, name);
-        RedisClusterCommands<String, String> commands = redis.commands();
+        // On the connection WAIT then counts (R2-mig-03).
+        RedisClusterCommands<String, String> commands = redis.commandsFor(key);
         String value = commands.get(key);
         if (value == null) {
             throw new IllegalStateException("Segment [" + key + "] does not exist");
         }
         SourceReader.sealed(key, Long.parseLong(value), increment);
-        return commands.incrby(key, increment);
+        long sealed = commands.incrby(key, increment);
+        redis.replicated(key);
+        return sealed;
     }
 
     @Override

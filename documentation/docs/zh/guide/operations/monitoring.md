@@ -7,46 +7,48 @@
 ## 指标
 
 所有指标都以 `cosid.*` 命名（共 19 个）。它们来自 listener 事件，因此热路径从不调用它们；只有
-`cosid.generator.generated` 对 id 计数，并且仅在 `cosid.metrics.generated: true` 时开启。
+`cosid.generator.generated` 对 id 计数，并且仅在 `cosid.metrics.generated.enabled: true` 时开启。
 
 | 指标 | 类型 | 标签 | 4.x 名称 |
 |---|---|---|---|
-| `cosid.segment.reserve` | timer | `name`、`key` | `segment.fetch` |
-| `cosid.segment.refill.failures` | counter | `name`、`key`、`error` | `segment.prefetch.failures` |
+| `cosid.segment.reserve` | timer | `name` | `segment.fetch` |
+| `cosid.segment.refill.failures` | counter | `name`、`error` | `segment.prefetch.failures` |
 | `cosid.segment.batch.resizes` | counter | `name`、`direction`（`up`、`down`） | `segment.prefetch.expansions` |
 | `cosid.segment.batch` | gauge | `name` | `segment.prefetch.distance` |
 | `cosid.segment.held` | gauge | `name` | `segment.remaining` |
 | `cosid.sequence.exhausted` | counter | `name` | `sequence.exhausted.wait` |
 | `cosid.clock.backwards` | summary（ms） | `name`、`action`（`borrow`、`wait`、`fail`） | `clock.backwards`、`clock.sync.wait` |
 | `cosid.machine.window.exceeded` | counter | `name` | |
-| `cosid.machine.lease.acquired` | counter | `namespace`、`reason`（`idempotent`、`preferred`、`sticky`、`lowest`） | `machine.lease.acquired` |
-| `cosid.machine.lease.renewed` | counter | `namespace` | |
-| `cosid.machine.lease.released` | counter | `namespace` | |
-| `cosid.machine.lease.renew.failures` | counter | `namespace` | `machine.lease.renew.failures` |
-| `cosid.machine.lease.lost` | counter | `namespace` | `machine.lease.lost` |
-| `cosid.machine.lease.remaining` | time gauge | `namespace` | `machine.lease.remaining` |
-| `cosid.machine.window.remaining` | time gauge | `namespace` | |
-| `cosid.machine.clock.skew` | time gauge | `namespace` | `machine.clock.skew` |
-| `cosid.machine.owner.duplicates` | counter | `namespace` | |
+| `cosid.machine.lease.acquired` | counter | `namespace`、`machine`、`reason`（`idempotent`、`preferred`、`sticky`、`lowest`） | `machine.lease.acquired` |
+| `cosid.machine.lease.renewed` | counter | `namespace`、`machine` | |
+| `cosid.machine.lease.released` | counter | `namespace`、`machine` | |
+| `cosid.machine.lease.renew.failures` | counter | `namespace`、`machine` | `machine.lease.renew.failures` |
+| `cosid.machine.lease.lost` | counter | `namespace`、`machine` | `machine.lease.lost` |
+| `cosid.machine.lease.remaining` | time gauge | `namespace`、`machine` | `machine.lease.remaining` |
+| `cosid.machine.window.remaining` | time gauge | `namespace`、`machine` | |
+| `cosid.machine.clock.skew` | time gauge | `namespace`、`machine` | `machine.clock.skew` |
+| `cosid.machine.owner.duplicates` | counter | `namespace`、`machine` | |
 | `cosid.store.timeouts` | counter | `store`、`operation`（`reserve`、`seal`、`acquire`、`renew`、`release`：存储调用超时；`reserve-wait`：调用方等待补充超过 `reserve-timeout`，每次补充计一次） | `call.timeouts` |
 | `cosid.generator.generated` | function counter | `name` | `generator.generated` |
 
-`cosid.generator.generated` 统计运行时交出的每个视图，包括 `IdFiller`。cosid-server 另外增加
+租约相关的 `cosid.machine.*` 指标在 `namespace` 之外带 `machine` 标签（`default` 或[命名 machine](../concepts/slot-lease.md#命名-machine)）。
+号段指标不按 key 打标签，所以周期号段滚动到新周期不会新增指标。`cosid.generator.generated` 统计运行时交出的每个视图，包括 `IdFiller`。cosid-server 另外增加
 `cosid.server.call.rejections{reason}`。
 
 ## 健康检查
 
-健康检查 `cosId`（`/actuator/health/cosId`；开关 `management.health.cosid.enabled`）：
+健康检查 `cosid`（`/actuator/health/cosid`；开关 `management.health.cosid.enabled`）：
 
-- 当槽位租约已丢失且未能重新获取，或某个时间型生成器的槽位绑定不再有效时为 `DOWN`；否则为 `UP`。
-  没有时间型生成器时不存在槽位，状态为 `UP`。
-- 详情：`slot`、`owner`、`fence`、`expiresAt` 与 `expiresInMillis`、`ceiling` 与 `windowRemainingMillis`、
-  每个生成器的 `slotValid`、`lost`、`renewFailures`（连续次数）以及最近一次续约错误。
+- 当某个 machine 的槽位租约已丢失且未能重新获取，或某个时间型生成器的槽位绑定不再有效时为 `DOWN`；否则为 `UP`。
+  没有时间型生成器时不存在槽位，没有详情，状态为 `UP`。
+- 详情：`machines`，每个已启动的 machine（`default` 与各个[命名 machine](../concepts/slot-lease.md#命名-machine)）一项：
+  `namespace`、`slot`、`valid`、`owner`、`fence`、`expiresAt` 与 `expiresInMillis`、`ceiling` 与
+  `windowRemainingMillis`、`lost`、`renewFailures`（连续次数）以及 `lastRenewError`。
 
 ```json
-{"status":"UP","details":{"slot":0,"owner":"app-7d9f:8080","fence":1,"expiresAt":1793098633174,
- "expiresInMillis":28124,"ceiling":1793098634174,"windowRemainingMillis":29124,
- "slotValid":{"default":true},"lost":false,"renewFailures":0}}
+{"status":"UP","details":{"machines":{"default":{"namespace":"order-service","slot":0,"valid":true,
+ "owner":"app-7d9f:8080","fence":1,"expiresAt":1793098633174,"expiresInMillis":28124,
+ "ceiling":1793098634174,"windowRemainingMillis":29124,"lost":false,"renewFailures":0}}}}
 ```
 
 ## `cosid` 端点

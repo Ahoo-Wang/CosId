@@ -40,13 +40,23 @@ class JdbcSupportTest {
     }
 
     @Test
+    void fetchPlansParseIgnoringCaseAndSeparators() {
+        assertEquals(FetchPlan.STATEMENT, FetchPlan.of(null));
+        assertEquals(FetchPlan.STATEMENT, FetchPlan.of("statement"));
+        assertEquals(FetchPlan.TRANSACTION, FetchPlan.of(" Transaction "));
+        assertEquals(FetchPlan.TRANSACTION, FetchPlan.of("TRANS-ACTION"));
+        IllegalArgumentException unknown = assertThrows(IllegalArgumentException.class, () -> FetchPlan.of("lastInsertId"));
+        assertTrue(unknown.getMessage().contains("statement or transaction"), unknown.getMessage());
+    }
+
+    @Test
     void timeoutBecomesWholeQueryTimeoutSeconds() {
-        assertEquals(0, Jdbc.queryTimeoutSeconds(Duration.ZERO), "zero is no timeout");
         assertEquals(1, Jdbc.queryTimeoutSeconds(Duration.ofMillis(1)));
         assertEquals(2, Jdbc.queryTimeoutSeconds(Duration.ofMillis(1500)));
         assertEquals(3, Jdbc.queryTimeoutSeconds(Duration.ofSeconds(3)));
         assertEquals(Integer.MAX_VALUE, Jdbc.queryTimeoutSeconds(Duration.ofDays(100_000)));
         assertThrows(IllegalArgumentException.class, () -> Jdbc.queryTimeoutSeconds(Duration.ofSeconds(-1)));
+        assertThrows(IllegalArgumentException.class, () -> Jdbc.queryTimeoutSeconds(Duration.ZERO), "R1-spi-04: no zero timeout");
     }
 
     @Test
@@ -182,17 +192,73 @@ class JdbcSupportTest {
     }
 
     @Test
-    void multiStatementOperationsEndAtTheTimeout() throws InterruptedException {
-        Jdbc unbounded = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ZERO);
-        long never = unbounded.deadline();
-        assertEquals(Long.MAX_VALUE, never, "no timeout, no deadline");
-        unbounded.checkDeadline(never, "probe");
+    void aDialectStatementIsBuiltOncePerTableNames() {
+        AtomicInteger built = new AtomicInteger();
+        TableSql sql = new TableSql(tables -> "select " + built.incrementAndGet() + " from " + tables.range());
+        assertEquals("select 1 from cosid_range", sql.of(JdbcTables.DEFAULT));
+        assertEquals("select 1 from cosid_range", sql.of(new JdbcTables("cosid_range", "cosid_slot", "cosid_namespace")));
+        assertEquals("select 2 from app.r", sql.of(new JdbcTables("app.r", "app.s", "app.n")));
+        assertEquals("select 3 from cosid_range", sql.of(JdbcTables.DEFAULT));
+    }
 
+    @Test
+    void anUnpooledDataSourceKeepsTheUrlPasswordOutAndTheJvmSettingsAlone() {
+        // R1-jdbc-09.
+        assertEquals("jdbc:mysql://cosid:***@db:3306/cosid", DriverManagerDataSource.redacted("jdbc:mysql://cosid:secret@db:3306/cosid"));
+        assertEquals("jdbc:postgresql://db/cosid?user=cosid&password=***&ssl=true",
+            DriverManagerDataSource.redacted("jdbc:postgresql://db/cosid?user=cosid&password=secret&ssl=true"));
+        assertEquals("jdbc:sqlserver://db;user=sa;pwd=***", DriverManagerDataSource.redacted("jdbc:sqlserver://db;user=sa;pwd=secret"));
+        DriverManagerDataSource dataSource = new DriverManagerDataSource("jdbc:h2:mem:x?password=secret", null, null);
+        assertTrue(!dataSource.toString().contains("secret"), dataSource.toString());
+        int global = java.sql.DriverManager.getLoginTimeout();
+        dataSource.setLoginTimeout(global + 7);
+        assertEquals(global + 7, dataSource.getLoginTimeout());
+        assertEquals(global, java.sql.DriverManager.getLoginTimeout());
+        java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.StringWriter());
+        dataSource.setLogWriter(writer);
+        assertSame(writer, dataSource.getLogWriter());
+    }
+
+    @Test
+    void aFailedConnectionKeepsTheUrlPasswordOut() {
+        // R2-mig-05: DriverManager quotes the url when no driver takes it ("No suitable driver found for <url>").
+        DriverManagerDataSource dataSource = new DriverManagerDataSource("jdbc:nosuchdriver://db/cosid?user=cosid&password=secret", null, null);
+        java.sql.SQLException failure = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, dataSource::getConnection);
+        assertTrue(!failure.getMessage().contains("secret"), failure.getMessage());
+        assertTrue(failure.getMessage().contains("password=***"), failure.getMessage());
+        assertTrue(failure.getCause() == null || !String.valueOf(failure.getCause()).contains("secret"));
+        java.sql.SQLException withAccount = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class,
+            () -> dataSource.getConnection("cosid", "other"));
+        assertTrue(!withAccount.getMessage().contains("secret"), withAccount.getMessage());
+        // A url without a password: the failure as it is.
+        DriverManagerDataSource plain = new DriverManagerDataSource("jdbc:nosuchdriver://db/cosid", null, null);
+        java.sql.SQLException asIs = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class, plain::getConnection);
+        assertTrue(asIs.getMessage().contains("jdbc:nosuchdriver://db/cosid"), asIs.getMessage());
+    }
+
+    @Test
+    void dialectsAreLoadedFromTheContextClassLoaderElseThisModule() {
+        // R1-jdbc-08.
+        Thread thread = Thread.currentThread();
+        ClassLoader context = thread.getContextClassLoader();
+        try {
+            assertSame(context, JdbcDialects.classLoader());
+            thread.setContextClassLoader(null);
+            assertSame(JdbcDialects.class.getClassLoader(), JdbcDialects.classLoader());
+        } finally {
+            thread.setContextClassLoader(context);
+        }
+    }
+
+    @Test
+    void multiStatementOperationsEndAtTheTimeout() throws InterruptedException {
         Jdbc bounded = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ofMillis(20));
         long deadline = bounded.deadline();
-        bounded.checkDeadline(deadline, "probe");
+        bounded.checkDeadline(deadline, "probe", null, -1);
         Thread.sleep(40);
-        StoreTimeoutException thrown = assertThrows(StoreTimeoutException.class, () -> bounded.checkDeadline(deadline, "acquire in ns"));
+        StoreTimeoutException thrown = assertThrows(StoreTimeoutException.class, () -> bounded.checkDeadline(deadline, "acquire in", "ns", -1));
         assertTrue(thrown.getMessage().startsWith("acquire in ns did not complete on h2 within"), thrown.getMessage());
+        StoreTimeoutException renew = assertThrows(StoreTimeoutException.class, () -> bounded.checkDeadline(deadline, "renew", "ns", 7));
+        assertTrue(renew.getMessage().startsWith("renew ns/7 did not complete on h2 within"), renew.getMessage());
     }
 }

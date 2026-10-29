@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -41,8 +42,13 @@ import java.util.concurrent.locks.LockSupport;
  * Slot leases in {@code cosid_slot} (05-machine-lease.md §2, 06-stores.md §2.1).
  *
  * <ul>
- *     <li>The first {@code acquire} of a namespace records {@code {limit, tolerance}} in {@code cosid_namespace} and
- *     creates its {@code limit} slot rows, idempotently; a store instance remembers the namespaces it checked.</li>
+ *     <li>The first {@code acquire} of a namespace records {@code {limit, tolerance, slotOffset}} in
+ *     {@code cosid_namespace} and creates its {@code limit} slot rows, idempotently; a store instance remembers the
+ *     namespaces it checked. The slot offset does not change the slot choice.</li>
+ *     <li>A {@code cosid_namespace} of 5.0.0-alpha.1 has no {@code slot_offset}: whether it has is detected once per
+ *     store ({@link Jdbc#columns}). Without the column the stored offset reads as 0 and new namespaces are recorded
+ *     without it, so offset 0 works as before; any other offset fails with an {@link IllegalStateException} naming the
+ *     {@code alter table} that adds it, which {@code options.initSchema} runs ({@link #addMissingColumns}).</li>
  *     <li>{@code acquire} reads its candidates once without locking (the rows of the owner key, the preferred slot
  *     and the first free slots), then takes the first of §2.1's order that a compare-and-set update still finds free:
  *     the idempotent retry, preferred, sticky, lowest. Uniqueness only needs that per-slot atomic update; there is no
@@ -60,37 +66,74 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     private static final long PROVISION_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(20);
     /** How many free slots one acquire reads as candidates of the lowest step. */
     static final int FREE_CANDIDATES = 8;
+    /** The column of {@code cosid_namespace} that came after 5.0.0-alpha.1. */
+    static final String SLOT_OFFSET = "slot_offset";
+    /** Its definition, also in the {@code alter table} that adds it to an older table. */
+    static final String SLOT_OFFSET_DEFINITION = "integer not null default 0";
     private final Jdbc jdbc;
     private final String now;
     private final String free;
+    // R1-jdbc-02: the statements, built once: the table names and the dialect are fixed for a store.
+    private final String candidatesSql;
+    private final String earliestSql;
+    private final String takeSql;
+    private final String currentSql;
+    private final String storeNowSql;
+    private final String renewSql;
+    private final String releaseSql;
     private final Map<String, Namespace> namespaces = new ConcurrentHashMap<>();
+    /** Whether {@code cosid_namespace} has {@link #SLOT_OFFSET}; null until detected. */
+    private volatile Boolean slotOffsetColumn;
 
     JdbcSlotLeaseStore(Jdbc jdbc) {
         this.jdbc = jdbc;
         this.now = jdbc.dialect.nowMillis();
         this.free = "(owner_key is null or expires_at < " + now + ")";
+        String table = jdbc.tables.slot();
+        String columns = "slot, fence, owner_key, incarnation, last_owner_key, expires_at, floor_ms, ceiling_ms, next_floor_ms, case when " + free
+            + " then 1 else 0 end as free_now, " + now + " as store_now";
+        // R1-jdbc-01: one branch per index. take() writes owner_key and last_owner_key together and release() keeps
+        // last_owner_key, so the rows the owner key holds are among those it held last: (namespace, last_owner_key)
+        // finds them, the primary key the preferred slot and the free ones, with no scan of the namespace.
+        this.candidatesSql = "select * from (select " + columns + " from " + table + " where namespace = ? and slot < ? and last_owner_key = ?) o"
+            + " union all select * from (select " + columns + " from " + table + " where namespace = ? and slot = ? and slot < ?) p"
+            + " union all select * from (" + jdbc.dialect.firstRows(columns, table, "namespace = ? and slot < ? and " + free, "slot", FREE_CANDIDATES) + ") f";
+        this.earliestSql = "select min(expires_at) from " + table + " where namespace = ? and slot < ?";
+        this.takeSql = "update " + table + " set owner_key = ?, incarnation = ?, last_owner_key = ?,"
+            + " fence = ?, expires_at = ?, floor_ms = ?, ceiling_ms = ?, next_floor_ms = ?"
+            + " where namespace = ? and slot = ? and fence = ? and next_floor_ms = ? and " + free;
+        this.currentSql = "select expires_at, floor_ms, ceiling_ms, " + now + " from " + table
+            + " where namespace = ? and slot = ? and incarnation = ? and fence = ?";
+        this.storeNowSql = jdbc.dialect.selectNowMillis();
+        this.renewSql = "update " + table + " set expires_at = ?, ceiling_ms = ?, next_floor_ms = ?"
+            + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?";
+        this.releaseSql = "update " + table + " set owner_key = null, incarnation = null,"
+            + " expires_at = ?, next_floor_ms = ?, fence = fence + 1"
+            + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?";
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         Objects.requireNonNull(namespace, "namespace");
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(preferredSlot, "preferredSlot");
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be positive: " + limit);
         }
+        if (slotOffset < 0) {
+            throw new IllegalArgumentException("slotOffset must not be negative: " + slotOffset);
+        }
         jdbc.dialect.checkKey("namespace", namespace);
         jdbc.dialect.checkKey("owner key", owner.key());
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
-        Namespace ns = new Namespace(limit, toleranceMillis);
+        Namespace ns = new Namespace(limit, toleranceMillis, slotOffset);
         ensureNamespace(namespace, ns);
         int preferred = preferredSlot.isPresent() && preferredSlot.getAsInt() >= 0 && preferredSlot.getAsInt() < limit ? preferredSlot.getAsInt() : -1;
-        String operation = "acquire in " + namespace;
         long deadline = jdbc.deadline();
-        return jdbc.run(operation, session -> {
+        return jdbc.run("acquire in", namespace, -1, session -> {
             while (true) {
-                jdbc.checkDeadline(deadline, operation);
+                jdbc.checkDeadline(deadline, "acquire in", namespace, -1);
                 AcquireResult result = attempt(session, namespace, owner, ns, ttlMillis, preferred);
                 if (result != null) {
                     return result;
@@ -121,8 +164,17 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         }
         // §2.1 step 1: the owner, same key and incarnation, already holds a slot.
         if (held != null) {
-            SlotLease lease = new SlotLease(namespace, held.slot, owner, held.fence, held.expiresAt, held.floor, held.ceiling, held.storeNow);
-            return new AcquireResult.Acquired(lease, AcquireReason.IDEMPOTENT, duplicate);
+            SlotLease lease = SlotLease.builder()
+                .namespace(namespace)
+                .slot(held.slot)
+                .owner(owner)
+                .fence(held.fence)
+                .expiresAt(held.expiresAt)
+                .floor(held.floor)
+                .ceiling(held.ceiling)
+                .storeNow(held.storeNow)
+                .build();
+            return AcquireResult.Acquired.builder(lease, AcquireReason.IDEMPOTENT).duplicateOwnerKey(duplicate).build();
         }
         if (candidates.isEmpty()) {
             return new AcquireResult.Exhausted(earliestExpiresAt(session, namespace, ns));
@@ -130,17 +182,17 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         // Step 2: the preferred slot.
         Candidate preferredCandidate = candidates.get(preferred);
         if (preferredCandidate != null && preferredCandidate.free) {
-            SlotLease lease = take(session, namespace, owner, ns, ttlMillis, preferredCandidate);
+            SlotLease lease = take(session, namespace, owner, incarnation, ns, ttlMillis, preferredCandidate);
             if (lease != null) {
-                return new AcquireResult.Acquired(lease, AcquireReason.PREFERRED, duplicate);
+                return AcquireResult.Acquired.builder(lease, AcquireReason.PREFERRED).duplicateOwnerKey(duplicate).build();
             }
         }
         // Step 3: a free slot the owner key held last, lowest first.
         for (Candidate candidate : candidates.values()) {
             if (candidate.free && owner.key().equals(candidate.lastOwnerKey)) {
-                SlotLease lease = take(session, namespace, owner, ns, ttlMillis, candidate);
+                SlotLease lease = take(session, namespace, owner, incarnation, ns, ttlMillis, candidate);
                 if (lease != null) {
-                    return new AcquireResult.Acquired(lease, AcquireReason.STICKY, duplicate);
+                    return AcquireResult.Acquired.builder(lease, AcquireReason.STICKY).duplicateOwnerKey(duplicate).build();
                 }
             }
         }
@@ -159,9 +211,9 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
             Collections.shuffle(free.subList(1, free.size()), ThreadLocalRandom.current());
         }
         for (Candidate candidate : free) {
-            SlotLease lease = take(session, namespace, owner, ns, ttlMillis, candidate);
+            SlotLease lease = take(session, namespace, owner, incarnation, ns, ttlMillis, candidate);
             if (lease != null) {
-                return new AcquireResult.Acquired(lease, AcquireReason.LOWEST, duplicate);
+                return AcquireResult.Acquired.builder(lease, AcquireReason.LOWEST).duplicateOwnerKey(duplicate).build();
             }
         }
         return null;
@@ -172,21 +224,16 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
      * preferred slot, and the first {@link #FREE_CANDIDATES} free slots, each with the store clock of the read.
      */
     private Map<Integer, Candidate> candidates(JdbcSession session, String namespace, Owner owner, Namespace ns, int preferred) throws SQLException {
-        String table = session.tables().slot();
-        String columns = "slot, fence, owner_key, incarnation, last_owner_key, expires_at, floor_ms, ceiling_ms, next_floor_ms, case when " + free
-            + " then 1 else 0 end as free_now, " + now + " as store_now";
-        String sql = "select * from (select " + columns + " from " + table
-            + " where namespace = ? and slot < ? and (owner_key = ? or last_owner_key = ? or slot = ?)) o union all select * from ("
-            + jdbc.dialect.firstRows(columns, table, "namespace = ? and slot < ? and " + free, "slot", FREE_CANDIDATES) + ") f";
         Map<Integer, Candidate> candidates = new TreeMap<>();
-        try (PreparedStatement select = session.prepare(sql)) {
+        try (PreparedStatement select = session.prepare(candidatesSql)) {
             select.setString(1, namespace);
             select.setInt(2, ns.limit);
             select.setString(3, owner.key());
-            select.setString(4, owner.key());
+            select.setString(4, namespace);
             select.setInt(5, preferred);
-            select.setString(6, namespace);
-            select.setInt(7, ns.limit);
+            select.setInt(6, ns.limit);
+            select.setString(7, namespace);
+            select.setInt(8, ns.limit);
             try (ResultSet rs = select.executeQuery()) {
                 while (rs.next()) {
                     String incarnation = rs.getString("incarnation");
@@ -201,7 +248,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     }
 
     private long earliestExpiresAt(JdbcSession session, String namespace, Namespace ns) throws SQLException {
-        try (PreparedStatement select = session.prepare("select min(expires_at) from " + session.tables().slot() + " where namespace = ? and slot < ?")) {
+        try (PreparedStatement select = session.prepare(earliestSql)) {
             select.setString(1, namespace);
             select.setInt(2, ns.limit);
             try (ResultSet rs = select.executeQuery()) {
@@ -219,15 +266,13 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
      *
      * @return the lease, or null if the row changed since the read
      */
-    private SlotLease take(JdbcSession session, String namespace, Owner owner, Namespace ns, long ttlMillis, Candidate candidate) throws SQLException {
+    private SlotLease take(JdbcSession session, String namespace, Owner owner, String incarnation, Namespace ns, long ttlMillis, Candidate candidate) throws SQLException {
         long floor = candidate.nextFloor;
         long expiresAt = candidate.storeNow + ttlMillis;
         long ceiling = Math.max(expiresAt + ns.toleranceMillis, floor);
-        try (PreparedStatement update = session.prepare("update " + session.tables().slot() + " set owner_key = ?, incarnation = ?, last_owner_key = ?,"
-            + " fence = ?, expires_at = ?, floor_ms = ?, ceiling_ms = ?, next_floor_ms = ?"
-            + " where namespace = ? and slot = ? and fence = ? and next_floor_ms = ? and " + free)) {
+        try (PreparedStatement update = session.prepare(takeSql)) {
             update.setString(1, owner.key());
-            update.setString(2, owner.incarnation().toString());
+            update.setString(2, incarnation);
             update.setString(3, owner.key());
             update.setLong(4, candidate.fence + 1);
             update.setLong(5, expiresAt);
@@ -242,7 +287,16 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
                 return null;
             }
         }
-        return new SlotLease(namespace, candidate.slot, owner, candidate.fence + 1, expiresAt, floor, ceiling, candidate.storeNow);
+        return SlotLease.builder()
+            .namespace(namespace)
+            .slot(candidate.slot)
+            .owner(owner)
+            .fence(candidate.fence + 1)
+            .expiresAt(expiresAt)
+            .floor(floor)
+            .ceiling(ceiling)
+            .storeNow(candidate.storeNow)
+            .build();
     }
 
     @Override
@@ -250,48 +304,69 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         Objects.requireNonNull(lease, "lease");
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
-        String operation = "renew " + lease.namespace() + "/" + lease.slot();
         long deadline = jdbc.deadline();
-        return jdbc.run(operation, session -> {
+        return jdbc.run("renew", lease.namespace(), lease.slot(), session -> {
+            // The row as the lease saw it last, with only the store clock read (as 4.x reads its server time): the
+            // compare-and-set below matches only if the row still holds exactly these values. When it does not (a
+            // renewal whose response was lost moved it), the row is read in full and the compare-and-set retried.
+            Current current = asLeased(session, lease);
             while (true) {
-                jdbc.checkDeadline(deadline, operation);
-                Current current = current(session, lease);
+                jdbc.checkDeadline(deadline, "renew", lease.namespace(), lease.slot());
                 if (current == null) {
                     return Optional.empty();
                 }
                 long expiresAt = Math.max(current.expiresAt, current.storeNow + ttlMillis);
                 long ceiling = Math.max(current.ceiling, expiresAt + toleranceMillis);
-                try (PreparedStatement update = session.prepare("update " + session.tables().slot() + " set expires_at = ?, ceiling_ms = ?, next_floor_ms = ?"
-                    + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?")) {
+                try (PreparedStatement update = session.prepare(renewSql)) {
                     update.setLong(1, expiresAt);
                     update.setLong(2, ceiling);
                     update.setLong(3, ceiling);
                     bindCurrent(update, 4, lease, current);
                     if (update.executeUpdate() == 1) {
-                        return Optional.of(new SlotLease(lease.namespace(), lease.slot(), lease.owner(), lease.fence(), expiresAt, current.floor, ceiling,
-                            current.storeNow));
+                        return Optional.of(SlotLease.builder()
+                            .namespace(lease.namespace())
+                            .slot(lease.slot())
+                            .owner(lease.owner())
+                            .fence(lease.fence())
+                            .expiresAt(expiresAt)
+                            .floor(current.floor)
+                            .ceiling(ceiling)
+                            .storeNow(current.storeNow)
+                            .build());
                     }
                 }
+                current = current(session, lease);
             }
         });
+    }
+
+    /**
+     * The row as {@code lease} describes it, with the store clock: its expiry, floor and ceiling as of the lease.
+     */
+    private Current asLeased(JdbcSession session, SlotLease lease) throws SQLException {
+        try (PreparedStatement select = session.prepare(storeNowSql)) {
+            try (ResultSet rs = select.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("The store clock query returned no row: " + storeNowSql);
+                }
+                return new Current(lease.owner().incarnation().toString(), lease.expiresAt(), lease.floor(), lease.ceiling(), rs.getLong(1));
+            }
+        }
     }
 
     @Override
     public boolean release(SlotLease lease, long lastIssued) {
         Objects.requireNonNull(lease, "lease");
-        String operation = "release " + lease.namespace() + "/" + lease.slot();
         long deadline = jdbc.deadline();
-        return jdbc.run(operation, session -> {
+        return jdbc.run("release", lease.namespace(), lease.slot(), session -> {
             while (true) {
-                jdbc.checkDeadline(deadline, operation);
+                jdbc.checkDeadline(deadline, "release", lease.namespace(), lease.slot());
                 Current current = current(session, lease);
                 if (current == null) {
                     return false;
                 }
                 long nextFloor = Math.max(current.floor, Math.min(lastIssued, current.ceiling));
-                try (PreparedStatement update = session.prepare("update " + session.tables().slot() + " set owner_key = null, incarnation = null,"
-                    + " expires_at = ?, next_floor_ms = ?, fence = fence + 1"
-                    + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?")) {
+                try (PreparedStatement update = session.prepare(releaseSql)) {
                     update.setLong(1, current.storeNow);
                     update.setLong(2, nextFloor);
                     bindCurrent(update, 3, lease, current);
@@ -308,14 +383,14 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
      * clock of the read.
      */
     private Current current(JdbcSession session, SlotLease lease) throws SQLException {
-        try (PreparedStatement select = session.prepare("select expires_at, floor_ms, ceiling_ms, " + now + " from " + session.tables().slot()
-            + " where namespace = ? and slot = ? and incarnation = ? and fence = ?")) {
+        try (PreparedStatement select = session.prepare(currentSql)) {
             select.setString(1, lease.namespace());
             select.setInt(2, lease.slot());
-            select.setString(3, lease.owner().incarnation().toString());
+            String incarnation = lease.owner().incarnation().toString();
+            select.setString(3, incarnation);
             select.setLong(4, lease.fence());
             try (ResultSet rs = select.executeQuery()) {
-                return rs.next() ? new Current(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)) : null;
+                return rs.next() ? new Current(incarnation, rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)) : null;
             }
         }
     }
@@ -323,7 +398,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     private static void bindCurrent(PreparedStatement update, int from, SlotLease lease, Current current) throws SQLException {
         update.setString(from, lease.namespace());
         update.setInt(from + 1, lease.slot());
-        update.setString(from + 2, lease.owner().incarnation().toString());
+        update.setString(from + 2, current.incarnation);
         update.setLong(from + 3, lease.fence());
         update.setLong(from + 4, current.expiresAt);
         update.setLong(from + 5, current.ceiling);
@@ -333,19 +408,29 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
      * Records the namespace parameters on first use, rejects others, and makes sure its slot rows exist.
      */
     private void ensureNamespace(String namespace, Namespace requested) {
+        if (requested.slotOffset != 0 && !Boolean.TRUE.equals(slotOffsetColumn)) {
+            // Detected again on each such request while missing: another instance's initSchema may have added it.
+            boolean present = jdbc.run("detect " + jdbc.tables.namespace() + "." + SLOT_OFFSET, this::detectSlotOffsetColumn);
+            if (!present) {
+                throw new IllegalStateException("Namespace " + namespace + " has slot offset " + requested.slotOffset + ", but " + jdbc.tables.namespace()
+                    + " has no " + SLOT_OFFSET + " column (a table of 5.0.0-alpha.1): add it with ["
+                    + jdbc.dialect.addColumn(jdbc.tables.namespace(), SLOT_OFFSET, SLOT_OFFSET_DEFINITION) + "] or set options.initSchema=true");
+            }
+        }
         Namespace known = namespaces.get(namespace);
         if (known == null) {
             known = jdbc.run("prepare namespace " + namespace, session -> {
+                boolean withSlotOffset = hasSlotOffsetColumn(session);
                 boolean inserted;
                 try {
-                    inserted = jdbc.dialect.insertNamespaceIfAbsent(session, namespace, requested.limit, requested.toleranceMillis);
+                    inserted = jdbc.dialect.insertNamespaceIfAbsent(session, namespace, requested.limit, requested.toleranceMillis, requested.slotOffset);
                 } catch (SQLException e) {
                     if (!jdbc.dialect.isDuplicateKey(e)) {
                         throw e;
                     }
                     inserted = false;
                 }
-                Namespace stored = stored(session, namespace);
+                Namespace stored = stored(session, namespace, withSlotOffset);
                 if (stored.equals(requested)) {
                     provision(session, namespace, stored.limit, inserted);
                 }
@@ -356,9 +441,56 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
             }
         }
         if (!known.equals(requested)) {
-            throw new NamespaceMismatchException(namespace, "first used with limit " + known.limit + " and tolerance " + known.toleranceMillis
-                + "ms, now " + requested.limit + " and " + requested.toleranceMillis + "ms");
+            throw new NamespaceMismatchException(namespace, "first used with limit " + known.limit + ", tolerance " + known.toleranceMillis
+                + "ms and slot offset " + known.slotOffset + ", now " + requested.limit + ", " + requested.toleranceMillis + "ms and " + requested.slotOffset);
         }
+    }
+
+    /**
+     * Whether {@code cosid_namespace} has {@link #SLOT_OFFSET}, detected on first use and then remembered.
+     */
+    private boolean hasSlotOffsetColumn(JdbcSession session) throws SQLException {
+        Boolean known = slotOffsetColumn;
+        return known != null ? known : detectSlotOffsetColumn(session);
+    }
+
+    /**
+     * Detects {@link #SLOT_OFFSET} through the metadata and remembers the answer. When the metadata shows no such
+     * table at all (a name it resolves otherwise than the database does), a {@code select} of the column decides, and
+     * the answer is not remembered.
+     */
+    private boolean detectSlotOffsetColumn(JdbcSession session) throws SQLException {
+        String table = session.tables().namespace();
+        Set<String> columns = Jdbc.columns(session.connection(), table);
+        if (columns.isEmpty()) {
+            try (PreparedStatement select = session.prepare("select " + SLOT_OFFSET + " from " + table + " where 1 = 0")) {
+                select.executeQuery().close();
+                return true;
+            } catch (SQLException e) {
+                return false;
+            }
+        }
+        boolean present = columns.contains(SLOT_OFFSET);
+        slotOffsetColumn = present;
+        return present;
+    }
+
+    /**
+     * {@code options.initSchema}, after the {@code create table if not exists} statements: adds {@link #SLOT_OFFSET}
+     * to a {@code cosid_namespace} of 5.0.0-alpha.1 ({@link JdbcDialect#addColumn}), its rows reading 0. Idempotent;
+     * when a concurrent {@code initSchema} added the column first, its failure is ignored.
+     */
+    void addMissingColumns(JdbcSession session) throws SQLException {
+        if (!detectSlotOffsetColumn(session)) {
+            try (PreparedStatement alter = session.prepare(jdbc.dialect.addColumn(session.tables().namespace(), SLOT_OFFSET, SLOT_OFFSET_DEFINITION))) {
+                alter.execute();
+            } catch (SQLException e) {
+                if (!detectSlotOffsetColumn(session)) {
+                    throw e;
+                }
+            }
+        }
+        slotOffsetColumn = Boolean.TRUE;
     }
 
     /**
@@ -386,14 +518,16 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         }
     }
 
-    private static Namespace stored(JdbcSession session, String namespace) throws SQLException {
-        try (PreparedStatement select = session.prepare("select slot_limit, tolerance_ms from " + session.tables().namespace() + " where namespace = ?")) {
+    private static Namespace stored(JdbcSession session, String namespace, boolean withSlotOffset) throws SQLException {
+        try (PreparedStatement select = session.prepare("select slot_limit, tolerance_ms" + (withSlotOffset ? ", " + SLOT_OFFSET : "") + " from "
+            + session.tables().namespace() + " where namespace = ?")) {
             select.setString(1, namespace);
             try (ResultSet rs = select.executeQuery()) {
                 if (!rs.next()) {
                     throw new SQLException("Namespace " + namespace + " is missing from " + session.tables().namespace() + " right after its insert");
                 }
-                return new Namespace(rs.getInt(1), rs.getLong(2));
+                // A table without the column holds offset 0, its default; so does a null of a column added without one.
+                return new Namespace(rs.getInt(1), rs.getLong(2), withSlotOffset ? rs.getInt(3) : 0);
             }
         }
     }
@@ -429,10 +563,11 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
                              long nextFloor, boolean free, long storeNow) {
     }
 
-    private record Namespace(int limit, long toleranceMillis) {
+    private record Namespace(int limit, long toleranceMillis, int slotOffset) {
     }
 
-    private record Current(long expiresAt, long floor, long ceiling, long storeNow) {
+    /** The row of a lease; {@code incarnation} is the lease's, as text, converted once per call. */
+    private record Current(String incarnation, long expiresAt, long floor, long ceiling, long storeNow) {
     }
 
 }

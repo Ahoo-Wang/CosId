@@ -25,6 +25,12 @@ import java.util.OptionalLong;
  * which still holds the row lock of the merge.
  */
 final class H2Dialect implements JdbcDialect {
+    private final TableSql mergeSql = new TableSql(tables -> "merge into " + tables.range() + " r using (values (cast(? as varchar(255)))) k(range_key)"
+        + " on r.range_key = k.range_key"
+        + " when matched and not r.sealed and r.next_value <= ? then update set next_value = r.next_value + ?"
+        + " when not matched then insert (range_key, next_value) values (k.range_key, ?)");
+    private final TableSql nextSql = new TableSql(tables -> "select next_value from " + tables.range() + " where range_key = ?");
+
     @Override
     public String name() {
         return "h2";
@@ -47,13 +53,10 @@ final class H2Dialect implements JdbcDialect {
 
     @Override
     public OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
-        String range = session.tables().range();
+        JdbcTables tables = session.tables();
         return session.transaction(() -> {
             int updated;
-            try (PreparedStatement merge = session.prepare("merge into " + range + " r using (values (cast(? as varchar(255)))) k(range_key)"
-                + " on r.range_key = k.range_key"
-                + " when matched and not r.sealed and r.next_value <= ? then update set next_value = r.next_value + ?"
-                + " when not matched then insert (range_key, next_value) values (k.range_key, ?)")) {
+            try (PreparedStatement merge = session.prepare(mergeSql.of(tables))) {
                 merge.setString(1, key);
                 merge.setLong(2, Long.MAX_VALUE - size);
                 merge.setLong(3, size);
@@ -63,7 +66,7 @@ final class H2Dialect implements JdbcDialect {
             if (updated == 0) {
                 return OptionalLong.empty();
             }
-            try (PreparedStatement select = session.prepare("select next_value from " + range + " where range_key = ?")) {
+            try (PreparedStatement select = session.prepare(nextSql.of(tables))) {
                 select.setString(1, key);
                 try (ResultSet rs = select.executeQuery()) {
                     rs.next();

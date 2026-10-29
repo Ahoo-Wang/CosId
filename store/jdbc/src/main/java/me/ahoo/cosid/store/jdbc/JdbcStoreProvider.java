@@ -18,6 +18,7 @@ import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
 
 import java.util.Map;
+import java.util.Set;
 import javax.sql.DataSource;
 
 /**
@@ -28,8 +29,11 @@ import javax.sql.DataSource;
  * <ul>
  *     <li>{@code dialect}: the dialect name ({@code mysql}, {@code mariadb}, {@code postgresql}, {@code sqlserver},
  *     {@code h2} or one registered as a {@link JdbcDialect}); detected from the database by default;</li>
- *     <li>{@code initSchema}: create the tables that are missing, false by default;</li>
- *     <li>{@code rangeTable}, {@code slotTable}, {@code namespaceTable}: the table names ({@link JdbcTables}).</li>
+ *     <li>{@code initSchema}: create the tables that are missing, and the columns and indexes that tables of an
+ *     earlier 5.0 pre-release lack, false by default;</li>
+ *     <li>{@code rangeTable}, {@code slotTable}, {@code namespaceTable}: the table names ({@link JdbcTables});</li>
+ *     <li>{@code fetchPlan}: {@code statement} (the default) or {@code transaction} behind an SQL proxy or
+ *     read-write splitting ({@link FetchPlan}).</li>
  * </ul>
  * {@code StoreConfig.timeout} is the {@code queryTimeout} of every statement.
  */
@@ -43,6 +47,11 @@ public final class JdbcStoreProvider implements StoreProvider {
     }
 
     @Override
+    public Set<String> options() {
+        return Set.of("url", "username", "password", "dialect", "initSchema", "rangeTable", "slotTable", "namespaceTable", "fetchPlan");
+    }
+
+    @Override
     public Store open(StoreConfig config) {
         Map<String, Object> options = config.options();
         DataSource dataSource = config.client().map(client -> {
@@ -51,13 +60,12 @@ public final class JdbcStoreProvider implements StoreProvider {
             }
             throw new IllegalArgumentException("The client of JDBC store [" + config.name() + "] must be a javax.sql.DataSource, not " + client.getClass().getName());
         }).orElseGet(() -> new DriverManagerDataSource(required(config, "url"), text(options, "username"), text(options, "password")));
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader() == null ? JdbcStoreProvider.class.getClassLoader()
-            : Thread.currentThread().getContextClassLoader();
+        ClassLoader classLoader = JdbcDialects.classLoader();
         String dialectName = text(options, "dialect");
         JdbcDialect dialect = dialectName == null ? JdbcStore.detect(dataSource, classLoader)
             : JdbcDialects.named(dialectName, classLoader).orElseThrow(() -> new IllegalArgumentException(
                 "Unknown JDBC dialect [" + dialectName + "] of store [" + config.name() + "]"));
-        JdbcStore store = new JdbcStore(dataSource, dialect, JdbcTables.of(options), config.timeout());
+        JdbcStore store = new JdbcStore(dataSource, dialect, JdbcTables.of(options), config.timeout(), FetchPlan.of(options.get("fetchPlan")));
         if (Boolean.parseBoolean(text(options, "initSchema"))) {
             store.initSchema();
         }

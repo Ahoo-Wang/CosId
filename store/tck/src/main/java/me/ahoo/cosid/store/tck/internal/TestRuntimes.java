@@ -12,7 +12,7 @@
  */
 
 
-package me.ahoo.cosid.store.tck;
+package me.ahoo.cosid.store.tck.internal;
 
 import me.ahoo.cosid.runtime.CodecSpec;
 import me.ahoo.cosid.runtime.CosIdRuntime;
@@ -30,6 +30,7 @@ import me.ahoo.cosid.segment.PeriodicPolicy;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
+import me.ahoo.cosid.store.tck.InMemoryStore;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeSource;
@@ -37,11 +38,13 @@ import me.ahoo.cosid.time.TimeSource;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 
-/** Runtimes of every strategy on {@link InMemoryStore}s, for the tests of the integrations and other runtime users. */
+/**
+ * Runtimes of every strategy on {@link InMemoryStore}s, for the tests of CosId's own integrations and other runtime users.
+ * <b>Not part of the TCK</b> (R1-tck-01): it may change or go in any release; a store implementation needs the
+ * contracts of {@code me.ahoo.cosid.store.tck} only.
+ */
 public final class TestRuntimes {
     /** Snowflake, decimal. */
     public static final String DEFAULT = "default";
@@ -68,17 +71,26 @@ public final class TestRuntimes {
     }
 
     public static RuntimeSpec spec(String namespace) {
-        return new RuntimeSpec(namespace,
-            Map.of("mem", new StoreSpec("memory", Duration.ofSeconds(1), Map.of())),
-            Optional.of(new MachineSpec.Static(10, 1, Optional.empty(), Duration.ofSeconds(10), Optional.empty())),
-            Map.of(
-                DEFAULT, new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of()),
-                ORDER, new GeneratorSpec.Segment("mem", BatchPolicy.DEFAULT,
-                    List.of(new CodecSpec.Radix(36, 13, false), new CodecSpec.Prefix("O"))),
-                TOKEN, new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62)),
-                BILL, new GeneratorSpec.PeriodicSegment("mem", Period.YEAR_MONTH_DAY, ZoneId.of("Asia/Shanghai"), BatchPolicy.DEFAULT,
-                    PeriodicPolicy.DEFAULT, new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true)))),
-                OFF, new GeneratorSpec.Disabled(new GeneratorSpec.Segment("mem", BatchPolicy.DEFAULT, List.of()))));
+        return RuntimeSpec.builder(namespace)
+            .store("mem", StoreSpec.builder("memory").timeout(Duration.ofSeconds(1)).build())
+            .machine(MachineSpec.Static.builder(1).bits(10).ahead(Duration.ofSeconds(10)).build())
+            .generator(DEFAULT, GeneratorSpec.Snowflake.builder()
+                .layout(Layout.SNOWFLAKE_MS)
+                .regression(ClockRegressionPolicy.DEFAULT)
+                .codec(List.of())
+                .build())
+            .generator(ORDER, GeneratorSpec.Segment.builder("mem")
+                .batch(BatchPolicy.DEFAULT)
+                .codec(List.of(new CodecSpec.Radix(36, 13, false), new CodecSpec.Prefix("O")))
+                .build())
+            .generator(TOKEN, GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build())
+            .generator(BILL, GeneratorSpec.PeriodicSegment.builder("mem", Period.YEAR_MONTH_DAY, ZoneId.of("Asia/Shanghai"))
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true))))
+                .build())
+            .generator(OFF, new GeneratorSpec.Disabled(GeneratorSpec.Segment.builder("mem").batch(BatchPolicy.DEFAULT).codec(List.of()).build()))
+            .build();
     }
 
     public static RuntimeOptions options() {
@@ -93,7 +105,12 @@ public final class TestRuntimes {
                 return new InMemoryStore();
             }
         };
-        return new RuntimeOptions(TimeSource.SYSTEM, Optional.empty(), me.ahoo.cosid.observe.GeneratorListener.NOOP, List.of(memory),
-            Map.of(), HostResolver.LOCAL, OptionalInt.empty(), reference -> Optional.empty());
+        return RuntimeOptions.builder()
+            .time(TimeSource.SYSTEM)
+            .listener(me.ahoo.cosid.observe.GeneratorListener.NOOP)
+            .storeProvider(memory)
+            .hostResolver(HostResolver.LOCAL)
+            .codecs(reference -> Optional.empty())
+            .build();
     }
 }

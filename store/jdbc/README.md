@@ -28,19 +28,35 @@ the data source.
 |---|---|---|
 | `url`, `username`, `password` | | the connection, when there is no `DataSource` client |
 | `dialect` | detected | `mysql`, `mariadb`, `postgresql`, `sqlserver`, `h2` or a registered dialect |
-| `initSchema` | `false` | create the tables that are missing |
+| `initSchema` | `false` | create the tables that are missing, and add `cosid_namespace.slot_offset` and the index `cosid_slot_last_owner_key` to tables of 5.0.0-alpha.1 |
 | `rangeTable`, `slotTable`, `namespaceTable` | `cosid_range`, `cosid_slot`, `cosid_namespace` | table names: identifiers, optionally schema-qualified |
+| `fetchPlan` | `statement` | `transaction` behind an SQL proxy or read-write splitting: a reserve updates and reads its row in one transaction instead of reading a generated key (4.x `fetch-plan`) |
 
-`StoreConfig.timeout` is the `queryTimeout` of every statement, rounded up to seconds (zero: none); a statement that
+`StoreConfig.timeout` is the `queryTimeout` of every statement, rounded up to seconds (it is positive); a statement that
 runs out of it fails with `StoreTimeoutException` (`JdbcDialect.isTimeout`). So does a pool that hands out no connection
 in time (`SQLTransientConnectionException`, SQL state class `08`), and an acquire, renew or release whose
 compare-and-set loop is still losing races when the timeout has passed. In code:
-`JdbcStore.of(dataSource, timeout)`, or `new JdbcStore(dataSource, dialect, tables, timeout)`.
+`JdbcStore.of(dataSource, timeout)`, or `new JdbcStore(dataSource, dialect, tables, timeout[, fetchPlan])`.
 
 ## Schema
 
 `src/main/resources/me/ahoo/cosid/store/jdbc/schema-{mysql,mariadb,postgresql,sqlserver,h2}.sql`, runnable as they
 are for the default names. Rows are never deleted (D23): a sealed range key keeps its value.
+
+`cosid_slot` has an index on `(namespace, last_owner_key)`, named after the slot table (`<slotTable>_last_owner_key`):
+an acquire reads the rows its owner key holds or held last through it instead of scanning the namespace. It came after
+5.0.0-alpha.1; `initSchema` adds it to an older table (`create index … on cosid_slot (namespace, last_owner_key)`), and
+without it acquires still work, scanning.
+
+`cosid_namespace (namespace, slot_limit, tolerance_ms, slot_offset)` records the parameters of a namespace on its first
+use. `slot_offset integer not null default 0` came after 5.0.0-alpha.1, whose `cosid_namespace` lacks it (and
+`create table if not exists` does not add it):
+
+- with `initSchema`, the store adds it (`alter table cosid_namespace add column slot_offset integer not null default 0`;
+  SQL Server: `add slot_offset …`, without `column`); existing namespaces read offset 0;
+- without, the store detects the missing column once (`DatabaseMetaData.getColumns`) and keeps working for slot offset
+  0: the offset reads as 0 and new namespaces are recorded without the column. A slot offset other than 0 then fails
+  with an `IllegalStateException` that names the `alter table` to run.
 
 Keys are exact, as on every other backend: range keys, namespaces and owner keys that differ only in case or in a
 trailing space are different keys. The key columns therefore use binary collations that keep trailing spaces
@@ -51,19 +67,28 @@ let it share the row of the key without it.
 
 ## How it works
 
-- **reserve**: one upsert per reservation that also returns the new value, so one round trip on MySQL / MariaDB
-  (`insert … values (?, last_insert_id(? + ?)) on duplicate key update next_value = last_insert_id(…)`, read from the
-  statement's own OK packet; every branch sets `last_insert_id`, so a value left on a pooled connection is never read),
+- **reserve**: one statement per reservation that also returns the new value, so one round trip on MySQL / MariaDB
+  (`update … set next_value = last_insert_id(next_value + ?)` on an open key; for a new, sealed or full one
+  `insert … values (?, last_insert_id(? + ?)) on duplicate key update next_value = last_insert_id(…)`; each read from
+  the statement's own OK packet; every branch sets `last_insert_id`, so a value left on a pooled connection is never read;
+  without a generated key the store checks the row is sealed or full and otherwise fails, rather than ask the connection),
   PostgreSQL (`on conflict … returning`) and SQL Server (`merge … with (holdlock) … output`); H2 merges and reads in a
   transaction. The update branch stops at `Long.MAX_VALUE` (`RangeExhaustedException`) and at a sealed key
   (`RangeSealedException`).
-- **acquire**: the first use of a namespace records `{limit, tolerance}` and creates its `limit` slot rows. Then one
-  non-locking read returns the candidates (the rows of the owner key, the preferred slot, the first 8 free slots) with
+- **SQL proxies** (as 4.x): a `next_value` below the size cannot be the one the statement wrote, and the reserve fails
+  instead of handing out a range. Behind a proxy that rewrites or loses `last_insert_id`, or with read-write splitting,
+  set `fetchPlan: transaction`: the update and a read of the row in one transaction, one more round trip.
+- **acquire**: the first use of a namespace records `{limit, tolerance, slotOffset}` and creates its `limit` slot
+  rows (the offset does not change the slot choice); another use with other parameters fails with
+  `NamespaceMismatchException`. Then one non-locking read returns the candidates (the rows of the owner key through the `last_owner_key` index, the preferred slot, the first 8 free slots) with
   the store clock, and each step of 05 §2.1 is one auto-commit compare-and-set `update … where namespace = ? and slot =
   ? and fence = ? and next_floor_ms = ? and (free by the store clock)`; 0 rows moves on to the next candidate. After
   losing the lowest free slot to a concurrent acquire, the store picks a random one of the other candidates. Two round
   trips for a new owner.
-- **renew / release**: read the row of the lease, then a compare-and-set on incarnation, fence, expiry and ceiling.
+- **renew**: one read of the store clock (`JdbcDialect.selectNowMillis()`), then a compare-and-set on incarnation, fence
+  and the expiry and ceiling the lease holds; if the row moved since (a renewal whose response was lost), the row is read
+  in full and the compare-and-set retried.
+- **release**: read the row of the lease, then a compare-and-set on incarnation, fence, expiry and ceiling.
 - **store clock**: UTC epoch milliseconds from the database (`utc_timestamp(6)`, `clock_timestamp()`,
   `sysutcdatetime()`, `current_timestamp`); uniqueness does not depend on it (05 §3).
 

@@ -111,7 +111,7 @@ class MongoNamespaceFirstUseTest {
             String namespace = "first-use-" + UUID.randomUUID();
             List<Callable<Object>> calls = new ArrayList<>();
             for (MongoSlotLeaseStore store : newStores()) {
-                calls.add(() -> store.acquire(namespace, new Owner("host", UUID.randomUUID()), limit, TTL, TOLERANCE, OptionalInt.empty()));
+                calls.add(() -> store.acquire(namespace, new Owner("host", UUID.randomUUID()), limit, TTL, TOLERANCE, 0, OptionalInt.empty()));
             }
             List<Object> outcomes = race(calls);
             Set<Integer> slots = new HashSet<>();
@@ -139,7 +139,7 @@ class MongoNamespaceFirstUseTest {
                 MongoSlotLeaseStore store = stores.get(i);
                 int limit = i % 2 == 0 ? 32 : 64;
                 calls.add(() -> {
-                    store.acquire(namespace, new Owner("host", UUID.randomUUID()), limit, TTL, TOLERANCE, OptionalInt.empty());
+                    store.acquire(namespace, new Owner("host", UUID.randomUUID()), limit, TTL, TOLERANCE, 0, OptionalInt.empty());
                     return limit;
                 });
             }

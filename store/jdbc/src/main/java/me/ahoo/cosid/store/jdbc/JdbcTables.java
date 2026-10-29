@@ -29,7 +29,9 @@ import java.util.regex.Pattern;
  */
 public record JdbcTables(String range, String slot, String namespace) {
     private static final Pattern IDENTIFIER = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)?");
-    private static final Pattern DEFAULT_NAMES = Pattern.compile("\\b(cosid_range|cosid_slot|cosid_namespace)\\b");
+    private static final Pattern DEFAULT_NAMES = Pattern.compile("\\b(cosid_range|cosid_slot_last_owner_key|cosid_slot|cosid_namespace)\\b");
+    /** The index of the slot table on {@code (namespace, last_owner_key)} under the default names (R1-jdbc-01). */
+    static final String DEFAULT_LAST_OWNER_INDEX = "cosid_slot_last_owner_key";
     /** The default names: {@code cosid_range}, {@code cosid_slot}, {@code cosid_namespace}. */
     public static final JdbcTables DEFAULT = new JdbcTables("cosid_range", "cosid_slot", "cosid_namespace");
 
@@ -51,6 +53,16 @@ public record JdbcTables(String range, String slot, String namespace) {
     }
 
     /**
+     * The name of the slot table's index on {@code (namespace, last_owner_key)}: the unqualified slot table name with
+     * {@code _last_owner_key}, so that two stores with their own slot tables in one schema have their own indexes.
+     *
+     * @return the index name, {@code cosid_slot_last_owner_key} by default
+     */
+    public String lastOwnerIndex() {
+        return slot.substring(slot.indexOf('.') + 1) + "_last_owner_key";
+    }
+
+    /**
      * Rewrites SQL written for the default names (such as a {@code schema-*.sql} resource) to these names.
      *
      * @param sql the SQL naming {@code cosid_range}, {@code cosid_slot} and {@code cosid_namespace}
@@ -62,6 +74,7 @@ public record JdbcTables(String range, String slot, String namespace) {
         while (matcher.find()) {
             String name = switch (matcher.group(1)) {
                 case "cosid_range" -> range;
+                case DEFAULT_LAST_OWNER_INDEX -> lastOwnerIndex();
                 case "cosid_slot" -> slot;
                 default -> namespace;
             };

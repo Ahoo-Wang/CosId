@@ -17,8 +17,8 @@
 
 Each GROUP_DIR is the --out directory of one run-release (its name is the group's name). OUT receives the joined
 baseline-4x.json and v5.json (and rerun-*.json), report.md (the groups with their runners, then each group's
-comparison), a table of the rows that still fail after their re-run with the phase that owns each, and baseline-4x.md (the 4.1.0 side alone, committed by hand as docs/jmh/4.1.0/release-ci.md). Exits 1 when a
-group failed or is missing its results, 0 otherwise.
+comparison), a table of the rows that still fail after their re-run with the phase that owns each, and baseline-4x.md (the 4.1.1 side alone, committed by hand as docs/jmh/4.1.1/release-ci.md). Exits 1 when a
+group failed, broke its harness (compare status 4) or is missing its results, 0 otherwise.
 """
 
 import json
@@ -65,7 +65,7 @@ def main(argv):
     out, groups = argv[0], sorted(argv[1:], key=os.path.basename)
     os.makedirs(out, exist_ok=True)
     joined = {"baseline-4x": [], "v5": [], "rerun-baseline-4x": [], "rerun-v5": []}
-    summary, sections, failed, still_failing = [], [], 0, []
+    summary, sections, failed, still_failing, still_warning = [], [], 0, [], []
     commits = set()
     for group in groups:
         name = os.path.basename(group.rstrip("/"))
@@ -79,7 +79,11 @@ def main(argv):
         commits.add(machine.get("commit", "?"))
         still_failing += [(name, row) for row in verdict["failed"]]
         rerun = len(verdict["failedFirstRun"])
-        result = "PASS" if verdict["status"] == 0 else f"**FAIL** ({len(verdict['failed'])} rows)"
+        warned = verdict.get("warned", [])
+        still_warning += [(name, row) for row in warned]
+        result = (("PASS" + (f" ({len(warned)} WARN)" if warned else "")) if verdict["status"] == 0
+                  else "**HARNESS ERROR** (no result: see its section)" if verdict["status"] == 4
+                  else f"**FAIL** ({len(verdict['failed'])} rows)")
         failed += verdict["status"] != 0
         summary.append(f"| {name} | {' '.join(verdict['scenarios'])} | {machine.get('cpu', '?')}, {machine.get('cores', '?')} cores "
                        f"| {machine.get('jdk', '?')} | {verdict['rows']} | {rerun} | {result} |")
@@ -93,7 +97,7 @@ def main(argv):
                 file.write("\n")
     first = load(os.path.join(groups[0], "machine.json"), {})
     lines = ["# CosId 5.0 release gate", "",
-             "4.1.0 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`), each scenario group in its own CI job and both sides "
+             "4.1.1 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`), each scenario group in its own CI job and both sides "
              "of a group on the same runner, interleaved per scenario, judged by `benchmark/compare` with the rules of "
              "[10-performance-and-parity.md §1.3](../../architecture/10-performance-and-parity.md). A row that failed "
              "was run again on both sides in fresh forks and passes only if that re-run passes; both runs are shown.", "",
@@ -101,7 +105,16 @@ def main(argv):
              f"{first.get('os', '?')}; {first.get('frequency scaling', '?')}.", "",
              "| Group | Scenarios | Runner | JDK | Rows | Re-run | Result |", "|---|---|---|---|---|---|---|"]
     lines += summary
-    lines += ["", f"**{'FAIL' if failed else 'PASS'}**: {failed} of {len(groups)} groups failed."]
+    lines += ["", f"**{'FAIL' if failed else 'PASS'}**: {failed} of {len(groups)} groups failed"
+              + (f"; {len(still_warning)} component rows WARN (D44, not blocking)." if still_warning else ".")]
+    if still_warning:
+        lines += ["", "## Component rows that WARN (D44)", "",
+                  "Past D34 but within the D44 limits of a component (P9, P10): they do not block the gate, which judges end-to-end "
+                  "ID generation; the change of each is in its group's section.", "",
+                  "| Group | Benchmark | Mode | Threads | Params |", "|---|---|---|---|---|"]
+        for group, row in still_warning:
+            params = ",".join(f"{k}={v}" for k, v in sorted((row.get("params") or {}).items()))
+            lines.append(f"| {group} | {row['benchmark'].removeprefix('me.ahoo.cosid.benchmark.')} | {row['mode']} | {row['threads']} | {params} |")
     if still_failing:
         lines += ["", "## Rows that still fail after their re-run", "",
                   "Each goes to the phase that owns it; the suspected cause is filled in when the row is investigated.", "",
@@ -114,8 +127,8 @@ def main(argv):
     with open(os.path.join(out, "report.md"), "w", encoding="utf-8") as file:
         file.write("\n".join(lines) + "\n")
 
-    # The 4.1.0 side alone: the clean baseline (L1).
-    table = ["# CosId 4.1.0 baseline (release gate)", "",
+    # The 4.1.1 side alone: the clean baseline (L1).
+    table = ["# CosId 4.1.1 baseline (release gate)", "",
              f"The 4.x side of the release gate ({first.get('settings', '?')}, GitHub Actions runners; see "
              "[../5.0/report.md](../5.0/report.md) for each group's runner). Commit "
              f"{', '.join(sorted(commits))}.", "",

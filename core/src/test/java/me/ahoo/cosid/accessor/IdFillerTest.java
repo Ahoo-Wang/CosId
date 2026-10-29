@@ -57,10 +57,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -82,21 +79,30 @@ class IdFillerTest {
                 return new InMemoryStore();
             }
         };
-        BatchPolicy nearIntMax = new BatchPolicy(100, Integer.MAX_VALUE, Duration.ofSeconds(1), 100_000, Duration.ofSeconds(3), Optional.empty());
-        RuntimeSpec spec = new RuntimeSpec("fill", Map.of("db", new StoreSpec("memory", Duration.ofSeconds(1), Map.of())),
-            Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty(), Optional.empty())),
-            Map.of(
-                "default", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()),
-                "order", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of(new CodecSpec.Prefix("O"))),
-                "big", new GeneratorSpec.Segment("db", nearIntMax, List.of()),
-                "token", new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62)),
-                "bill", new GeneratorSpec.PeriodicSegment("db", Period.YEAR, ZoneOffset.UTC, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT,
-                    new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 4, true)))),
-                "first", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()),
-                "off", new GeneratorSpec.Disabled(new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()))));
+        BatchPolicy nearIntMax = BatchPolicy.builder()
+            .step(100)
+            .initialOffset(Integer.MAX_VALUE)
+            .lookahead(Duration.ofSeconds(1))
+            .maxBatch(100_000)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build();
+        RuntimeSpec spec = RuntimeSpec.builder("fill")
+            .store("db", StoreSpec.builder("memory").timeout(Duration.ofSeconds(1)).build())
+            .machine(MachineSpec.Leased.builder("db").bits(10).ttl(Duration.ofSeconds(30)).tolerance(Duration.ofSeconds(1)).build())
+            .generator("default", GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of()).build())
+            .generator("order", GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of(new CodecSpec.Prefix("O"))).build())
+            .generator("big", GeneratorSpec.Segment.builder("db").batch(nearIntMax).codec(List.of()).build())
+            .generator("token", GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build())
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC)
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 4, true))))
+                .build())
+            .generator("first", GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of()).build())
+            .generator("off", new GeneratorSpec.Disabled(GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of()).build()))
+            .build();
         RuntimeOptions defaults = RuntimeOptions.defaults();
-        runtime = CosIdRuntime.start(spec, new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(), List.of(memory),
-            defaults.clients(), defaults.hostResolver(), defaults.port(), defaults.codecs()));
+        runtime = CosIdRuntime.start(spec, defaults.toBuilder().storeProvider(memory).build());
         filler = runtime.filler();
     }
 

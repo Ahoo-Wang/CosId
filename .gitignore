@@ -33,3 +33,7 @@ documentation/docs/public/javadoc/
 
 # Local agent evaluation workspace
 cosid-skills-workspace/
+
+# Python bytecode (benchmark/compare_test.py)
+__pycache__/
+*.pyc

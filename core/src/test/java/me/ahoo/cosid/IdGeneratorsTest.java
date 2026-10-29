@@ -14,6 +14,7 @@
 package me.ahoo.cosid;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -46,9 +47,11 @@ class IdGeneratorsTest {
             assertThat(id >>> 4, is(5L));
         }
         next[0] = Long.MAX_VALUE >>> 3;
-        assertThrows(IllegalStateException.class, ids::generate);
+        IdOverflowException tooLarge = assertThrows(IdOverflowException.class, ids::generate);
+        assertThat(tooLarge.id(), is(Long.MAX_VALUE >>> 3));
+        assertThat(tooLarge.getMessage(), containsString("leaves no room for 4 random bits"));
         next[0] = -1;
-        assertThrows(IllegalStateException.class, ids::generate);
+        assertThat(assertThrows(IdOverflowException.class, ids::generate).id(), is(-1L));
         assertThrows(IllegalArgumentException.class, () -> IdGenerators.uncertain(() -> 1, 0, new Random()));
         assertThrows(IllegalArgumentException.class, () -> IdGenerators.uncertain(() -> 1, 63, new Random()));
     }

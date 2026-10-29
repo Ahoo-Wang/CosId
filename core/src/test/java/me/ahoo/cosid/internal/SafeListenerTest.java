@@ -32,7 +32,16 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 class SafeListenerTest {
-    static final SlotLease LEASE = new SlotLease("app", 1, new Owner("a", UUID.randomUUID()), 1, 10, 0, 11, 5);
+    static final SlotLease LEASE = SlotLease.builder()
+        .namespace("app")
+        .slot(1)
+        .owner(new Owner("a", UUID.randomUUID()))
+        .fence(1)
+        .expiresAt(10)
+        .floor(0)
+        .ceiling(11)
+        .storeNow(5)
+        .build();
 
     static final List<Consumer<GeneratorListener>> EVENTS = List.of(
         l -> l.onRangeReserved("g", "k", new Range(0, 10), Duration.ZERO),

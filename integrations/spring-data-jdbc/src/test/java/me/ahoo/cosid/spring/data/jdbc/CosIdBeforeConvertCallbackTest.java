@@ -24,7 +24,7 @@ import static org.hamcrest.Matchers.startsWith;
 
 import me.ahoo.cosid.accessor.CosId;
 import me.ahoo.cosid.runtime.CosIdRuntime;
-import me.ahoo.cosid.store.tck.TestRuntimes;
+import me.ahoo.cosid.store.tck.internal.TestRuntimes;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

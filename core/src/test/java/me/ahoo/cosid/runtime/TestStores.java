@@ -62,6 +62,11 @@ final class TestStores implements StoreProvider {
         return type;
     }
 
+    @Override
+    public Set<String> options() {
+        return Set.of("wait", "initSchema");
+    }
+
     InMemoryStore backing(String name) {
         return backing.computeIfAbsent(name, n -> new InMemoryStore(storeClock));
     }

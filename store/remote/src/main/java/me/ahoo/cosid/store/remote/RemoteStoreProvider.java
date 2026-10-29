@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Opens {@link RemoteStore}s, type {@value #TYPE} (06-stores.md §1), registered with {@link java.util.ServiceLoader}.
@@ -39,10 +40,16 @@ import java.util.Optional;
 public final class RemoteStoreProvider implements StoreProvider {
     /** The store type. */
     public static final String TYPE = "remote";
+    private static final System.Logger LOG = System.getLogger(RemoteStoreProvider.class.getName());
 
     @Override
     public String type() {
         return TYPE;
+    }
+
+    @Override
+    public Set<String> options() {
+        return Set.of("baseUrl", "token", "connectTimeout", "requestTimeout");
     }
 
     @Override
@@ -57,7 +64,22 @@ public final class RemoteStoreProvider implements StoreProvider {
         Optional<String> token = Optional.ofNullable(config.options().get("token")).map(Object::toString);
         Duration connectTimeout = duration(config, "connectTimeout", RemoteStore.DEFAULT_CONNECT_TIMEOUT);
         Duration requestTimeout = duration(config, "requestTimeout", config.timeout());
-        return new RemoteStore(URI.create(baseUrl.toString().trim()), token, connectTimeout, requestTimeout);
+        URI uri = URI.create(baseUrl.toString().trim());
+        if (token.isPresent() && plainToRemote(uri)) {
+            // R1-remote-03: the bearer token crosses the network in clear text.
+            LOG.log(System.Logger.Level.WARNING, "Remote store [{0}] sends its token over plain http to {1}: use https, or keep cosid-server on a network"
+                + " you trust", config.name(), uri.getHost());
+        }
+        return new RemoteStore(uri, token, connectTimeout, requestTimeout);
+    }
+
+    /** Whether {@code uri} is plain {@code http} to a host other than this machine's loopback, judged by name. */
+    static boolean plainToRemote(URI uri) {
+        if (!"http".equalsIgnoreCase(uri.getScheme())) {
+            return false;
+        }
+        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+        return !(host.equals("localhost") || host.endsWith(".localhost") || host.startsWith("127.") || host.equals("[::1]") || host.equals("::1"));
     }
 
     static Duration duration(StoreConfig config, String name, Duration fallback) {

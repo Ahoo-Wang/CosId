@@ -71,7 +71,7 @@ class RedisScriptEdgeTest {
     }
 
     private static AcquireResult.Acquired acquired(Store store, String namespace, Owner owner, int limit, Duration ttl, OptionalInt preferred) {
-        return assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner, limit, ttl, TOLERANCE, preferred));
+        return assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner, limit, ttl, TOLERANCE, 0, preferred));
     }
 
     @Test
@@ -120,13 +120,30 @@ class RedisScriptEdgeTest {
         String namespace = newKey();
         try (Store store = open(Map.of())) {
             acquired(store, namespace, new Owner("host-a", UUID.randomUUID()), 8, TTL, OptionalInt.empty());
-            assertEquals(Map.of("limit", "8", "tolerance", "1000"), redis.hgetall(RedisStore.namespaceKey(namespace, "meta")));
+            assertEquals(Map.of("limit", "8", "tolerance", "1000", "slotOffset", "0"), redis.hgetall(RedisStore.namespaceKey(namespace, "meta")));
             NamespaceMismatchException grown = assertThrows(NamespaceMismatchException.class,
-                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 16, TTL, TOLERANCE, OptionalInt.empty()));
-            assertTrue(grown.getMessage().contains("limit 8 and tolerance 1000ms, now 16 and 1000ms"), grown.getMessage());
+                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 16, TTL, TOLERANCE, 0, OptionalInt.empty()));
+            assertTrue(grown.getMessage().contains("limit 8, tolerance 1000ms and slot offset 0, now 16, 1000ms and 0"), grown.getMessage());
             assertThrows(NamespaceMismatchException.class,
-                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 4, TTL, TOLERANCE, OptionalInt.empty()));
+                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertEquals(7L, redis.zcard(RedisStore.namespaceKey(namespace, "free")), "a rejected acquire changes nothing");
+        }
+    }
+
+    @Test
+    void alphaOneMetaWithoutSlotOffsetReadsAsZero() {
+        String namespace = newKey();
+        try (Store store = open(Map.of())) {
+            redis.hset(RedisStore.namespaceKey(namespace, "meta"), Map.of("limit", "8", "tolerance", "1000"));
+            for (int slot = 0; slot < 8; slot++) {
+                redis.zadd(RedisStore.namespaceKey(namespace, "free"), slot, Integer.toString(slot));
+            }
+            NamespaceMismatchException shifted = assertThrows(NamespaceMismatchException.class,
+                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 8, TTL, TOLERANCE, 1, OptionalInt.empty()));
+            assertTrue(shifted.getMessage().contains("limit 8, tolerance 1000ms and slot offset 0, now 8, 1000ms and 1"), shifted.getMessage());
+            assertEquals(0, acquired(store, namespace, new Owner("host-a", UUID.randomUUID()), 8, TTL, OptionalInt.empty()).lease().slot());
+            assertEquals(Map.of("limit", "8", "tolerance", "1000"), redis.hgetall(RedisStore.namespaceKey(namespace, "meta")),
+                "an alpha.1 meta is left as it is");
         }
     }
 
@@ -179,6 +196,24 @@ class RedisScriptEdgeTest {
     }
 
     @Test
+    void aSlotRowWithFieldsOfALaterVersionIsReadAndWrittenBackWithItsOwn() {
+        String namespace = newKey();
+        try (Store store = open(Map.of())) {
+            SlotLease lease = acquired(store, namespace, new Owner("host-a", UUID.randomUUID()), 2, TTL, OptionalInt.empty()).lease();
+            String slotKey = RedisStore.namespaceKey(namespace, "slot");
+            String slot = Integer.toString(lease.slot());
+            // R1-redis-01: a later version appends fields; this one reads the first 8 and ignores the rest.
+            redis.hset(slotKey, slot, redis.hget(slotKey, slot) + "|9|later");
+            SlotLease renewed = store.slots().renew(lease, TTL, TOLERANCE).orElseThrow();
+            assertEquals(lease.fence(), renewed.fence());
+            assertEquals(lease.floor(), renewed.floor());
+            // It writes the row back with the 8 fields it knows: why an appended field must be safe to lose.
+            assertEquals(8, redis.hget(slotKey, slot).split("\\|", -1).length);
+            assertTrue(store.slots().release(renewed, renewed.floor()));
+        }
+    }
+
+    @Test
     void renewOfASweptLeaseMakesItLiveAgain() {
         String namespace = newKey();
         Owner owner = new Owner("host-a", UUID.randomUUID());
@@ -193,7 +228,7 @@ class RedisScriptEdgeTest {
             assertEquals(lease.fence(), renewed.fence(), "nobody took it over");
             assertEquals(0L, redis.zcard(RedisStore.namespaceKey(namespace, "free")));
             assertInstanceOf(AcquireResult.Exhausted.class,
-                store.slots().acquire(namespace, new Owner("host-c", UUID.randomUUID()), 2, TTL, TOLERANCE, OptionalInt.empty()));
+                store.slots().acquire(namespace, new Owner("host-c", UUID.randomUUID()), 2, TTL, TOLERANCE, 0, OptionalInt.empty()));
         }
     }
 
@@ -243,8 +278,26 @@ class RedisScriptEdgeTest {
             SlotLease c = acquired(store, namespace, new Owner("host-c", UUID.randomUUID()), 1, TTL, OptionalInt.empty()).lease();
             assertEquals(b.floor(), c.floor());
             assertFalse(store.slots().release(b, 0), "a stale fence");
-            assertTrue(store.slots().renew(new SlotLease("missing-" + namespace, 0, c.owner(), c.fence(), 0, 0, 0, 0), TTL, TOLERANCE).isEmpty());
-            assertFalse(store.slots().release(new SlotLease("missing-" + namespace, 0, c.owner(), c.fence(), 0, 0, 0, 0), 0));
+            assertTrue(store.slots().renew(SlotLease.builder()
+                .namespace("missing-" + namespace)
+                .slot(0)
+                .owner(c.owner())
+                .fence(c.fence())
+                .expiresAt(0)
+                .floor(0)
+                .ceiling(0)
+                .storeNow(0)
+                .build(), TTL, TOLERANCE).isEmpty());
+            assertFalse(store.slots().release(SlotLease.builder()
+                .namespace("missing-" + namespace)
+                .slot(0)
+                .owner(c.owner())
+                .fence(c.fence())
+                .expiresAt(0)
+                .floor(0)
+                .ceiling(0)
+                .storeNow(0)
+                .build(), 0));
         }
     }
 }

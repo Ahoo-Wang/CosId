@@ -14,16 +14,28 @@
 package me.ahoo.cosid;
 
 /**
- * A namespace was first used with another slot limit or tolerance (06-stores.md §1).
+ * A namespace was first used with another slot limit, tolerance or slot offset (06-stores.md §1): every client of a
+ * namespace must use the same {@code bits}, {@code tolerance} and {@code slotOffset}.
  */
 public class NamespaceMismatchException extends CosIdException {
     private final String namespace;
 
+    /**
+     * Creates the exception.
+     *
+     * @param namespace the namespace
+     * @param detail    what the namespace records and what was asked for
+     */
     public NamespaceMismatchException(String namespace, String detail) {
         super("Namespace [" + namespace + "] mismatch: " + detail);
         this.namespace = namespace;
     }
 
+    /**
+     * The namespace whose metadata differs.
+     *
+     * @return the namespace
+     */
     public String namespace() {
         return namespace;
     }

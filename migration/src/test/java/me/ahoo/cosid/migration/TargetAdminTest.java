@@ -19,6 +19,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import me.ahoo.cosid.NamespaceMismatchException;
 import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.migration.target.NamespaceState;
@@ -80,27 +81,49 @@ class TargetAdminTest {
         try (TargetAdmin admin = Targets.open(store.location()); Store store5 = store.open5()) {
             assertThat(admin.namespace(ns), is(Optional.empty()));
             long w1 = admin.now() + 5_000;
-            NamespaceState prepared = admin.prepare(ns, 16, 1000, w1);
+            NamespaceState prepared = admin.prepare(ns, 16, 1000, 0, w1);
             assertThat(prepared.slots(), is(16));
             assertThat(prepared.minNextFloor(), is(w1));
-            assertThat("a lower W changes nothing", admin.prepare(ns, 16, 1000, w1 - 1000).minNextFloor(), is(w1));
-            IllegalStateException mismatch = assertThrows(IllegalStateException.class, () -> admin.prepare(ns, 32, 1000, w1));
+            assertThat("a lower W changes nothing", admin.prepare(ns, 16, 1000, 0, w1 - 1000).minNextFloor(), is(w1));
+            IllegalStateException mismatch = assertThrows(IllegalStateException.class, () -> admin.prepare(ns, 32, 1000, 0, w1));
             assertThat(mismatch.getMessage(), containsString("recorded with limit 16"));
 
             AcquireResult.Acquired first = (AcquireResult.Acquired) store5.slots().acquire(ns, new Owner("a", UUID.randomUUID()), 16,
-                Duration.ofMillis(300), Duration.ofSeconds(1), OptionalInt.of(3));
+                Duration.ofMillis(300), Duration.ofSeconds(1), 0, OptionalInt.of(3));
             assertThat(first.lease().floor(), is(w1));
-            IllegalStateException live = assertThrows(IllegalStateException.class, () -> admin.prepare(ns, 16, 1000, w1));
+            IllegalStateException live = assertThrows(IllegalStateException.class, () -> admin.prepare(ns, 16, 1000, 0, w1));
             assertThat(live.getMessage(), containsString("live slot lease"));
 
             // The holder dies; the next migration raises the slot it held, which stays free.
             Thread.sleep(400);
             long w2 = first.lease().ceiling() + 60_000;
-            assertThat(admin.prepare(ns, 16, 1000, w2).minNextFloor(), greaterThanOrEqualTo(w2));
+            assertThat(admin.prepare(ns, 16, 1000, 0, w2).minNextFloor(), greaterThanOrEqualTo(w2));
             AcquireResult.Acquired second = (AcquireResult.Acquired) store5.slots().acquire(ns, new Owner("b", UUID.randomUUID()), 16,
-                Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.of(3));
+                Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.of(3));
             assertThat(second.lease().slot(), is(3));
             assertThat(second.lease().floor(), greaterThanOrEqualTo(w2));
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(TestBackend.class)
+    void theSlotOffsetIsWhatTheStoreRecords(TestBackend backend) {
+        // api-freeze.md §2.5.1: the migration writes the metadata 5.0 compares on every acquire.
+        TestBackend.Store store = backend.store();
+        String ns = namespace();
+        try (TargetAdmin admin = Targets.open(store.location()); Store store5 = store.open5()) {
+            long w = admin.now() + 5_000;
+            NamespaceState prepared = admin.prepare(ns, 16, 1000, 512, w);
+            assertThat(prepared.slotOffset(), is(512));
+            assertThat(admin.namespace(ns).orElseThrow().slotOffset(), is(512));
+            assertThat("idempotent", admin.prepare(ns, 16, 1000, 512, w).slotOffset(), is(512));
+            IllegalStateException mismatch = assertThrows(IllegalStateException.class, () -> admin.prepare(ns, 16, 1000, 0, w));
+            assertThat(mismatch.getMessage(), containsString("slot offset 512"));
+            assertThrows(NamespaceMismatchException.class, () -> store5.slots().acquire(ns, new Owner("a", UUID.randomUUID()), 16,
+                Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
+            AcquireResult.Acquired acquired = (AcquireResult.Acquired) store5.slots().acquire(ns, new Owner("a", UUID.randomUUID()), 16,
+                Duration.ofSeconds(30), Duration.ofSeconds(1), 512, OptionalInt.empty());
+            assertThat(acquired.lease().floor(), greaterThanOrEqualTo(w));
         }
     }
 }

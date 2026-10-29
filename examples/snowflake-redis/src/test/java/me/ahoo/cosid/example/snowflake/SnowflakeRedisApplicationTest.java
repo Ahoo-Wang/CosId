@@ -97,7 +97,7 @@ class SnowflakeRedisApplicationTest {
     void healthReportsTheLease() throws Exception {
         JsonNode health = get("/actuator/health");
         assertEquals("UP", health.path("status").asString(), health::toString);
-        JsonNode cosid = health.at("/components/cosId");
+        JsonNode cosid = health.at("/components/cosid");
         assertEquals("UP", cosid.path("status").asString(), health::toString);
         assertThat(get("/actuator/cosid").size(), greaterThanOrEqualTo(3));
     }

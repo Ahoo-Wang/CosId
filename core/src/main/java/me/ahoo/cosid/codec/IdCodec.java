@@ -22,6 +22,14 @@ import java.util.Objects;
  * into text and the rest decorating that text, such as {@link #withPrefix(String)}.
  */
 public interface IdCodec {
+    /**
+     * Encodes an id (R1-core-16).
+     *
+     * @param id the id
+     * @return the text, never null
+     * @throws IllegalArgumentException if the codec cannot encode {@code id}: one outside its range, such as a negative
+     *                                  id, or one wider than the digits of a fixed-width radix; a codec never truncates
+     */
     String encode(long id);
 
     /**

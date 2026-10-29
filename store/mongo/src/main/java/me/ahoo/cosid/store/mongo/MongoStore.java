@@ -114,8 +114,8 @@ public final class MongoStore implements Store {
         Objects.requireNonNull(database, "database");
         Objects.requireNonNull(timeout, "timeout");
         Objects.requireNonNull(writeConcern, "writeConcern");
-        if (timeout.isNegative()) {
-            throw new IllegalArgumentException("timeout must not be negative: " + timeout);
+        if (timeout.isNegative() || timeout.isZero()) {
+            throw new IllegalArgumentException("timeout must be positive: " + timeout);
         }
         if (!writeConcern.isAcknowledged()) {
             throw new IllegalArgumentException("the write concern must be acknowledged: " + writeConcern);

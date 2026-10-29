@@ -40,5 +40,5 @@
 ## Getting more detail
 
 - `GET /actuator/cosid` shows each generator's layout, slot, window, batch and ids held.
-- `GET /actuator/health/cosId` shows the lease, the window left and the last renewal error.
+- `GET /actuator/health/cosid` shows the lease, the window left and the last renewal error.
 - Set the logger `me.ahoo.cosid` to `DEBUG`.

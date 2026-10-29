@@ -1,6 +1,6 @@
 # RC1 API 冻结设计
 
-> 状态:**已审,按协调会话结论定稿**(2026-10-28,基于 `main` @ `5021602e`;§12 第 5 项改为 RC 前纳入 `slotOffset`)。只定设计,不改代码;实现按 §10 一次一个 PR。
+> 状态:**已审,按协调会话结论定稿**(2026-10-28,基于 `main` @ `5021602e`;§12 第 5 项改为 RC 前纳入 `slotOffset`)。只定设计,不改代码;实现按 §10 一次一个 PR,PR1–PR5 已合入(#1372–#1376),文档为 PR6。
 > 输入:README D36–D38;[ga-review.md](ga-review.md) §2、§3、§3.1、§4 与各模块"触及冻结面"的条目。
 > 决策表的新增或修改见 §11,由协调会话转录进 README;本文件不改 README、rc-review、roadmap。
 > 设计细节同步进 [03](03-core-model.md)、[05](05-machine-lease.md)、[07](07-runtime-and-spring.md)、[09](09-migration.md)、[11](11-feature-parity.md)。
@@ -259,8 +259,9 @@ cosid.generators.cosid:            # 或 cosid80(已有命名规则)
 **`plan`/`apply`**:共享命名空间是多个服务共用的,只准备一次(第二次会覆盖已经发出的 5.0 槽位)。
 
 1. **共享命名空间单独迁移一次**:`plan/apply --namespace <global>`,该命名空间只有机器号记录、没有号段 key,工具只做 M2。
-   - `plan` 从 4.x 机器号记录读出该命名空间**出现过的最大机器号** `M`(含已过期与 stable 的记录),推荐 `slotOffset = roundUpToPowerOfTwo(M + 1)`(没有记录时为 0),
-     并校验 `slotOffset + 2^bits ≤ 2^nodeBits`(nodeBits 取 `--layout-config` 中 4.x CosIdGenerator 的 `machine-bit`)。
+   - `plan` 从 4.x 机器号记录读出该命名空间**出现过的最大机器号** `M`(含已过期与 stable 的记录),默认 `slotOffset = 2^nodeBits − 2^bits`
+     (5.0 槽位放在节点空间顶端,4.x 余量最大),报告并在 `plan.json` 记录 `headroom = offset − (M + 1)`,低于 `2^bits` 时升级为醒目警告;
+     4.x 硬上限 `2^(cosid.generator.machine-bit)` 等于 `2^nodeBits`,所以 `guaranteed` 实际为 false(仅当 offset ≥ 该上限时为 true)。并校验 `offset > M` 与 `slotOffset + 2^bits ≤ 2^nodeBits`(nodeBits 取 `--layout-config` 中 4.x CosIdGenerator 的 `machine-bit`)。
    - 报告给出两种做法,由 `apply --slot-offset` 选择(默认取推荐值):
      - **滚动迁移**(`slotOffset > 0`,推荐):不要求 4.x 停止,不做静止观察;各服务逐个把 cosid80 切到 5.0,4.x 与 5.0 同时在线。
      - **一次性切换**(`--slot-offset 0`):沿用原规则,静止观察覆盖所有共享它的服务,它们必须都已停止。
@@ -273,7 +274,7 @@ cosid.generators.cosid:            # 或 cosid80(已有命名规则)
 
 - 5.0 一侧由 §2.2 第 5 条与元数据比对保证。
 - 4.x 一侧靠操作约束:4.x 分配器按"最小空闲机器号"分配,所以 4.x 的机器号上限约等于 4.x 同时在线实例的峰值。迁移期间**不能扩容 4.x**到 `slotOffset` 个以上实例(含 surge);
-  `M + 1` 向上取整到 2 的幂留出了余量,报告写明这一点,`verify` 负责事后检查。需要更多余量时用 `--slot-offset` 手工指定更大的 2 的幂。
+  默认偏移把余量做到最大,报告给出 headroom,`verify` 负责事后检查。
 - M2 的变化:有偏移时,4.x 与 5.0 时间段重叠也不会重号,所以不要求停机、不做静止观察;W 照样写入,防止偏移配置错误时退化为重号。
 
 一次性切换(偏移 0)仍然可用,适合 4.x 实例很少或节点位很紧的部署。09 §4.2 同步。
@@ -436,7 +437,7 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 | R1-spring-06 指标基数 | **RC 前改** | `cosid.segment.reserve`、`cosid.segment.refill.failures` 去掉 `key` 标签,只留 `name`(普通号段的 key 等于 `namespace/name`,本来就冗余;周期号段每期一个 key 会无界增长) |
 | `cosid.metrics.generated`(§6.9) | **RC 前改** | 改为 `cosid.metrics.generated.enabled`(默认 false),与 4.x 同名;迁移 `config` 直接照抄。布尔值以后无法加子属性 |
 | R1-spi-04 / R1-spi-05 `StoreConfig` | RC 前改 | 并入 §4(builder,`timeout` 必须为正,删去 0 = 无超时的分支与 JDBC README 中的说法) |
-| R1-spi-01 / 02 / 03、R1-spring-01、R1-jdbc-01 / 07、R1-redis-01、R1-mongo-01、R1-remote-01、R1-tck-01 | 归 **WP-store-contract** | 不在本设计范围;与本设计的交点只有 `StoreConfig`(§4.2)。WP-store-contract 在 `StoreConfig` builder 之上实现选项键规范化与未知键校验 |
+| R1-spi-01 / 02 / 03、R1-spring-01、R1-jdbc-01 / 07、R1-redis-01、R1-mongo-01、R1-remote-01、R1-tck-01 | 归 **WP-store-contract** | 不在本设计范围;与本设计的交点只有 `StoreConfig`(§4.2)。WP-store-contract 在 `StoreConfig` builder 之上实现选项键规范化与未知键校验。**已实现(R1-spi-01/02/04、R1-spring-01)**:`StoreProvider.options()` + `StoreOptions`(忽略大小写、`-`、`_` 对应声明的键,未知键启动失败);`StoreKeys` 定义可移植的命名空间、名字、range key 与 owner key(06 §1),`RuntimePlan` 启动时校验;`StoreConfig.timeout` 各后端一律为正 |
 | R1-server-01 | 已完成(#1365) | — |
 
 ---
@@ -501,14 +502,14 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 
 ## 10. 推荐的实现拆分(一次一个 PR,顺序依赖)
 
-| PR | 内容 | 依赖 |
-|---|---|---|
-| PR1 `refactor(core)!: evolvable value types` | §4:类型改为 final class + builder,全仓构造调用机械替换;`StoreConfig` timeout 为正;不加任何新字段、不改行为 | — |
-| PR2 `feat(core)!: cosid80 layout, acquire timeout, custom generators` | §1.1、§5、§6、§7 的 R1-core-11/12/17 | PR1 |
-| PR3 `feat(core)!: named machines and slot offset` | §2.1–2.4 的 core 部分;`Leased.slotOffset` 与 §2.5.1(SPI 参数、各后端元数据、remote 协议、TCK、06/08);`CosIdRuntime.slot(name)/machines()/text(name)` | PR2 |
-| PR4 `feat(spring)!: freeze the configuration` | §1.2、§3、§5/§6 的 Spring 键、§7 的 R1-spring-03/05/06 与 `metrics.generated.enabled`、§2.6 的 `cosid.machines` 与指标/健康检查 | PR3 |
-| PR5 `feat(migration): named machine for cosid.generator.namespace` | §1.4、§2.7;09 同步 | PR4 |
-| PR6 `docs: API freeze` | §9(中英文);11 的新行与测试链接 | PR5 |
+| PR | 内容 | 依赖 | 状态 |
+|---|---|---|---|
+| PR1 `refactor(core)!: evolvable value types` | §4:类型改为 final class + builder,全仓构造调用机械替换;`StoreConfig` timeout 为正;不加任何新字段、不改行为 | — | 已合入 #1372(`ba294a5f`) |
+| PR2 `feat(core)!: cosid80 layout, acquire timeout, custom generators` | §1.1、§5、§6、§7 的 R1-core-11/12/17 | PR1 | 已合入 #1373(`7225296a`) |
+| PR3 `feat(core)!: named machines and slot offset` | §2.1–2.4 的 core 部分;`Leased.slotOffset` 与 §2.5.1(SPI 参数、各后端元数据、remote 协议、TCK、06/08);`CosIdRuntime.slot(name)/machines()/text(name)` | PR2 | 已合入 #1374(`a6e91a88`) |
+| PR4 `feat(spring)!: freeze the configuration` | §1.2、§3、§5/§6 的 Spring 键、§7 的 R1-spring-03/05/06 与 `metrics.generated.enabled`、§2.6 的 `cosid.machines` 与指标/健康检查 | PR3 | 已合入 #1375(`8144607a`) |
+| PR5 `feat(migration): named machine for cosid.generator.namespace` | §1.4、§2.7;09 同步 | PR4 | 已合入 #1376(`385d363e`) |
+| PR6 `docs: API freeze` | §9(中英文);11 的新行与测试链接 | PR5 | 本 PR |
 
 PR4 偏大时可拆成 4a(D36/D38/R1-core-02/03 的键与 R1-spring-03/05/06)与 4b(`cosid.machines`、指标与健康检查)。WP-store-contract 可在 PR1 之后与 PR2–PR5 交替进行(只依赖 `StoreConfig` builder)。
 
@@ -517,7 +518,7 @@ PR4 偏大时可拆成 4a(D36/D38/R1-core-02/03 的键与 R1-spring-03/05/06)与
 | 编号 | 决策 | 状态 |
 |---|---|---|
 | D36(补充) | cosid80 的 `epoch`/`unit` 固定(Unix、毫秒),设置即报错;Spring 的 `layout` 默认值按策略;radix 的 `width`/`pad-start` 在 cosid80 上报错;迁移 `config` 写出 4.x 位宽、阈值与 `pad-start` | 待确认 |
-| D37(补充) | 一个运行时内各 machine 的有效命名空间两两不同;machine 名 `default` 保留;只启动被引用的 machine;串行启动、逆序释放,各 machine 按自己的生成器取 `lastIssued`;指标加 `machine` 标签,健康检查按 machine 汇总;`Leased.slotOffset`(默认 0,节点号 = offset + slot,`offset + 2^bits ≤ 2^nodeBits`,记入命名空间元数据 `{limit, tolerance, slotOffset}`,不一致即拒绝,RC 前随 PR3 实现);迁移把 `cosid.generator.namespace` 写成命名 machine `generator`(`bits: 10`,`slot-offset` 默认取 4.x 最大机器号 + 1 向上取整到 2 的幂),共享命名空间单独迁移一次,默认滚动迁移(4.x 与 5.0 共存),可选一次性切换(offset 0) | 已定(协调会话 2026-10-28) |
+| D37(补充) | 一个运行时内各 machine 的有效命名空间两两不同;machine 名 `default` 保留;只启动被引用的 machine;串行启动、逆序释放,各 machine 按自己的生成器取 `lastIssued`;指标加 `machine` 标签,健康检查按 machine 汇总;`Leased.slotOffset`(默认 0,节点号 = offset + slot,`offset + 2^bits ≤ 2^nodeBits`,记入命名空间元数据 `{limit, tolerance, slotOffset}`,不一致即拒绝,RC 前随 PR3 实现);迁移把 `cosid.generator.namespace` 写成命名 machine `generator`(`bits: 10`,`slot-offset` 默认 `2^nodeBits − 2^bits`,即 5.0 槽位放在节点空间顶端,`plan` 报告并记录 headroom `offset − (M + 1)`),共享命名空间单独迁移一次,默认滚动迁移(4.x 与 5.0 共存),可选一次性切换(offset 0) | 已定(协调会话 2026-10-28) |
 | D38(补充) | 解析在自动配置中完成,应用名同样校验命名空间语法 | 待确认 |
 | D39 | 公开值类型的演进:封闭的值(`Range`、`IdParts`、`GroupedId`、`Owner`、`Layout`、`ClockRegressionPolicy`、codec 规格、`Exhausted`、`Disabled`)保留 record;配置与 SPI 值类型改为 final class + builder,GA 后只往 builder 加有默认值的字段;`CosIdProperties` 不属于 API 承诺 | 已定(按推荐,协调会话 2026-10-28) |
 | D40 | sealed 规格接口(`GeneratorSpec`、`MachineSpec`、`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`)次版本可加变体,javadoc 要求 `switch` 保留 `default`;`AcquireResult` 封闭 | 已定(按推荐,协调会话 2026-10-28) |

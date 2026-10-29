@@ -29,7 +29,16 @@ import java.util.UUID;
 final class RecordingListener {
     /** The calls {@link #fire} makes: every event, the batch resize twice. */
     static final int EVENTS = 15;
-    static final SlotLease LEASE = new SlotLease("ns", 3, new Owner("host:1", UUID.randomUUID()), 1, 2_000, 1_000, 3_000, 1_000);
+    static final SlotLease LEASE = SlotLease.builder()
+        .namespace("ns")
+        .slot(3)
+        .owner(new Owner("host:1", UUID.randomUUID()))
+        .fence(1)
+        .expiresAt(2_000)
+        .floor(1_000)
+        .ceiling(3_000)
+        .storeNow(1_000)
+        .build();
 
     private RecordingListener() {
     }

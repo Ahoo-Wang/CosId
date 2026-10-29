@@ -11,7 +11,7 @@
 # limitations under the License.
 #
 
-# The release gate of D21 (10-performance-and-parity.md §1.3): every scenario P1..P12, 4.1.0 against 5.x. Each scenario
+# The release gate of D21 (10-performance-and-parity.md §1.3): every scenario P1..P13, 4.1.1 against 5.x (P13 on 5.x only). Each scenario
 # group is a job of its own; within a job benchmark/run-release runs both sides on the same runner, interleaved per
 # scenario, and re-runs a failed row once in fresh forks (runners are shared machines). The report job joins the groups:
 # the verdict and every group's comparison go to the job summary, the full report with the raw JMH JSON to the
@@ -41,6 +41,7 @@ jobs:
   resolve:
     name: Resolve the commit
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
     steps:
@@ -62,7 +63,7 @@ jobs:
       matrix:
         include:
           - group: snowflake
-            scenarios: P1 P2 P3 P4
+            scenarios: P1 P2 P3 P4 P13
           - group: segment
             scenarios: P5 P6 P8
           - group: codec-filler
@@ -76,10 +77,10 @@ jobs:
             scenarios: RedisChainIdBenchmark RedisStoreBenchmark
             store: redis
           - group: mongo
-            scenarios: MongoStoreBenchmark
+            scenarios: MongoChainIdBenchmark MongoStoreBenchmark
             store: mongo
           - group: zookeeper
-            scenarios: ZookeeperStoreBenchmark
+            scenarios: ZookeeperChainIdBenchmark ZookeeperStoreBenchmark
             store: zookeeper
     env:
       COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
@@ -142,7 +143,8 @@ jobs:
           status=0
           benchmark/run-release "${args[@]}" ${{ matrix.scenarios }} || status=$?
           cat "build/release-gate/${{ matrix.group }}/report.md" >> "$GITHUB_STEP_SUMMARY" || true
-          # The verdict is the report job's: a FAIL row is a result, not a broken job.
+          # The verdict is the report job's: a FAIL row is a result, not a broken job. A harness error (4: a side without
+          # its rows, a JMH <failure>) is a broken job, and fails it.
           [ "$status" -le 1 ]
 
       - name: Upload the results
@@ -169,6 +171,7 @@ jobs:
     needs: [ resolve, gate ]
     if: always() && needs.resolve.result == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v7

@@ -90,10 +90,14 @@ class StoreController {
     @Operation(summary = "Acquires a slot lease (05 §2.1); 409 slots_exhausted with earliestExpiresAt when every slot is held")
     CompletableFuture<ResponseEntity<Object>> acquire(@RequestBody Bodies.AcquireRequest request, @RequestAttribute(Grant.ATTRIBUTE) Grant grant) {
         String namespace = requests.namespace(request.namespace());
-        Owner owner = new Owner(requests.ownerKey(request.ownerKey()), Requests.incarnation(request.incarnation()));
+        final Owner owner = new Owner(requests.ownerKey(request.ownerKey()), Requests.incarnation(request.incarnation()));
         int limit = requests.limit(request.limit());
-        Duration ttl = requests.ttl(request.ttlMs());
-        Duration tolerance = requests.tolerance(request.toleranceMs());
+        final Duration ttl = requests.ttl(request.ttlMs());
+        final Duration tolerance = requests.tolerance(request.toleranceMs());
+        int slotOffset = request.slotOffset() == null ? 0 : request.slotOffset();
+        if (slotOffset < 0) {
+            throw ApiException.badRequest("slotOffset must not be negative: " + slotOffset);
+        }
         OptionalInt preferredSlot = OptionalInt.empty();
         if (request.preferredSlot() != null) {
             if (request.preferredSlot() < 0 || request.preferredSlot() >= limit) {
@@ -104,7 +108,7 @@ class StoreController {
         allowNamespace(grant, namespace);
         OptionalInt preferred = preferredSlot;
         return calls.submit(() -> {
-            AcquireResult result = store.slots().acquire(namespace, owner, limit, ttl, tolerance, preferred);
+            AcquireResult result = store.slots().acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferred);
             if (result instanceof AcquireResult.Acquired acquired) {
                 return ResponseEntity.ok(Bodies.AcquiredBody.of(acquired));
             }
@@ -145,7 +149,16 @@ class StoreController {
         long fence = Requests.required(request.fence(), "fence");
         long floor = request.floor() == null ? 0 : request.floor();
         long ceiling = request.ceiling() == null || request.ceiling() < floor ? floor : request.ceiling();
-        return new SlotLease(namespace, slot, owner, fence, orZero(request.expiresAt()), floor, ceiling, orZero(request.storeNow()));
+        return SlotLease.builder()
+            .namespace(namespace)
+            .slot(slot)
+            .owner(owner)
+            .fence(fence)
+            .expiresAt(orZero(request.expiresAt()))
+            .floor(floor)
+            .ceiling(ceiling)
+            .storeNow(orZero(request.storeNow()))
+            .build();
     }
 
     private static long orZero(Long value) {

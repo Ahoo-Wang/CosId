@@ -46,12 +46,15 @@ public record Layout(Instant epoch, ChronoUnit unit, int timeBits, int nodeBits,
 
 - A layout is validated when built: time 1–63 bits, node 0–31, sequence 1–62, unit `MILLIS` or `SECONDS` (a seconds
   epoch is a whole second).
-- **The node bits must hold the machine slot.** A runtime has one slot in `[0, 2^machine.bits)` (D18); start-up fails
-  unless `layout.nodeBits ≥ machine.bits` for every time-based generator. `JS_SAFE_*` (3 node bits) therefore needs
+- **The node bits must hold the machine slot.** A time-based generator issues with the slot of its machine (the default
+  one, or a [named machine](slot-lease.md#named-machines)), and its node is `slot-offset + slot`; start-up fails unless
+  `slot-offset + 2^bits ≤ 2^nodeBits` for every time-based generator. `JS_SAFE_*` (3 node bits) therefore needs
   `machine.leased.bits: 3` or less.
 - `seqResetThreshold` keeps the 4.x low-bit scattering: a new time unit starts its sequence at a value up to the
   threshold (half the range by default), so ids modulo a small number spread evenly.
 - In Spring, `layout` names a preset and `epoch`, `unit`, `time-bits`, `node-bits`, `seq-bits`, `seq-reset-threshold` override its fields.
+  A `cosid80` generator takes only `COSID_80` and its bit widths and threshold: its epoch is the Unix epoch and its unit
+  milliseconds, and its time and sequence bits fit a `long` together (D36).
 
 ### TimeBasedGenerator
 
@@ -131,6 +134,6 @@ Every codec decodes as well: `codec.decode(text)` returns the id, and `layout.un
 |---|---|
 | `IntegerIdGenerator` | `IdGenerators.toInt(ids)`: an `IntIdGenerator`, `IdOverflowException` past `Integer.MAX_VALUE` |
 | `UncertaintyIdGenerator` | `IdGenerators.uncertain(ids, bits, random)` |
-| `AtomicLongGenerator`, `UuidGenerator` | `IdGenerators.local()`, `IdGenerators.uuid()` |
+| `AtomicLongGenerator`, `UuidGenerator` | `IdGenerators.local()`, `IdGenerators.uuid()` (random v4 text); for ordered UUIDs, the [`uuidv7`](../../reference/config/generators.md#uuidv7) strategy |
 | `LazyIdGenerator` | `IdGenerators.lazy(() -> runtime.generator("order"))` |
 | `SafeJavaScriptSnowflakeId` | `Layout.JS_SAFE_MS` / `JS_SAFE_S` |

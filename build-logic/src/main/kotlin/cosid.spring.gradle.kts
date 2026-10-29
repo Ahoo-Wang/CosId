@@ -13,54 +13,18 @@
 
 // A published library built on Spring Boot (spring/*, integrations, later server; 02-modules.md §5).
 //
-// - The Spring Boot BOM manages this project's build classpaths only: it is never published, so an application keeps
-//   the versions of its own Boot. Dependencies other projects of this build see carry explicit versions instead.
-// - The published metadata requires the versions of the lowest supported Boot (spring-boot-minimum);
-//   checkPublishedMetadata (cosid.library, run by check) fails when a dependency has no version or the BOM leaks into it.
-// - The compatibility matrix: -PspringBootVersion=4.0.8 builds and tests on another Boot (an enforced platform, so a
-//   higher BOM a dependency brings loses); -PtestJavaVersion (cosid.java) runs the tests on another JDK.
+// - The Spring Boot BOM manages this project's build classpaths only (cosid.java): it is never published, so an
+//   application keeps the versions of its own Boot.
+// - The published metadata requires the versions the build resolved under its Boot (cosid.library), the lowest Boot
+//   supported (D49: 4.1.2 and later); checkPublishedMetadata (cosid.library, run by check) fails when a dependency has
+//   no version or the BOM leaks into it.
+// - -PspringBootVersion=4.2.0 builds and tests on another Boot (an enforced platform, so a higher BOM a dependency
+//   brings loses), to probe the next one; -PtestJavaVersion (cosid.java) runs the tests on another JDK.
 plugins {
     id("cosid.library")
 }
 
-val libs = the<VersionCatalogsExtension>().named("libs")
-fun version(name: String) = libs.findVersion(name).get().requiredVersion
-
-fun Configuration.isBuildClasspath() = isCanBeResolved &&
-    (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor")
-
 val springBootVersion = findProperty("springBootVersion")?.toString()
-val managedVersions = configurations.create("managedVersions") {
-    isCanBeConsumed = false
-    isCanBeResolved = false
-}
-val springBootOverride = configurations.create("springBootOverride") {
-    isCanBeConsumed = false
-    isCanBeResolved = false
-}
-configurations.configureEach {
-    if (this != managedVersions && this != springBootOverride && name != "minimumVersions" && isBuildClasspath()) {
-        extendsFrom(managedVersions, springBootOverride)
-    }
-}
-// What the published metadata requires: what runtimeClasspath declares, at the versions of the lowest supported Boot.
-val minimumVersions = configurations.create("minimumVersions") {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-}
-afterEvaluate {
-    val runtimeClasspath = configurations.getByName("runtimeClasspath")
-    minimumVersions.setExtendsFrom(runtimeClasspath.extendsFrom.filter { it != springBootOverride && it != managedVersions })
-}
-dependencies {
-    // -PspringBootVersion replaces the build's Boot rather than competing with it.
-    if (springBootVersion == null) {
-        managedVersions(platform("org.springframework.boot:spring-boot-dependencies:${version("spring-boot")}"))
-    } else {
-        springBootOverride(enforcedPlatform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
-    }
-    minimumVersions(enforcedPlatform("org.springframework.boot:spring-boot-dependencies:${version("spring-boot-minimum")}"))
-}
 if (springBootVersion != null) {
     tasks.withType<Test>().configureEach {
         // Tests that depend on the Spring Boot version check they really run on it.
@@ -68,12 +32,3 @@ if (springBootVersion != null) {
     }
 }
 
-publishing {
-    publications.named<MavenPublication>("mavenLibrary") {
-        versionMapping {
-            allVariants {
-                fromResolutionOf("minimumVersions")
-            }
-        }
-    }
-}

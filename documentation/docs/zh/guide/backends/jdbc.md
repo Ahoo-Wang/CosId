@@ -38,8 +38,9 @@ cosid:
 |---|---|---|
 | `url`、`username`、`password` | | 没有 `DataSource` 时的连接（通过 `DriverManager`，无连接池） |
 | `dialect` | 自动探测 | `mysql`、`mariadb`、`postgresql`、`sqlserver`、`h2`，或已注册方言的名称 |
-| `initSchema` | `false` | 启动时创建缺失的表 |
+| `initSchema` | `false` | 启动时创建缺失的表，并为 5.0.0-alpha.1 的表补上缺少的列与索引 |
 | `rangeTable`、`slotTable`、`namespaceTable` | `cosid_range`、`cosid_slot`、`cosid_namespace` | 表名，可带 schema 限定 |
+| `fetchPlan` | `statement` | 位于 SQL 代理或读写分离之后时设为 `transaction`（对应 4.x 的 `fetch-plan`）：reserve 在同一事务内更新并读取该行，而不读取 generated key |
 
 存储绝不关闭传入的 `DataSource`。代码中：`JdbcStore.of(dataSource, timeout)`。
 
@@ -84,6 +85,8 @@ create table cosid_namespace (
   `on conflict … returning`，SQL Server 使用 `merge … with (holdlock) … output`，H2 在一个事务内 merge 并读取。
   区间为 `[next − size, next)`。已封存的 key 不更新任何行（`RangeSealedException`），超过 `Long.MAX_VALUE`
   时存储抛出 `RangeExhaustedException`。
+- **SQL 代理**（同 4.x）：小于 size 的 `next_value` 不可能是本语句写入的值，reserve 失败而不发出区间；MySQL / MariaDB 上若语句没有返回
+  generated key、而该 key 既未封存也未满，同样失败。位于会改写或丢失 `last_insert_id` 的代理之后、或使用读写分离时，设置 `fetchPlan: transaction`。
 - **acquire**：命名空间首次使用时记录 `{limit, tolerance}` 并创建 `limit` 行槽位。随后一次非锁定读取返回候选槽位
   （该 owner key 的行、preferred 槽位、前几个空闲槽位）及存储时钟。槽位选择的每一步是一次自动提交的比较并交换，
   `update … where namespace = ? and slot = ? and

@@ -31,7 +31,7 @@ from the options and closes it:
 
 | Node | Data |
 |---|---|
-| `/cosid/range/{key}` | the next value as decimal text, `:sealed` appended once sealed; never deleted |
+| `/cosid/range/{key}` | the next value as decimal text, `:sealed` appended once sealed; never deleted, and it **must not be deleted while any store uses the key** (`purge` of the migration tool runs only with every instance stopped): a store compare-and-sets on the version it last wrote, and a node recreated to that version is detected by its `czxid` and refused, but the write itself cannot be taken back |
 | `/cosid/slot/{ns}` | the namespace's `limit` and `tolerance` |
 | `/cosid/slot/{ns}/{slot}` | the slot as `name=value` lines: owner key, incarnation, last owner key, **fence**, ttl, tolerance, floor, expiry and ceiling lower bounds, next floor |
 | `/cosid/slot/{ns}/.clock` | written by each acquire; its `mtime` is the `now` of the expiry check |

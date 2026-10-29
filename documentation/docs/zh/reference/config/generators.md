@@ -1,13 +1,18 @@
 # 配置参考：生成器与编解码器
 
 `cosid.generators.<name>`：每个生成器一项，由 `CosIdProperties.Generator` 绑定。哪些属性适用取决于策略。
-名称不能包含 `/`，`default` 为主 `IdGenerator` Bean（即 4.x 的 share）。
+`default` 为主 `IdGenerator` Bean（即 4.x 的 share）。生成器名与 machine 名只能是每个后端都能存的：不含 `/`、空白，
+不是 `.` 或 `..`，不含控制字符或私用区字符；号段的键 `namespace/name[/period]` 至多 255 个字符。其他名字会让启动失败。
+
+名字可以带点，例如 `eshop-ordering.order`（每个聚合一个生成器）。在 Spring 配置中要写在方括号里，否则点会把名字拆开：
+YAML 写作 `cosid.generators."[eshop-ordering.order]"`，properties 写作 `cosid.generators[eshop-ordering.order].strategy=segment`。
+不加方括号时，启动会因未知键失败，报错信息中给出加方括号的写法。
 
 ## 所有策略
 
 | 属性 | 默认值 | 含义 |
 |---|---|---|
-| `strategy` | | `snowflake`、`cosid80`、`segment` 或 `periodic-segment` |
+| `strategy` | | `snowflake`、`cosid80`、`segment`、`periodic-segment` 或 `custom` |
 | `disabled` | `false` | 已声明但不创建；其 Bean 抛出 `GeneratorDisabledException`（D24） |
 | `codec` | `[]`（十进制） | 编解码器列表，按顺序应用（见下文） |
 
@@ -15,16 +20,76 @@
 
 | 属性 | 默认值 | 含义 |
 |---|---|---|
-| `layout` | `SNOWFLAKE_MS` | snowflake：预设，`SNOWFLAKE_MS`、`SNOWFLAKE_S`、`JS_SAFE_MS` 或 `JS_SAFE_S` |
-| `epoch` | 预设的值 | snowflake：覆盖 epoch（一个 `Instant`，`2019-12-24T16:00:00Z`） |
-| `unit` | 预设的值 | snowflake：`MILLIS` 或 `SECONDS` |
-| `time-bits`、`node-bits`、`seq-bits` | 预设的值 | snowflake：覆盖各段位宽；`node-bits ≥ machine bits` |
-| `seq-reset-threshold` | 预设的值；设置了 `seq-bits` 时为序列范围的一半 | snowflake：新时间单位起始序列的上限（4.x `sequence-reset-threshold`）；取值 `0` 到 `2^seq-bits − 1` |
+| `layout` | snowflake 为 `SNOWFLAKE_MS`；cosid80 为 `COSID_80` | 预设：snowflake 为 `SNOWFLAKE_MS`、`SNOWFLAKE_S`、`JS_SAFE_MS` 或 `JS_SAFE_S`；cosid80 只接受 `COSID_80` |
+| `epoch` | 预设的值 | snowflake：覆盖 epoch（一个 `Instant`，`2019-12-24T16:00:00Z`）；在 cosid80 上报错（固定 Unix epoch） |
+| `unit` | 预设的值 | snowflake：`MILLIS` 或 `SECONDS`；在 cosid80 上报错（固定毫秒） |
+| `time-bits`、`node-bits`、`seq-bits` | 预设的值 | 覆盖各段位宽（cosid80 对应 4.x 的 `timestamp-bit`、`machine-bit`、`sequence-bit`）；`node-bits` 须容纳所选 machine 的 `slot-offset + 2^bits` |
+| `seq-reset-threshold` | 预设的值；设置了 `seq-bits` 时为序列范围的一半 | 新时间单位起始序列的上限（4.x `sequence-reset-threshold`）；取值 `0` 到 `2^seq-bits − 1` |
+| `machine` | `cosid.machine` | ID 所用槽位的命名 machine（`cosid.machines.<name>`） |
 | `regression.borrow-up-to` | `5ms` | 在最后一个时间单位上继续发号所允许的最大时钟回拨 |
 | `regression.wait-up-to` | `1s` | 等待恢复的最大回拨；超出则抛出 `ClockBackwardsException` |
 
-`cosid80` 始终使用 `Layout.COSID_80`（44 位毫秒、20 位节点、16 位序列）；其编解码器为单个 `radix` 或
-`friendly` 项。
+`cosid80` 以 `Layout.COSID_80`（自 Unix epoch 起的 44 位毫秒、20 位节点、16 位序列）为起点，总位数必须大于 63，且 `time-bits + seq-bits`
+不超过 63。其编解码器为单个项：`radix` 只接受 `radix` 62 或 36（各段宽度由布局决定，设置 `width`、`pad-start` 会报错），或 `friendly`，
+其 `pad-start` 生效（对应 4.x `cosid.generator.pad-start`）。
+
+```yaml
+cosid:
+  generators:
+    token:
+      strategy: cosid80
+      node-bits: 16              # 4.x cosid.generator.machine-bit
+      seq-reset-threshold: 1023  # 4.x cosid.generator.sequence-reset-threshold
+      codec: [ { friendly: { zone: Asia/Shanghai, pad-start: false } } ]
+```
+
+4.x 的 `cosid.generator.namespace`（多个服务共用机器号）对应命名 machine：生成器上的 `machine: <name>` 加
+`cosid.machines.<name>.namespace`（见[基础配置](basic.md)与[跨服务全局唯一](../../guide/concepts/slot-lease.md#跨服务全局唯一)）。
+
+## `custom`
+
+用户提供的 `IdGenerator` Bean（对应 4.x `IdGeneratorProvider.set`）；运行时对外提供它（它的 Bean、`IdFiller`、端点），但不负责关闭它。
+
+| 属性 | 默认值 | 含义 |
+|---|---|---|
+| `ref` | | 必填：Bean 名，不能与任何生成器同名；该 Bean 不能依赖 `CosIdRuntime` |
+
+其 `codec` 规则同 `segment`（不能用 `friendly`，也不能用取自 ID 时间的 `date-prefix`）。
+
+## `uuidv7`
+
+UUIDv7 id（[RFC 9562 §5.7](https://www.rfc-editor.org/rfc/rfc9562#section-5.7)，D46）：48 位 Unix 毫秒时间戳、版本 7、16 位计数器
+（`rand_a` 的 12 位加 `rand_b` 的高 4 位，§6.2 方法 1 允许这样做）、variant `10` 与 58 位随机数。文本为 36 个字符的规范形式，例如 `019a2c5e-3f40-7123-8c4d-2f1e9a7b6c50`；radix 等其他文本编解码器可能在以后的版本中加入。
+
+```yaml
+cosid:
+  generators:
+    order:
+      strategy: uuidv7
+```
+
+它**不需要 machine、存储或租约**：生成器全部为 `uuidv7` 的应用，不配置任何 `cosid.machine.*` 或 `cosid.stores.*` 也能启动。它没有自己的属性；
+配置 `machine` 会让启动失败，其他策略的键（`layout`、`epoch`、`time-bits`、`store`、`period`、`codec` 等）也一样。
+
+- **无需协调即可唯一**：同一实例的 id 不会碰撞（由计数器区分）；不同实例的两个 id 只有在毫秒、计数器取值和 58 位随机数都相同时才会碰撞。
+  每个实例在每毫秒以小于 2¹⁵ 的随机值作为计数起点，因此 m 个实例在同一毫秒内各发 k 个 id 时，该毫秒内的期望碰撞数约为 m²k² / 2⁷⁴。
+  例如 100 个实例、每个每毫秒 1000 个 id（合计每秒 1 亿个），约 60 年才期望出现一次碰撞。
+- **单个生成器实例内有序**：每个 id 都大于前一个，`UUID` 与文本都是如此。计数器在毫秒内从小于 2¹⁵ 的随机起点递增，
+  所以单个实例每毫秒至少能以时钟的时间戳发出 2¹⁵（32768）个 id，约每秒 3300 万个。只有两种情况时间戳会超前于时钟：持续超过这个速率
+  （计数器用尽时借用下一毫秒），以及时钟回拨（沿用上次的时间戳，直到时钟追上）。不同实例或进程的 id 只按毫秒有序。
+- **不是秘密**：随机数取自 `ThreadLocalRandom`，时间戳明文可见。不要把 id 用作令牌或访问凭据。
+
+运行时以 `runtime.text("order")`（以及 `@CosId` 的 `String` 字段）提供文本，以 `runtime.get("order", UuidV7Generator.class)` 提供生成器
+（`UUID generateUuid()`、`String generate()`）；Bean `order` 就是这个生成器。它不发 `long` id：`generator("order")` 和
+`stringGenerator("order")` 会失败，与 `cosid80` 相同。
+
+| | `uuidv7` | `snowflake` | `cosid80` |
+|---|---|---|---|
+| 长度 | 128 位（`UUID`，36 个字符） | 63 位（`long`） | 80 位（文本） |
+| 协调 | 无 | 机器槽位（租约或静态） | 机器槽位（租约或静态） |
+| 唯一性 | 跨实例为概率性（随机计数起点与 58 位随机数） | 由槽位保证 | 由槽位保证 |
+| 有序性 | 实例内有序；跨实例按毫秒有序 | 实例内有序；跨实例按时间单位有序 | 实例内有序；跨实例按毫秒有序 |
+| 适合 | 已经以 UUID 为键的系统、无存储的大量写入方 | `long` 主键、紧凑索引 | 需要保证唯一的文本主键、更多节点 |
 
 ## `segment`
 

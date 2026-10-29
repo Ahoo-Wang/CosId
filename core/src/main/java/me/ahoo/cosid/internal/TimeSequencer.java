@@ -16,6 +16,7 @@ package me.ahoo.cosid.internal;
 import me.ahoo.cosid.ClockBackwardsException;
 import me.ahoo.cosid.SlotLostException;
 import me.ahoo.cosid.SlotWindowExceededException;
+import me.ahoo.cosid.TimeOverflowException;
 import me.ahoo.cosid.lease.SlotBinding;
 import me.ahoo.cosid.lease.SlotHandle;
 import me.ahoo.cosid.observe.GeneratorListener;
@@ -90,6 +91,8 @@ public final class TimeSequencer {
 
     /** Under {@link #lock}: the slot of the state an attempt published. */
     private int issuedSlot;
+    /** Added to the slot to give the node of the ids (the slot offset of a leased machine, api-freeze.md §2.1.1). */
+    private final int nodeOffset;
     /** Under {@link #lock}: the first detail of an attempt's outcome (milliseconds to wait, or the window timestamp). */
     private long outcomeMillis;
     /** Under {@link #lock}: whether the last id was issued on a borrowed time unit, ahead of the clock. */
@@ -109,9 +112,29 @@ public final class TimeSequencer {
      */
     public TimeSequencer(String name, Layout layout, SlotHandle slot, TimeSource time, ClockRegressionPolicy regression,
                          GeneratorListener listener) {
+        this(name, layout, slot, 0, time, regression, listener);
+    }
+
+    /**
+     * A sequencer whose node is the slot plus an offset (api-freeze.md §2.1.1).
+     *
+     * @param name       the generator name
+     * @param layout     the id layout
+     * @param slot       the machine slot
+     * @param nodeOffset added to the slot to give the node of the ids, not negative
+     * @param time       the time source
+     * @param regression the clock regression policy
+     * @param listener   the event listener
+     */
+    public TimeSequencer(String name, Layout layout, SlotHandle slot, int nodeOffset, TimeSource time, ClockRegressionPolicy regression,
+                         GeneratorListener listener) {
+        if (nodeOffset < 0) {
+            throw new IllegalArgumentException("nodeOffset must not be negative: " + nodeOffset);
+        }
         this.name = name;
         this.layout = layout;
         this.slot = slot;
+        this.nodeOffset = nodeOffset;
         this.time = time;
         this.listener = listener;
         this.epochMillis = layout.epoch().toEpochMilli();
@@ -152,7 +175,7 @@ public final class TimeSequencer {
                 if (detail >= 0) {
                     listener.onClockRegression(name, detail, "borrow");
                 }
-                return (next >>> seqBits) << timeShift | (long) nextSlot << seqBits | next & seqMax;
+                return (next >>> seqBits) << timeShift | (long) (nextSlot + nodeOffset) << seqBits | next & seqMax;
             }
             int event = eventBit(next);
             waitStarted = outsideLock(next, millis, detail, waitStarted, (fired & event) == 0);
@@ -183,7 +206,7 @@ public final class TimeSequencer {
                 if (detail >= 0) {
                     listener.onClockRegression(name, detail, "borrow");
                 }
-                return new IdParts(next >>> seqBits, nextSlot, next & seqMax);
+                return new IdParts(next >>> seqBits, nextSlot + nodeOffset, next & seqMax);
             }
             int event = eventBit(next);
             waitStarted = outsideLock(next, millis, detail, waitStarted, (fired & event) == 0);
@@ -280,9 +303,9 @@ public final class TimeSequencer {
         if (current == TERMINATED) {
             throw closed();
         }
-        if (binding.slot() > maxNode) {
-            throw new IllegalStateException("Slot " + binding.slot() + " does not fit the " + layout.nodeBits()
-                + " node bits of generator [" + name + "]");
+        if ((long) binding.slot() + nodeOffset > maxNode) {
+            throw new IllegalStateException("Slot " + binding.slot() + (nodeOffset == 0 ? "" : " + offset " + nodeOffset) + " does not fit the "
+                + layout.nodeBits() + " node bits of generator [" + name + "]");
         }
         Bound fresh = new Bound(binding, new AtomicLong(INITIAL));
         bound.set(fresh);
@@ -348,10 +371,12 @@ public final class TimeSequencer {
                 borrowed = backwards;
             }
         }
-        if (Long.compareUnsigned(use, maxTime) > 0) {
-            throw use < 0
-                ? new IllegalStateException("The epoch " + layout.epoch() + " of generator [" + name + "] is in the future")
-                : new IllegalStateException("The time " + use + " overflows the " + layout.timeBits() + " time bits of generator [" + name + "]");
+        if (use < 0) {
+            // CosIdRuntime.start rejects an epoch in the future: a clock now before the epoch went back (R1-core-12).
+            return outcome(REGRESSION_FAIL, 0, epochMillis - nowMillis);
+        }
+        if (use > maxTime) {
+            throw new TimeOverflowException(name, use, layout.timeBits());
         }
         long useMillis = toMillis(use);
         if (useMillis <= binding.floor()) {
@@ -363,7 +388,10 @@ public final class TimeSequencer {
             return outcome(WINDOW_EXCEEDED, useMillis, ceiling);
         }
         long next = use << seqBits | seq;
-        current.state.set(next);
+        // A release store, not a volatile one (R1-core-05): the next attempt reads it under the same lock, and the only
+        // reader outside the lock, lastIssuedMillis(), tolerates a stale value until close() or a new binding retires
+        // the state with getAndSet, which is exact.
+        current.state.setRelease(next);
         issuedSlot = binding.slot();
         // One borrow event per regression: the first borrowed id reports it, until an id is issued on the clock again.
         outcomeDetail = borrowed >= 0 && !borrowing ? borrowed : -1;

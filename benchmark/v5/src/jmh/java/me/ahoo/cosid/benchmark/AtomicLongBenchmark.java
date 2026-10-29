@@ -1,0 +1,61 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.cosid.benchmark;
+
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Threads;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+
+/**
+ * The reference of P5 (benchmark/scenarios.md): one shared {@link AtomicLong}, the bound of a segment's hot path, which is
+ * one volatile read and one {@code getAndAdd} on the cursor of the current range. Not judged by {@code compare}: it
+ * reports 4.x and 5.x {@code SegmentBenchmark} as a share of it, at the same threads, on the same runner.
+ */
+@State(Scope.Benchmark)
+@BenchmarkMode(Mode.Throughput)
+@OutputTimeUnit(TimeUnit.MICROSECONDS)
+public class AtomicLongBenchmark {
+    final AtomicLong counter = new AtomicLong();
+
+    @Benchmark
+    @Threads(1)
+    public long generate_t1() {
+        return counter.incrementAndGet();
+    }
+
+    @Benchmark
+    @Threads(4)
+    public long generate_t4() {
+        return counter.incrementAndGet();
+    }
+
+    @Benchmark
+    @Threads(16)
+    public long generate_t16() {
+        return counter.incrementAndGet();
+    }
+
+    @Benchmark
+    @Threads(64)
+    public long generate_t64() {
+        return counter.incrementAndGet();
+    }
+}

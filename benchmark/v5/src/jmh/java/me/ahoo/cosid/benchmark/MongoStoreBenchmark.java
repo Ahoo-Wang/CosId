@@ -75,6 +75,7 @@ public class MongoStoreBenchmark {
         namespace = "p10-" + UUID.randomUUID();
         acquiring = new Owner("acquiring", UUID.randomUUID());
         renewing = ((AcquireResult.Acquired) slots.acquire(namespace, new Owner("renewing", UUID.randomUUID()), LIMIT, TTL, TOLERANCE,
+            0,
             OptionalInt.empty())).lease();
     }
 
@@ -93,7 +94,7 @@ public class MongoStoreBenchmark {
     @Benchmark
     @Threads(1)
     public int acquire_t1() {
-        SlotLease lease = ((AcquireResult.Acquired) slots.acquire(namespace, acquiring, LIMIT, TTL, TOLERANCE, OptionalInt.empty())).lease();
+        SlotLease lease = ((AcquireResult.Acquired) slots.acquire(namespace, acquiring, LIMIT, TTL, TOLERANCE, 0, OptionalInt.empty())).lease();
         slots.release(lease, lease.ceiling());
         return lease.slot();
     }

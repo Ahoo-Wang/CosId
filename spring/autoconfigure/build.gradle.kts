@@ -75,6 +75,8 @@ dependencies {
     testImplementation(libs.flowable.spring)
     testImplementation(libs.flowable.spring.boot.autoconfigure) { isTransitive = false }
     testImplementation(libs.testcontainers)
+    // YAML configuration in the tests, as an application has it (the dotted generator names).
+    testImplementation(libs.snakeyaml)
     // The context's own CuratorFramework and MongoClient beans (CosIdAutoConfigurationTest)
     testImplementation(libs.curator.test)
     testImplementation(libs.testcontainers.mongodb)

@@ -1,8 +1,12 @@
 # MongoDB
 
 `cosid-store-mongo`：基于 `mongodb-driver-sync` 的 `RangeStore` 与 `SlotLeaseStore`。**要求 MongoDB 6.0 或更高版本**（D26），
-部署为**副本集或分片集群**：每个操作都以 `majority` concern 读取，默认也以 `majority` concern 写入。CI 在 6.0 与 8.0 上运行 TCK。
+部署为**副本集**：每个操作都以 `majority` concern 读取，默认也以 `majority` concern 写入。CI 在 6.0 与 8.0 上运行 TCK。
 4.4 与 5.0 通过过一次 TCK，但不承诺支持。
+
+**分片集群未经验证**（没有任何测试经过 `mongos`）。如果使用分片集群，不要对 cosid 的三个集合分片（每个 key、每个槽位只有几行）：
+不分片时它们位于 primary shard 上，每个操作都路由到那里，与副本集相同，存储时钟取该 shard 的时钟。不支持对 `cosid_slot`
+分片：它的 `findOneAndUpdate` 过滤条件不含分片键，MongoDB 7.1 之前会拒绝。
 
 ## 配置
 
@@ -11,7 +15,7 @@ cosid:
   stores:
     mongo:
       type: mongo
-      timeout: 2s            # 驱动的 timeoutMS；0 表示不限
+      timeout: 2s            # 驱动的 timeoutMS，必须为正
       options:
         uri: mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0
         database: cosid_db
@@ -34,7 +38,13 @@ cosid:
 | 集合 | 文档 |
 |---|---|
 | `cosid_range` | `{_id: key, next, sealed}`；使用带 upsert 的 `findOneAndUpdate` 与 pipeline `next = ifNull(next, initialOffset) + size`，过滤条件为 `sealed != true`；E11000（并发 upsert）重试一次 |
-| `cosid_slot` | `{ns, slot, …}`，在 `(ns, slot)` 上建唯一索引，所有槽位预先创建；槽位选择的每一步是一次 `findOneAndUpdate`，其过滤条件用 `$expr` 与 `$$NOW` 判断“空闲”，并带上 fence |
+| `cosid_slot` | `{ns, slot, …}`，在 `(ns, slot)` 上建唯一索引，并在 `(ns, lastOwnerKey)` 上建索引，用于找出某个 owner key 持有或上次持有的槽位；所有槽位预先创建；槽位选择的每一步是一次 `findOneAndUpdate`，其过滤条件用 `$expr` 与 `$$NOW` 判断“空闲”，并带上 fence |
 | `cosid_namespace` | 每个命名空间的 `{limit, toleranceMs}` |
 
 存储时钟是 `$$NOW`。
+
+5.0.0-alpha.1 的 store 还在 `cosid_slot` 上建了索引 `ns_ownerKey`，现在已没有查询用到它。保留它没有坏处；要删除时执行：
+
+```js
+db.cosid_slot.dropIndex("ns_ownerKey")
+```

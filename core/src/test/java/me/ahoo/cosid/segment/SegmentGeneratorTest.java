@@ -66,7 +66,9 @@ class SegmentGeneratorTest {
     }
 
     private static BatchPolicy policy(long step, Duration lookahead, long maxBatch, Duration reserveTimeout, Optional<Duration> rangeTtl) {
-        return new BatchPolicy(step, 0, lookahead, maxBatch, reserveTimeout, rangeTtl);
+        BatchPolicy.Builder policy = BatchPolicy.builder().step(step).initialOffset(0).lookahead(lookahead).maxBatch(maxBatch).reserveTimeout(reserveTimeout);
+        rangeTtl.ifPresent(policy::rangeTtl);
+        return policy.build();
     }
 
     private static BatchPolicy noPrefetch(long step) {
@@ -79,7 +81,13 @@ class SegmentGeneratorTest {
 
     @Test
     void issuesFromInitialOffsetInOrder() {
-        BatchPolicy policy = new BatchPolicy(10, 1000, Duration.ZERO, 10, Duration.ofSeconds(3), Optional.empty());
+        BatchPolicy policy = BatchPolicy.builder()
+            .step(10)
+            .initialOffset(1000)
+            .lookahead(Duration.ZERO)
+            .maxBatch(10)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build();
         try (SegmentGenerator generator = generator(policy, Runnable::run, TimeSource.SYSTEM)) {
             assertThat(store.reserves.get(), is(0));
             for (long expected = 1000; expected < 1025; expected++) {
@@ -101,7 +109,13 @@ class SegmentGeneratorTest {
 
     @Test
     void anExplicitZeroOffsetStartsAtZero() {
-        BatchPolicy fromZero = new BatchPolicy(10, 0, Duration.ZERO, 10, Duration.ofSeconds(3), Optional.empty());
+        BatchPolicy fromZero = BatchPolicy.builder()
+            .step(10)
+            .initialOffset(0)
+            .lookahead(Duration.ZERO)
+            .maxBatch(10)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build();
         try (SegmentGenerator generator = generator(fromZero, Runnable::run, TimeSource.SYSTEM)) {
             assertThat(generator.generate(), is(0L));
         }
@@ -115,6 +129,54 @@ class SegmentGeneratorTest {
                 assertThat(generator.held(), is(0L));
             }
             assertThat(store.reserves.get(), is(50));
+        }
+    }
+
+    @Test
+    void stepOneWithoutLookaheadTakesEachValueFromItsReservationWithoutTheExecutorOrTheClock() {
+        AtomicInteger submitted = new AtomicInteger();
+        AtomicInteger clockReads = new AtomicInteger();
+        TimeSource time = () -> {
+            clockReads.incrementAndGet();
+            return 0;
+        };
+        // R1-core-04 (P6): the caller makes the reservation itself and takes its one value; nothing is queued.
+        try (SegmentGenerator generator = generator(noPrefetch(1), command -> submitted.incrementAndGet(), time)) {
+            for (long expected = 0; expected < 100; expected++) {
+                assertThat(generator.generate(), is(expected));
+            }
+            assertThat(store.reserves.get(), is(100));
+            assertThat(submitted.get(), is(0));
+            assertThat(clockReads.get(), is(0));
+            assertThat(listener.reserved.size(), is(100));
+        }
+    }
+
+    @Test
+    void aCallerThatReservesTakesTheFirstValueAndQueuesTheRest() {
+        AtomicInteger submitted = new AtomicInteger();
+        try (SegmentGenerator generator = generator(noPrefetch(10), command -> submitted.incrementAndGet(), TimeSource.SYSTEM)) {
+            assertThat(generator.generate(), is(0L));
+            assertThat(generator.held(), is(9L));
+            for (long expected = 1; expected < 25; expected++) {
+                assertThat(generator.generate(), is(expected));
+            }
+            assertThat(store.reserved(), contains(new Range(0, 10), new Range(10, 20), new Range(20, 30)));
+            assertThat(generator.held(), is(5L));
+            assertThat(submitted.get(), is(0));
+        }
+    }
+
+    @Test
+    void theValueACallerTakesIsCheckedLikeTheRangeAndWithinItsTtl() {
+        ManualTime time = new ManualTime(0);
+        BatchPolicy policy = policy(1, Duration.ZERO, 1, Duration.ofSeconds(3), Optional.of(Duration.ofSeconds(1)));
+        try (SegmentGenerator generator = generator(policy, Runnable::run, time)) {
+            assertThat(generator.generate(), is(0L));
+            time.advance(5_000);
+            assertThat(generator.generate(), is(1L));
+            store.override = new Range(1, 2);
+            assertThrows(RangeUnavailableException.class, generator::generate);
         }
     }
 
@@ -547,7 +609,13 @@ class SegmentGeneratorTest {
     void aBatchNearLongMaxStillRefills() {
         // batch * MAX_READY_RANGES would wrap negative: the refill must still start, not busy-loop.
         long step = Long.MAX_VALUE / 32;
-        BatchPolicy huge = new BatchPolicy(step, 1, Duration.ofSeconds(1), step, Duration.ofSeconds(3), Optional.empty());
+        BatchPolicy huge = BatchPolicy.builder()
+            .step(step)
+            .initialOffset(1)
+            .lookahead(Duration.ofSeconds(1))
+            .maxBatch(step)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build();
         try (SegmentGenerator generator = generator(huge, Runnable::run, new ManualTime(0))) {
             assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
                 assertThat(generator.generate(), is(1L));

@@ -36,7 +36,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -56,7 +55,7 @@ public class PeriodicSegmentBenchmark {
     @Setup
     public void setup() {
         // The prewarm is the default minute scaled to the day: 1/1440 of it.
-        PeriodicPolicy periodic = new PeriodicPolicy(Duration.ofMillis(Math.max(1, DAY_MILLIS * 60 / 86_400)), Optional.empty());
+        PeriodicPolicy periodic = PeriodicPolicy.builder().prewarm(Duration.ofMillis(Math.max(1, DAY_MILLIS * 60 / 86_400))).build();
         segment = new PeriodicSegmentGenerator("p8", "bench/p8", new AcceleratedDay(DAY_MILLIS), V5.ZONE, new V5.MemoryRangeStore(),
             V5.batch(STEP), periodic, V5.EXECUTOR, TimeSource.SYSTEM, GeneratorListener.NOOP);
     }

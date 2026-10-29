@@ -30,7 +30,7 @@ cosid:
 
 | 节点 | 数据 |
 |---|---|
-| `/cosid/range/{key}` | 下一个值的十进制文本，封存后追加 `:sealed`；永不删除 |
+| `/cosid/range/{key}` | 下一个值的十进制文本，封存后追加 `:sealed`；永不删除，且**在任何 store 使用该 key 期间不得删除**（迁移工具的 `purge` 只能在所有实例停止后运行）：store 会在自己上次写入的版本上直接 CAS，节点被重建到同一版本时会通过 `czxid` 发现并拒绝，但这次写入本身无法撤回 |
 | `/cosid/slot/{ns}` | 命名空间的 `limit` 与 `tolerance` |
 | `/cosid/slot/{ns}/{slot}` | 以 `name=value` 行表示的槽位：owner key、incarnation、上一个 owner key、**fence**、ttl、tolerance、floor、过期时间与 ceiling 的下限、next floor |
 | `/cosid/slot/{ns}/.clock` | 每次 acquire 都会写入；其 `mtime` 是过期判断所用的 `now` |

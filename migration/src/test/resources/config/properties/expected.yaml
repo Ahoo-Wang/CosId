@@ -1,6 +1,6 @@
 # Converted from a CosId 4.x configuration by cosid-migration config (09-migration.md §3).
 # Not converted as is - review before starting 5.0:
-#  - cosid.zookeeper.retry.max-retries = 3: set the store option retry.max-retries by hand (Curator retry, 06 §2.4)
+#  - initial-offset of each migrated segment is its next value from apply-result.json: should 5.0 open another store than apply wrote to, its keys start there, leaving a gap instead of issuing the 4.x ids again
 #  - cosid.segment.provider.biz_order.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
 #  - cosid.segment.provider.biz_order.group.pattern = yy: 5.0 period keys are yyyy; plan reformats the 4.x keys
 #  - both 4.x shares are enabled: the snowflake share is [default], the segment share [segment-share] (plan maps __share__ the same way with --layout-config)
@@ -15,6 +15,7 @@ cosid:
       options:
         connectString: "zk1:2181,zk2:2181"
         sessionTimeout: 30s
+        retry.maxRetries: 3
   machine:
     static:
       bits: 10
@@ -33,6 +34,7 @@ cosid:
       strategy: segment
       store: zookeeper
       step: 10
+      initial-offset: 42
       codec:
       - radix:
           radix: 62

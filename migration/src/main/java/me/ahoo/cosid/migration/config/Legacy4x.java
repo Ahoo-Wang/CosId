@@ -42,6 +42,8 @@ public final class Legacy4x {
     public static final String SEGMENT_SHARE = "segment-share";
     public static final long COSID_EPOCH = 1577203200000L;
     public static final int DEFAULT_MACHINE_BIT = 10;
+    /** The 5.0 named machine of the shared {@code cosid.generator.namespace} (D37). */
+    public static final String GENERATOR_MACHINE = "generator";
     private final FlatConfig config;
 
     public Legacy4x(FlatConfig config) {
@@ -81,21 +83,44 @@ public final class Legacy4x {
     }
 
     /**
-     * Why this configuration cannot migrate yet (R1-x-07): an enabled {@code CosIdGenerator} in a namespace of its own
-     * shares its machine ids across services, which 5.0 has no counterpart of until named machines (D37). A converted
-     * {@code cosid80} would take its slot in the service namespace and issue the 80-bit ids of other services again.
+     * The shared namespace of an enabled {@code CosIdGenerator}: its machine ids are shared across services, so it
+     * becomes the named machine {@value #GENERATOR_MACHINE} of 5.0 (D37, api-freeze.md §2.7), migrated once on its own.
      *
-     * @return the reason, empty when the configuration may migrate
+     * @return the namespace when the generator is enabled and has one of its own
      */
-    public Optional<String> unsupported() {
+    public Optional<String> sharedGeneratorNamespace() {
+        return cosidEnabled() ? generatorNamespace() : Optional.empty();
+    }
+
+    /**
+     * Why the 4.x {@code CosIdGenerator} bits cannot be kept by 5.0 cosid80: its time and sequence bits do not fit the
+     * {@code long} the 5.0 sequencer packs them in ({@code timeBits + seqBits <= 63}).
+     *
+     * @return the reason, empty when they fit or the generator is disabled
+     */
+    public Optional<String> cosidLayoutProblem() {
         if (!cosidEnabled()) {
             return Optional.empty();
         }
-        return generatorNamespace().map(shared -> "cosid.generator.namespace = " + shared + " differs from cosid.namespace = " + namespace()
-            + ": the 4.x CosIdGenerator shares the machine ids of [" + shared + "] across services to keep their 80-bit ids apart. This 5.0"
-            + " release has no shared machine for cosid80 yet (named machines, D37, come in a later 5.0 release): a converted cosid80"
-            + " takes its slot in [" + namespace() + "] and issues the ids of other services again. Keep the services on 4.x until"
-            + " then, or issue the 80-bit ids of every service from one cosid-server");
+        int timeBits = (int) config.number("cosid.generator.timestamp-bit", 44);
+        int seqBits = (int) config.number("cosid.generator.sequence-bit", 16);
+        if (timeBits + seqBits <= Layout.LONG_BITS) {
+            return Optional.empty();
+        }
+        return Optional.of("cosid.generator.timestamp-bit (" + timeBits + ") + sequence-bit (" + seqBits + ") = " + (timeBits + seqBits)
+            + " exceeds " + Layout.LONG_BITS + ": 5.0 cosid80 packs the time and the sequence in a long and refuses the layout. Lower one of them"
+            + " (fewer time bits end the ids earlier, fewer sequence bits issue fewer ids per millisecond) and check the id space with plan (M3)");
+    }
+
+    /**
+     * Whether {@code cosid.generator.sequence-reset-threshold} exceeds the sequence range (4.x does not check it): the
+     * layout takes the largest sequence instead, which behaves the same, as 4.x never resets then either.
+     *
+     * @return true if clamped
+     */
+    public boolean cosidThresholdClamped() {
+        int sequenceBit = (int) config.number("cosid.generator.sequence-bit", 16);
+        return config.number("cosid.generator.sequence-reset-threshold", 0) > ~(-1L << sequenceBit);
     }
 
     public boolean machineEnabled() {
@@ -207,9 +232,9 @@ public final class Legacy4x {
      */
     public Layout cosidLayout() {
         int sequenceBit = (int) config.number("cosid.generator.sequence-bit", 16);
+        long threshold = Math.min(config.number("cosid.generator.sequence-reset-threshold", Layout.defaultSeqResetThreshold(sequenceBit)), ~(-1L << sequenceBit));
         return new Layout(Instant.EPOCH, ChronoUnit.MILLIS, (int) config.number("cosid.generator.timestamp-bit", 44),
-            (int) config.number("cosid.generator.machine-bit", 20), sequenceBit,
-            config.number("cosid.generator.sequence-reset-threshold", Layout.defaultSeqResetThreshold(sequenceBit)));
+            (int) config.number("cosid.generator.machine-bit", 20), sequenceBit, threshold);
     }
 
     /**
@@ -259,7 +284,8 @@ public final class Legacy4x {
     /**
      * The 4.x namespaces other than {@link #namespace()} that definitions use ({@code provider.<name>.namespace}): their
      * segment keys are {@code {ownNs}.{name}}, and a snowflake's machine id is distributed in its own namespace too. The
-     * {@link #generatorNamespace()} is one of them, for its machine records: T4 and the quiet period cover it.
+     * {@link #generatorNamespace()} is one of them, for its machine records: T4 and the quiet period cover it, unless the
+     * shared namespace was migrated with a slot offset (a rolling migration, api-freeze.md §2.7).
      *
      * @return namespace to the 4.x segment names kept there (empty for a namespace of machine records only)
      */
@@ -270,6 +296,68 @@ public final class Legacy4x {
         segments().forEach((name, prefix) -> ownNamespace(prefix).ifPresent(namespace -> extra.computeIfAbsent(namespace, key -> new TreeSet<>())
             .add(prefix.equals("cosid.segment.share") ? SHARE : name)));
         return extra;
+    }
+
+    /**
+     * A namespace of its own that 4.x distributes the machine ids of time-based generators in, apart from
+     * {@link #namespace()}: the shared {@code cosid.generator.namespace} of an enabled CosIdGenerator (D37) and the
+     * namespace of a snowflake definition ({@code provider.<name>.namespace}, R2-parity-01). 5.0 gives each a named
+     * machine ({@code cosid.machines.<machine>}), its namespace migrated once on its own (api-freeze.md §2.7).
+     *
+     * @param machine   the 5.0 machine name: {@value Legacy4x#GENERATOR_MACHINE} for the CosIdGenerator's
+     * @param namespace the namespace
+     * @param nodeBits  the fewest node bits of the generators on it: the slot offset and the slots fit them
+     * @param owners    the 4.x definitions on it, as key prefixes ({@code cosid.generator},
+     *                  {@code cosid.snowflake.provider.<name>})
+     */
+    public record MachineNamespace(String machine, String namespace, int nodeBits, List<String> owners) {
+        /**
+         * The 4.x keys that name the namespace, for messages: {@code cosid.generator.namespace = global}.
+         *
+         * @return the text
+         */
+        public String label() {
+            return String.join(", ", owners.stream().map(owner -> owner + ".namespace").toList()) + " = " + namespace;
+        }
+    }
+
+    /**
+     * Every namespace of its own of the time-based generators, each a named machine of 5.0.
+     *
+     * @return namespace to its machine, the CosIdGenerator's first
+     */
+    public Map<String, MachineNamespace> machineNamespaces() {
+        Map<String, MachineNamespace> namespaces = new LinkedHashMap<>();
+        sharedGeneratorNamespace().ifPresent(namespace -> namespaces.put(namespace,
+            new MachineNamespace(GENERATOR_MACHINE, namespace, cosidLayout().nodeBits(), List.of("cosid.generator"))));
+        snowflakes().forEach((name, prefix) -> ownNamespace(prefix).ifPresent(namespace -> {
+            int nodeBits = snowflakeLayout(prefix).nodeBits();
+            MachineNamespace existing = namespaces.get(namespace);
+            if (existing == null) {
+                Set<String> taken = new TreeSet<>();
+                namespaces.values().forEach(machine -> taken.add(machine.machine()));
+                namespaces.put(namespace, new MachineNamespace(machineName(namespace, taken), namespace, nodeBits, List.of(prefix)));
+            } else {
+                List<String> owners = new ArrayList<>(existing.owners());
+                owners.add(prefix);
+                namespaces.put(namespace, new MachineNamespace(existing.machine(), namespace, Math.min(existing.nodeBits(), nodeBits), List.copyOf(owners)));
+            }
+        }));
+        return namespaces;
+    }
+
+    /** The machine name of a namespace, a {@code cosid.machines} key that binds without brackets: letters, digits and {@code -}. */
+    private static String machineName(String namespace, Set<String> taken) {
+        String base = namespace.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9-]+", "-").replaceAll("^-+|-+$", "");
+        if (base.isEmpty()) {
+            base = "machine";
+        }
+        String name = base;
+        // "default" is the default machine's, "generator" the CosIdGenerator's.
+        for (int i = 2; taken.contains(name) || GENERATOR_MACHINE.equals(name) || "default".equals(name); i++) {
+            name = base + "-" + i;
+        }
+        return name;
     }
 
     private Optional<String> ownNamespace(String prefix) {

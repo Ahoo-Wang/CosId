@@ -25,7 +25,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.runtime.CosIdRuntime;
-import me.ahoo.cosid.store.tck.TestRuntimes;
+import me.ahoo.cosid.store.tck.internal.TestRuntimes;
 
 import org.axonframework.common.IdentifierFactory;
 import org.axonframework.eventhandling.GenericEventMessage;

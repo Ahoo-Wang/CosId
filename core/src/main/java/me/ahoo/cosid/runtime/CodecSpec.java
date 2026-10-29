@@ -22,6 +22,9 @@ import java.util.Objects;
  * An item of a generator's codec list (07-runtime-and-spring.md §4.1). The first item turns the id into text
  * ({@link Radix}, {@link Friendly}, {@link Custom}, {@link Instance}); the following ones decorate the text
  * ({@link Prefix}, {@link Suffix}, {@link DatePrefix}).
+ *
+ * <p>The variants are the current snapshot of a closed set of specs: a minor version may add a variant, so keep a
+ * {@code default} branch in a {@code switch} over them (D40).
  */
 public sealed interface CodecSpec {
     /**

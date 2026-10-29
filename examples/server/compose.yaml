@@ -27,7 +27,8 @@ services:
       COSID_GENERATORS_TICKET_STRATEGY: segment
       COSID_GENERATORS_TICKET_STORE: main
   client:
-    image: eclipse-temurin:21-jre
+    # The example's boot jar (Java 21 bytecode) on the JDK of the server image (D48).
+    image: eclipse-temurin:25-jre
     depends_on: [ cosid-server ]
     ports: [ "8080:8080" ]
     volumes: [ "./build/libs:/app:ro" ]

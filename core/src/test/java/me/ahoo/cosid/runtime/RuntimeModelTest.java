@@ -43,21 +43,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 class RuntimeModelTest {
     @Test
     void specsCopyTheirCollections() {
-        Map<String, GeneratorSpec> generators = new HashMap<>();
-        generators.put(RuntimeSpec.DEFAULT_GENERATOR,
-            new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of(new CodecSpec.Radix(62, 11, true))));
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of())),
-            Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty(), Optional.empty())),
-            generators);
-        generators.clear();
+        RuntimeSpec.Builder generators = RuntimeSpec.builder("app")
+            .store("db", StoreSpec.builder("jdbc").timeout(Duration.ofSeconds(2)).build())
+            .machine(MachineSpec.Leased.builder("db").bits(10).ttl(Duration.ofSeconds(30)).tolerance(Duration.ofSeconds(1)).build())
+            .generator(RuntimeSpec.DEFAULT_GENERATOR, GeneratorSpec.Snowflake.builder()
+                .layout(Layout.SNOWFLAKE_MS)
+                .regression(ClockRegressionPolicy.DEFAULT)
+                .codec(List.of(new CodecSpec.Radix(62, 11, true)))
+                .build());
+        RuntimeSpec spec = generators.build();
+        generators.removeGenerator(RuntimeSpec.DEFAULT_GENERATOR);
         assertThat(spec.generators().size(), is(1));
         assertThat(spec.machine().get().bits(), is(10));
-        assertThrows(IllegalArgumentException.class, () -> new RuntimeSpec(" ", Map.of(), Optional.empty(), Map.of()));
+        assertThrows(IllegalArgumentException.class, () -> RuntimeSpec.builder(" ").build());
         assertThrows(UnsupportedOperationException.class, () -> spec.stores().put("x", null));
     }
 
@@ -66,14 +68,21 @@ class RuntimeModelTest {
         List<CodecSpec> codecs = List.of(new CodecSpec.Radix(62, 11, true), new CodecSpec.Friendly(ZoneOffset.UTC, true),
             new CodecSpec.Prefix("O"), new CodecSpec.Suffix("X"), new CodecSpec.DatePrefix("yyyyMMdd", "-", DatePrefix.Source.NOW, ZoneOffset.UTC),
             new CodecSpec.Custom("com.example.Codec"), new CodecSpec.Instance(Radix.of(36, 13, true)));
-        assertThat(new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, codecs).codec().size(), is(7));
-        assertThat(new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62)).codec(), is(new PartsCodecSpec.Radix(62)));
+        assertThat(GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(codecs).build().codec().size(), is(7));
+        assertThat(GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build().codec(), is(new PartsCodecSpec.Radix(62)));
         assertThat(new PartsCodecSpec.Friendly(ZoneOffset.UTC).zone(), is(ZoneOffset.UTC));
         GroupedCodecSpec grouped = new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true)));
-        assertThat(new GeneratorSpec.PeriodicSegment("db", Period.YEAR_MONTH_DAY, ZoneOffset.UTC, BatchPolicy.DEFAULT,
-            PeriodicPolicy.DEFAULT, grouped).codec(), is(grouped));
-        MachineSpec.Static machine = new MachineSpec.Static(10, 3, Optional.of(Path.of("state")), Duration.ofSeconds(10),
-            Optional.of(Instant.EPOCH));
+        assertThat(GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR_MONTH_DAY, ZoneOffset.UTC)
+            .batch(BatchPolicy.DEFAULT)
+            .periodic(PeriodicPolicy.DEFAULT)
+            .codec(grouped)
+            .build().codec(), is(grouped));
+        MachineSpec.Static machine = MachineSpec.Static.builder(3)
+            .bits(10)
+            .stateFile(Path.of("state"))
+            .ahead(Duration.ofSeconds(10))
+            .notBefore(Instant.EPOCH)
+            .build();
         assertThat(machine.slot(), is(3));
         assertThrows(NullPointerException.class, () -> new CodecSpec.Prefix(null));
     }
@@ -91,16 +100,25 @@ class RuntimeModelTest {
     @Test
     void storeConfigAndInfoCopyTheirMaps() {
         Map<String, Object> options = new HashMap<>(Map.of("initSchema", true));
-        StoreConfig config = new StoreConfig("db", "jdbc", Duration.ofSeconds(2), options, Optional.empty());
+        StoreConfig config = StoreConfig.builder("db", "jdbc").timeout(Duration.ofSeconds(2)).options(options).build();
         options.clear();
         assertThat(config.options().get("initSchema"), is(true));
-        assertThat(new GeneratorInfo("order", "segment", "db", Map.of("step", 100)).details().get("step"), is(100));
+        assertThat(GeneratorInfo.builder("order", "segment").store("db").detail("step", 100).build().details().get("step"), is(100));
     }
 
     @Test
     void listenerDefaultsDoNothing() {
         GeneratorListener listener = GeneratorListener.NOOP;
-        SlotLease lease = new SlotLease("app", 1, new me.ahoo.cosid.lease.Owner("host", java.util.UUID.randomUUID()), 1, 0, 0, 0, 0);
+        SlotLease lease = SlotLease.builder()
+            .namespace("app")
+            .slot(1)
+            .owner(new me.ahoo.cosid.lease.Owner("host", java.util.UUID.randomUUID()))
+            .fence(1)
+            .expiresAt(0)
+            .floor(0)
+            .ceiling(0)
+            .storeNow(0)
+            .build();
         listener.onRangeReserved("order", "app/order", new Range(0, 100), Duration.ZERO);
         listener.onRefillFailed("order", "app/order", new IllegalStateException());
         listener.onBatchResized("order", 100, 200);
@@ -116,5 +134,20 @@ class RuntimeModelTest {
         listener.onDuplicateOwnerKey("app", "host");
         listener.onStoreTimeout("db", "reserve");
         assertThat(listener, sameInstance(GeneratorListener.NOOP));
+    }
+
+    @Test
+    void newFieldsDefaultToTheFormerBehavior() {
+        assertThat(MachineSpec.Leased.builder("db").build().acquireTimeout(), is(Duration.ofSeconds(30)));
+        assertThat(MachineSpec.Leased.builder("db").ttl(Duration.ofSeconds(10)).build().acquireTimeout(), is(Duration.ofSeconds(10)));
+        assertThat(MachineSpec.Leased.builder("db").ttl(Duration.ofSeconds(10)).acquireTimeout(Duration.ZERO).build().acquireTimeout(), is(Duration.ZERO));
+        assertThat(GeneratorSpec.CosId80.builder().build().layout(), is(Layout.COSID_80));
+        assertThat(new PartsCodecSpec.Friendly(ZoneOffset.UTC).padStart(), is(true));
+        assertThat(new PartsCodecSpec.Friendly(ZoneOffset.UTC, false).padStart(), is(false));
+        me.ahoo.cosid.IdGenerator ids = () -> 1;
+        assertThat(GeneratorSpec.Instance.builder(ids).build(), is(GeneratorSpec.Instance.builder(ids).build()));
+        assertThat(GeneratorSpec.Custom.builder("legacy").build().codec(), is(List.of()));
+        assertThat(GeneratorSpec.Custom.builder("legacy").build().toString(), is("Custom[reference=legacy, codec=[]]"));
+        assertThrows(NullPointerException.class, () -> GeneratorSpec.Custom.builder(null));
     }
 }

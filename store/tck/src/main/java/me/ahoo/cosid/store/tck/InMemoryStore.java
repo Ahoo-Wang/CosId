@@ -118,19 +118,22 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         Objects.requireNonNull(namespace, "namespace");
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(preferredSlot, "preferredSlot");
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be positive: " + limit);
         }
+        if (slotOffset < 0) {
+            throw new IllegalArgumentException("slotOffset must not be negative: " + slotOffset);
+        }
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
-        Namespace ns = namespaces.computeIfAbsent(namespace, k -> new Namespace(limit, toleranceMillis));
-        if (ns.limit != limit || ns.toleranceMillis != toleranceMillis) {
-            throw new NamespaceMismatchException(namespace, "first used with limit " + ns.limit + " and tolerance " + ns.toleranceMillis
-                + "ms, now " + limit + " and " + toleranceMillis + "ms");
+        Namespace ns = namespaces.computeIfAbsent(namespace, k -> new Namespace(limit, toleranceMillis, slotOffset));
+        if (ns.limit != limit || ns.toleranceMillis != toleranceMillis || ns.slotOffset != slotOffset) {
+            throw new NamespaceMismatchException(namespace, "first used with limit " + ns.limit + ", tolerance " + ns.toleranceMillis
+                + "ms and slot offset " + ns.slotOffset + ", now " + limit + ", " + toleranceMillis + "ms and " + slotOffset);
         }
         synchronized (ns) {
             long now = storeClock.currentMillis();
@@ -141,7 +144,9 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
             // §2.1, each step a conditional update of one slot: held by this very owner, preferred, sticky, lowest.
             for (int slot = 0; slot < limit; slot++) {
                 if (owner.equals(ns.rows[slot].owner)) {
-                    return new AcquireResult.Acquired(ns.rows[slot].toLease(namespace, slot, now), AcquireReason.IDEMPOTENT, duplicate);
+                    return AcquireResult.Acquired.builder(ns.rows[slot].toLease(namespace, slot, now), AcquireReason.IDEMPOTENT)
+                        .duplicateOwnerKey(duplicate)
+                        .build();
                 }
             }
             if (preferredSlot.isPresent()) {
@@ -178,7 +183,7 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
         row.expiresAt = now + ttlMillis;
         row.ceiling = Math.max(row.expiresAt + ns.toleranceMillis, row.floor);
         row.nextFloor = row.ceiling;
-        return new AcquireResult.Acquired(row.toLease(namespace, slot, now), reason, duplicateOwnerKey);
+        return AcquireResult.Acquired.builder(row.toLease(namespace, slot, now), reason).duplicateOwnerKey(duplicateOwnerKey).build();
     }
 
     @Override
@@ -249,10 +254,12 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
     private static final class Namespace {
         private final int limit;
         private final long toleranceMillis;
+        private final int slotOffset;
         private final SlotRow[] rows;
 
-        private Namespace(int limit, long toleranceMillis) {
+        private Namespace(int limit, long toleranceMillis, int slotOffset) {
             this.limit = limit;
+            this.slotOffset = slotOffset;
             this.toleranceMillis = toleranceMillis;
             this.rows = new SlotRow[limit];
             for (int slot = 0; slot < limit; slot++) {
@@ -282,7 +289,16 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
         }
 
         private SlotLease toLease(String namespace, int slot, long now) {
-            return new SlotLease(namespace, slot, owner, fence, expiresAt, floor, ceiling, now);
+            return SlotLease.builder()
+                .namespace(namespace)
+                .slot(slot)
+                .owner(owner)
+                .fence(fence)
+                .expiresAt(expiresAt)
+                .floor(floor)
+                .ceiling(ceiling)
+                .storeNow(now)
+                .build();
         }
     }
 }

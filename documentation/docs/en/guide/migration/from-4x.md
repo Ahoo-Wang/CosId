@@ -72,6 +72,18 @@ layout checks and the warnings. Fix what it asks for and plan again:
   `yyyyMMdd`). Its keys are reformatted to the preset of the same granularity. **Every period is migrated, past ones
   included**, because 4.x used the server's default zone.
 - `--slot-bits` (the 4.x `machine-bit`, 10 by default), `--tolerance` (1s): the slot parameters of the 5.0 namespace.
+- `--machine-from <4.x store>` and `--machine-to <5.0 store>`: when 4.x kept the machine ids in another store than the
+  segments (`cosid.machine.distributor.type` other than `cosid.segment.distributor.type`), name both; `plan` compares
+  them with `--layout-config` and refuses a split it was not told about.
+- `--target-config application-5.yaml`: a 5.0 configuration you already wrote; the layout checks use it instead of the
+  converted 4.x layouts.
+- Account options: `--from-option user=…` / `--to-option user=…`, or `username`, as the 5.0 JDBC store names it;
+  `password` (or `COSID_MIGRATION_FROM_PASSWORD` / `_TO_PASSWORD`), which `plan.json` never keeps.
+- Store options such as `--to-option rangeTable=ids_range` are checked as the 5.0 stores check theirs: case, `-` and `_`
+  do not count (`range-table` is `rangeTable`), and an unknown or misspelt key is refused, so the data cannot end up in a
+  default table 5.0 does not read.
+
+All options and what they guard: the [tool's README](https://github.com/Ahoo-Wang/CosId/blob/main/migration/README.md#commands).
 
 Key mapping: `{ns}.{name}` → `{ns}/{name}`; grouped `{ns}.{name}@{groupKey}` → `{ns}/{name}/{period}`.
 
@@ -88,6 +100,19 @@ java -jar cosid-migration.jar apply --plan plan.json --confirm-stopped --layout-
    that was missed gets ranges far above 5.0's, and `verify` reports it.
 3. **Write the target**: it raises each 5.0 key to `next`, records `{limit, tolerance}`, and prepares every slot with
    `next_floor = W`. The target only ever rises (`max(current, planned)`).
+
+On Redis, each of these writes (the seal, the raise, the slot preparation) waits for a replica when the written node
+has one: `WAIT 1`, and `apply` stops with an error if no replica acknowledges within 5 s, since a failover would lose
+the write. Check the replication and run `apply` again.
+
+Options of `apply` beyond the defaults:
+
+- `--allow-unmigrated <ns>.<name>`: `apply` aborts while the plan has a `NOT MIGRATED` key (a group pattern 5.0
+  cannot read, a name with `/`); name each one you accept to leave behind. Its 4.x value is not carried over, so no 5.0
+  generator may issue into the same ids.
+- `--gap <n>` (0): start every 5.0 key `n` above `lastMaxId + 1`, a margin you choose on top of the seal.
+- `--target-config`, `--layout-config`: as in `plan`, again for the checks. The machine stores of `--machine-from` /
+  `--machine-to` come from the plan; `--machine-from-option` / `--machine-to-option` give their options (passwords) again.
 
 `apply` is idempotent. If it stops half way (a crash, a timeout), run it again. It refuses when a 5.0 runtime already
 holds a slot in the namespace, or when the namespace has other slot parameters. The result, `apply-result.json`, holds
@@ -110,8 +135,38 @@ java -jar cosid-migration.jar config --input application.yaml --result apply-res
 ```
 
 The 4.x `cosid.*` configuration becomes the 5.0 model. **Everything it could not convert as is sits as comments at the
-top of the output: review them.** A static slot gets `not-before: W` from the result. A 4.x proxy configuration becomes
+top of the output: review them.** It fails unless each segment generator has its key in the result; a generator 4.x
+never issued from is named with `--allow-new <generator>`. A static slot gets `not-before: W` from the result. A 4.x proxy configuration becomes
 a `remote` store (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`).
+
+- **The stores are those `apply` wrote to**, `target` and `machineTarget` of the result: their type, the JDBC table
+  options (`rangeTable`, `slotTable`, `namespaceTable`), the Mongo `database`, Redis `cluster` and the ZooKeeper connect
+  string, never a password. After a migration to another type (Redis to JDBC, say) the application needs the module and
+  client of that store (a `DataSource` for `jdbc`), not the 4.x one; the report says so, and drops the 4.x options of
+  the old type. Each migrated plain segment also gets `initial-offset`, its migrated next value: should 5.0 still open
+  a store without the migrated keys, they start past every 4.x id instead of at 1.
+- **4.x store options** carry over where 5.0 has them: `redis.wait-replicas: N` becomes `wait: N` (WAIT for N
+  replicas), `jdbc.fetch-plan` `fetchPlan`, `mongo.write-concern` `writeConcern`, and the Curator retry of
+  `cosid.zookeeper.retry` (`base-sleep-time-ms`, `max-retries`, `max-sleep-ms`) `retry.baseSleepTime`,
+  `retry.maxRetries` and `retry.maxSleep`.
+- **Friendly text.** The 4.x `snowflake_friendly` converter and `@AsString(FRIENDLY_ID)` did not pad the node and the
+  sequence (`…-1-5`); the 5.0 `friendly` codec does by default (`…-0001-0005`). `config` writes `pad-start: false`, so
+  the text stays as it was; in code, give `@AsString` `padStart = false`. Both forms decode.
+- **A snowflake in a namespace of its own** gets a named machine ([below](#a-shared-cosidgenerator-namespace)).
+
+The CosIdGenerator keys map as follows (`config` writes them):
+
+| 4.x `cosid.generator.*` | 5.0 `cosid.generators.<name>.*` (strategy `cosid80`) |
+|---|---|
+| `type: radix62` / `radix36` / `friendly` | `codec[0]`: `radix: { radix: 62 }` / `radix: { radix: 36 }` / `friendly` |
+| `timestamp-bit` (44), `machine-bit` (20), `sequence-bit` (16) | `time-bits`, `node-bits`, `seq-bits` (same defaults) |
+| `sequence-reset-threshold` (32767) | `seq-reset-threshold` (same default; a 4.x value beyond the sequence range is taken as its largest) |
+| `zone-id` | `codec[0].friendly.zone` |
+| `pad-start` (true, friendly text only) | `codec[0].friendly.pad-start` (true) |
+| `namespace` | `machine: generator` + `cosid.machines.generator.namespace` ([below](#a-shared-cosidgenerator-namespace)) |
+
+Other keys: `cosid.metrics.generated.enabled` keeps its 4.x name. The health indicator is `cosid`
+(`/actuator/health/cosid`, `management.health.cosid.enabled`). A `cosid.*` key 5.0 does not know fails the start.
 
 ### 6. Start 5.0
 
@@ -120,7 +175,7 @@ W, at most about `sourceSkew`.
 
 ### Later: purge old periods
 
-At run time periodic keys are sealed, never deleted (D23). Removing past periods physically is an offline step:
+At run time periodic keys are sealed, never deleted (D23). Removing past periods physically is an offline step, **with every 5.0 instance stopped**: a store must never see the node or row of a key it uses deleted.
 
 ```bash
 java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 20250101 --dry-run
@@ -256,15 +311,76 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
 - **Time-based ids**: wait until the last 5.0 ceiling has passed (the lease `ttl` plus `tolerance`, 31s by default)
   before starting 4.x again.
 
-## Known limitations
+## A shared CosIdGenerator namespace
 
-- **A CosIdGenerator in a namespace of its own cannot migrate yet.** A 4.x deployment that sets
+- **A CosIdGenerator in a namespace of its own migrates once, before the services.** A 4.x deployment that sets
   `cosid.generator.namespace` to a namespace other than `cosid.namespace` shares the CosIdGenerator machine ids of that
-  namespace across services, to keep their 80-bit ids unique across them. This 5.0 release has no counterpart yet: a
-  converted `cosid80` would take its slot in the service namespace and issue the ids of other services again. `config`,
-  and `plan` / `apply` with `--layout-config`, refuse such a configuration. Keep those services on 4.x until named
-  machines (D37) come in a later 5.0 release, or issue the 80-bit ids of every service from one cosid-server. A
-  `cosid.generator.namespace` equal to `cosid.namespace`, or not set, migrates as usual.
+  namespace across services. 5.0 keeps them in the named machine `cosid.machines.generator`:
+  1. Migrate the shared namespace once: `plan --namespace <shared> --layout-config <a service's yaml>`, then `apply`. The
+     plan puts the 5.0 slots at the top of the CosIdGenerator nodes by default (`--slot-offset` overrides it) and reports
+     the headroom: how many more machine ids 4.x can hand out before they meet the 5.0 nodes (about a million with the
+     4.x defaults). Nothing stops 4.x from using it up, so the plan records `guaranteed: false`. With an offset, 4.x keeps running
+     and the services move one by one; do not grow 4.x beyond the offset meanwhile (`verify` checks it).
+     `--slot-offset 0` migrates it at once, every service sharing it stopped.
+  2. Migrate each service as usual; its `apply` refuses until step 1 is done, and `config` writes
+     `cosid.machines.generator` and `machine: generator` on its cosid80.
+  Every service sharing the namespace uses the same `bits`, `tolerance` and `slot-offset`. (5.0.0-alpha.1 refused such a
+  configuration.)
+- **A snowflake in a namespace of its own migrates the same way.** A 4.x snowflake definition with a `namespace` other
+  than `cosid.namespace` (`cosid.snowflake.provider.<name>.namespace`, or the share's) had its machine id distributed
+  there, with its own `machine-bit`, often so that several services issue apart. 5.0 gives each such namespace a named
+  machine, `cosid.machines.<namespace>` (characters other than letters, digits and `-` become `-`), and the snowflake
+  `machine: <that name>`. Migrate the namespace once, as above, before each service: `plan --namespace <it>
+  --layout-config <a service's yaml>`, then `apply`. Its slot bits default to the snowflake's `machine-bit`, which leaves
+  no room for an offset: it migrates at once, every 4.x instance using it stopped (fewer `--slot-bits` leave room for
+  `--slot-offset`). Each service's `apply` then refuses until it is done, and `config` writes the machine with the
+  migrated slot parameters. (`config` of 5.0.0-rc.1 dropped such a namespace, and services that shared it issued the
+  same ids.)
+
+## Ids in static code
+
+4.x code often took ids anywhere with `DefaultIdGeneratorProvider.INSTANCE.getShare().generate()`. 5.0 has no global
+singleton (D17): every runtime belongs to whoever started it. In its place:
+
+1. **Inject the generator.** The `default` generator is the primary `IdGenerator` bean, and every generator is a bean of
+   its own name (`@Qualifier("order") IdGenerator`). Most static calls sit in code that can take a bean instead.
+2. **When it must be static** (an entity constructor, a static utility), keep the reference in a holder of your own,
+   set once the context is up and cleared when it closes:
+
+```java
+@Component
+public class Ids implements SmartInitializingSingleton, DisposableBean {
+    private static volatile IdGenerator generator;
+    private final IdGenerator injected;
+
+    public Ids(IdGenerator generator) {          // the `default` generator, the primary IdGenerator bean
+        this.injected = generator;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        generator = injected;
+    }
+
+    @Override
+    public void destroy() {
+        generator = null;
+    }
+
+    public static long next() {
+        IdGenerator current = generator;
+        if (current == null) {
+            throw new IllegalStateException("CosId is not started yet, or its context is closed");
+        }
+        return current.generate();
+    }
+}
+```
+
+   Calls before the context started or after it closed fail rather than issue from a closed runtime. With two Spring
+   contexts in one JVM (tests, parent and child contexts), each sets the holder: keep one holder per context, or none.
+3. **Without Spring**, the code that calls `CosIdRuntime.start` holds the runtime (and closes it): pass it, or its
+   generators, to where they are used.
 
 ## Artifacts and code
 
@@ -274,11 +390,12 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
 | `cosid-spring-redis`, `cosid-jdbc`, `cosid-mongo`, `cosid-zookeeper` | `cosid-store-redis`, `-jdbc`, `-mongo`, `-zookeeper` |
 | the proxy client / the proxy server | `cosid-store-remote` / the cosid-server image (new API only) |
 | `cosid-jackson`, `cosid-mybatis`, `cosid-spring-data-jdbc`, `cosid-activiti`, `cosid-flowable`, `cosid-axon` | the same artifacts (D29), each depending on `cosid-core` and its library |
+| `@AsString` of `cosid-jackson` | renamed attributes (`value` → `codec`, `radixCharSize` → `width`, …; see [Jackson](../integrations/jackson.md#from-4-x)); Jackson 3 only, Jackson 2 is not supported |
 | `cosid-accessor` | `cosid-core` (`me.ahoo.cosid.accessor`) |
 | `cosid-test` | `cosid-store-tck` |
 | `cosid-dependencies` | `cosid-bom` |
 | `cosid-sharding` | `cosid-sharding` (`ShardingRange` instead of Guava's `Range`) |
-| Java 17 | **Java 21**, Spring Boot 4.0+ |
+| Java 17 | **Java 21**, Spring Boot 4.1.2+ |
 
 | 4.x API | 5.0 |
 |---|---|
@@ -288,9 +405,11 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
 | `CosIdGenerator` (Radix62 / Friendly) | `cosid80` + `PartsCodec` |
 | `IdConverter`s | `IdCodec`: `Radix`, `Friendly`, `DatePrefix`, prefix / suffix |
 | `SnowflakeIdStateParser` | `Layout.unpack`, `Friendly.decode` |
-| `IdGeneratorProvider`, `DefaultIdGeneratorProvider.INSTANCE`, the share | `CosIdRuntime`, the generator `default` |
+| `IdGeneratorProvider`, `DefaultIdGeneratorProvider.INSTANCE`, the share | `CosIdRuntime`, the generator `default` ([in static code](#ids-in-static-code)) |
+| `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>` (`GeneratorSpec.Custom`), or `GeneratorSpec.Instance` in a `RuntimeSpecCustomizer` |
 | `MachineIdDistributor`s, the guarder, `~/.cosid-machine-state` | `cosid.machine.leased` / `static` (see [the slot lease](../concepts/slot-lease.md)) |
 | `IntegerIdGenerator`, `UncertaintyIdGenerator`, `LazyIdGenerator` | `IdGenerators.toInt`, `.uncertain`, `.lazy` |
+| `UuidGenerator` (random UUIDv4) | `IdGenerators.uuid()`; for UUIDs ordered by time, `strategy: uuidv7` ([generators](../../reference/config/generators.md#uuidv7)) |
 | `CosIdStoreProvider` | `StoreProvider` |
 | `Customize*Properties` | `RuntimeSpecCustomizer` |
 | Actuator DELETE of a generator | `cosid.generators.<name>.disabled: true` |

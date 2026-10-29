@@ -27,7 +27,7 @@ extras/
 migration/                  cosid-migration                  4.x → 5.0 离线迁移 CLI(fat jar)
 bom/                        cosid-bom
 benchmark/                  (不发布)                         JMH:baseline-4x/ 与 v5/ 两个工程,见 10
-examples/                   (不发布)                         segment-jdbc、snowflake-redis、server
+examples/                   (不发布)                         segment-jdbc、snowflake-redis、server、plain-stores(仅测试:纯 Java classpath 上的 store/redis 与 store/zookeeper,L14)
 documentation/              文档站(VitePress)
 docs/                       设计与路线图
 ```
@@ -64,13 +64,13 @@ groupId 不变:`me.ahoo.cosid`。artifactId 由构建约定从目录路径生成
 
 | 包 | 内容 | 导出(D12) |
 |---|---|---|
-| `me.ahoo.cosid` | `IdGenerator`、`IntIdGenerator`、`StringIdGenerator`、`IdGenerators`、`GroupedId`、`CosIdException` 及异常层次 | 是 |
+| `me.ahoo.cosid` | `IdGenerator`、`IntIdGenerator`、`StringIdGenerator`、`PartsIdGenerator`、`GroupedIdGenerator`、`IdGenerators`、`GroupedId`、`CosIdException` 及异常层次 | 是 |
 | `me.ahoo.cosid.codec` | `IdCodec`、`Radix`、`Friendly`、`DatePrefix`、`PartsCodec`、`GroupedCodec` | 是 |
 | `me.ahoo.cosid.time` | `TimeSource`、`Layout`、`IdParts`、`TimeBasedGenerator`、`ClockRegressionPolicy` | 是 |
 | `me.ahoo.cosid.segment` | `Range`、`RangeStore`、`SegmentGenerator`、`BatchPolicy`、`Period`、`PeriodicPolicy`、`PeriodicSegmentGenerator` | 是 |
-| `me.ahoo.cosid.lease` | `SlotLeaseStore`、`SlotLease`、`Owner`、`AcquireResult`、`SlotHandle`、`SlotBinding`、`LeaseKeeper`、`StaticSlot` | 是 |
-| `me.ahoo.cosid.store` | `StoreProvider`、`StoreConfig`、`Store` | 是 |
-| `me.ahoo.cosid.runtime` | `CosIdRuntime`、`RuntimeSpec`、`GeneratorSpec`、`CodecSpec`、`MachineSpec` | 是 |
+| `me.ahoo.cosid.lease` | `SlotLeaseStore`、`SlotLease`、`Owner`、`AcquireResult`、`AcquireReason`、`SlotHandle`、`SlotBinding`、`LeaseKeeper`、`StaticSlot` | 是 |
+| `me.ahoo.cosid.store` | `StoreProvider`、`StoreConfig`、`Store`、`StoreOptions`、`StoreKeys`、`StoreTimeoutException` | 是 |
+| `me.ahoo.cosid.runtime` | `CosIdRuntime`、`RuntimeSpec`、`RuntimeOptions`、`StoreSpec`、`GeneratorSpec`、`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`MachineSpec`、`HostResolver` | 是 |
 | `me.ahoo.cosid.observe` | `GeneratorListener`、`GeneratorInfo` | 是 |
 | `me.ahoo.cosid.accessor` | `@CosId`、`IdFiller` | 是 |
 | `me.ahoo.cosid.internal.*` | 序列器、区间缓冲、单飞补充、校验工具 | **否** |
@@ -80,7 +80,8 @@ groupId 不变:`me.ahoo.cosid`。artifactId 由构建约定从目录路径生成
 - Java 21 toolchain;`-parameters` 保留(Spring 端点参数名)。
 - 不使用 Lombok(D13):值类型用 `record`,日志用 `LoggerFactory.getLogger`。
 - Checkstyle + SpotBugs + JaCoCo 保留;许可证头保留。
-- 版本统一在 `gradle/libs.versions.toml`;`bom/` 只声明本项目 artifact 与必要的三方对齐。
+- 版本以 Spring Boot BOM 为准(D45):`cosid.java` 让每个工程的构建类路径导入它(不发布),BOM 管理的依赖在 `gradle/libs.versions.toml` 中不写版本;其余依赖取最新稳定版,或因安全修复高于 BOM(注明移除条件)。发布的元数据写入解析出的具体版本。`bom/` 只声明本项目 artifact 与必要的三方对齐。
 - JMH 只在 `benchmark/` 中,不再对每个库模块应用插件。
-- `-PspringBootVersion` / `-PtestJavaVersion` 兼容矩阵机制保留,仅作用于 `spring/*`、`server`、`integrations`。
+- 支持 Spring Boot 4.1.2 及以后版本,不支持 4.0.x(D49):构建用的 Boot(`spring-boot`)即最低支持版本,`spring/*` 与 `integrations` 发布的元数据写入它解析出的版本,不另设"最低版本"。
+- `-PspringBootVersion` / `-PtestJavaVersion` 兼容矩阵机制保留,仅作用于 `spring/*`、`server`、`integrations`;CI 跑 Boot 4.1.2 × Java 21/25,`-PspringBootVersion` 用来探测更高的 Boot(如 4.2)。
 - 集成测试:`store/*` 每个模块一个 CI job,运行 TCK(Testcontainers,环境变量覆盖与 4.x 相同的约定)。

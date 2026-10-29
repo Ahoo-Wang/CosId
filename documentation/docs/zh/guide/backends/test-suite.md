@@ -29,8 +29,61 @@ class MySlotLeaseStoreTest extends SlotLeaseStoreContract {
 
 模块中还有：
 
-- `InMemoryStore` 通过所有契约；core 与 Spring 的测试使用它，你的测试也可以使用（`memory` provider）。
+- `InMemoryStore` 通过所有契约；core 与 Spring 的测试使用它，你的测试也可以使用。它没有注册为 `StoreProvider`：
+  直接创建它，或者由你自己的 provider 返回它，再通过 `RuntimeOptions.storeProvider(...)` 传入。
 - `ManualClock` 在测试中驱动存储时钟。
 - 故障注入包装器可以添加延迟、超时以及会被重放的丢失响应。
 - `ContractsRan` 读取 JUnit XML 报告，在契约用例被跳过时失败。每个 CosId 后端都在 `check` 中运行它，
   因此缺少数据库的 CI 任务不会悄无声息地通过。
+
+## 检查契约是否真的运行
+
+`ContractsRan` 的参数是 JUnit XML 报告（`TEST-*.xml`）所在的目录，其后可以跟要检查的契约类
+（默认是 `RangeStoreContract` 与 `SlotLeaseStoreContract`）。在测试之后、以测试运行时 classpath 运行它。
+每个契约都必须有某个继承它的测试类把全部用例报告为通过；标注了 `@OptionalCapability` 的用例可以跳过。
+否则它列出缺少的用例，并以状态码 1 退出。
+
+Gradle，与 CosId 各后端的注册方式相同：
+
+```kotlin
+val checkContractsRan by tasks.registering(JavaExec::class) {
+    group = "verification"
+    val reports = layout.buildDirectory.dir("test-results/test")
+    dependsOn(tasks.test)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("me.ahoo.cosid.store.tck.ContractsRan")
+    argumentProviders.add(CommandLineArgumentProvider { listOf(reports.get().asFile.absolutePath) })
+}
+tasks.check {
+    dependsOn(checkContractsRan)
+}
+```
+
+Maven，读取 Surefire 的报告，使用 `exec` goal（单独的 JVM，退出码能让构建失败）：
+
+```xml
+<plugin>
+    <groupId>org.codehaus.mojo</groupId>
+    <artifactId>exec-maven-plugin</artifactId>
+    <version>3.5.0</version>
+    <executions>
+        <execution>
+            <id>check-contracts-ran</id>
+            <phase>verify</phase>
+            <goals>
+                <goal>exec</goal>
+            </goals>
+            <configuration>
+                <executable>java</executable>
+                <classpathScope>test</classpathScope>
+                <arguments>
+                    <argument>-classpath</argument>
+                    <classpath/>
+                    <argument>me.ahoo.cosid.store.tck.ContractsRan</argument>
+                    <argument>${project.build.directory}/surefire-reports</argument>
+                </arguments>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```

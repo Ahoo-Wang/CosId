@@ -1,7 +1,7 @@
 # Spring Boot Starter
 
 `cosid-spring-boot-starter` 是唯一的 starter（D14）。它只引入 `cosid-core` 与 `cosid-spring-boot-autoconfigure`，
-不引入其他依赖；用到哪些存储就自行添加对应的 artifact。支持 Spring Boot 4.0 及以上、Java 21+。
+不引入其他依赖；用到哪些存储就自行添加对应的 artifact。支持 Spring Boot 4.1.2 及以上（D49，不支持 4.0.x）、Java 21+：发布的元数据要求 Boot 4.1.2 的依赖版本。
 
 ```kotlin
 implementation(platform("me.ahoo.cosid:cosid-bom:__COSID_VERSION__"))
@@ -11,8 +11,9 @@ implementation("me.ahoo.cosid:cosid-store-redis")
 
 ## 统一的配置模型
 
-存储只声明一次、按名称引用，不同策略的生成器可以使用不同的存储，且没有按功能划分的 `enabled` 开关：用到什么由声明了什么决定。
-唯一的总开关是 `cosid.enabled`（默认 `true`）。
+存储只声明一次、按名称引用，不同策略的生成器可以使用不同的存储；生成器、存储与 machine 没有 `enabled` 开关：用到什么由声明了什么决定
+（关闭某个生成器用 `disabled: true`）。总开关是 `cosid.enabled`（默认 `true`）；各集成保留自己的开关（`cosid.mybatis.enabled`、
+`cosid.jdbc.enabled`、`cosid.activiti.enabled`、`cosid.flowable.enabled`，见[配置参考](../../reference/config/basic.md)）。
 
 ```yaml
 cosid:
@@ -88,26 +89,37 @@ public OrderService(IdGenerator ids,                                  // "defaul
 ```java
 @Bean
 static RuntimeSpecCustomizer moreGenerators() {          // static:它在处理 Bean 定义期间运行
-    return spec -> {
-        var generators = new HashMap<>(spec.generators());
-        generators.put("audit", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()));
-        return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
-    };
+    return spec -> spec.toBuilder()
+        .generator("audit", GeneratorSpec.Segment.builder("db").build())
+        .build();
 }
 ```
 
 Customizer 在运行时启动前按 `@Order` 依次执行，它们添加的生成器同样会注册 Bean。Customizer 不能依赖其他 Bean
 （它是 `static @Bean`），与 4.x 相同。
 
+自己的 `IdGenerator` 按 Bean 名加入运行时（对应 4.x 的 `IdGeneratorProvider.set`）：
+
+```yaml
+cosid:
+  generators:
+    legacy: { strategy: custom, ref: legacyIdGenerator, codec: [ { radix: { radix: 62 } } ] }
+```
+
+运行时像其他生成器一样提供它（Bean、`IdFiller`、端点），但不负责关闭；该 Bean 不能依赖 `CosIdRuntime`。
+代码中可用 `GeneratorSpec.Instance.builder(ids).build()` 直接传入实例。
+
 ## Actuator、指标与健康检查
 
 - 端点 `cosid`：`GET /actuator/cosid` 描述所有生成器，`/actuator/cosid/{name}` 描述单个生成器，
   `/actuator/cosid/{name}/long` 或 `/string` 生成一个 ID。端点只读（D17）；4.x 的删除操作改为
   `disabled` 属性。
-- 健康检查 `cosId`（`/actuator/health/cosId`，开关 `management.health.cosid.enabled`）：机器号槽位租约。
+- 健康检查 `cosid`（`/actuator/health/cosid`，开关 `management.health.cosid.enabled`）：机器号槽位租约。
 - Micrometer：19 个 `cosid.*` 指标。见[指标与健康检查](../operations/monitoring.md)。
 - 各集成（Jackson、MyBatis、Spring Data JDBC、Activiti、Flowable、Axon）在其库与对应的 CosId artifact（`cosid-jackson`、`cosid-mybatis`……）
   位于 classpath 上时自动装配。
-- Native image：`CosIdRuntimeHints` 注册运行时所需的反射信息。
+- Native image：`CosIdRuntimeHints` 注册运行时所需的反射信息。在 AOT 下（native image，或 `spring.aot.enabled`）
+  **生成器 Bean 的集合在构建期固定**：运行时启动时仍会绑定 `cosid.*`，所以部署时可以改生成器的设置，但部署时新增的生成器没有
+  Bean（用 `CosIdRuntime.generator(name)` 获取），部署时删掉的生成器其 Bean 在使用时失败。增删生成器要改构建期可见的配置。
 
 每个 Spring 上下文拥有自己的运行时（4.x 的 `provider.isolated` 是默认且唯一的模式）。

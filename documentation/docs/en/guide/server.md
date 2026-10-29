@@ -28,10 +28,16 @@ Every setting can come from the environment (`COSID_SERVER_AUTH_TOKENS_0`) or a 
 runs as a non-root user on port 8688; `/actuator/health/liveness` answers without asking the store and is the
 container health check. `/actuator/health/readiness` also asks the backing store (a reserve of size 1 on the key
 `cosid-server/readiness`, at most one at a time, its result reused for 1s, `DOWN` after 2s without an answer), so a
-load balancer stops sending calls to a server whose store is down. A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`, and
+load balancer stops sending calls to a server whose store is down. That check is the health contributor
+`cosidServerStore` (`/actuator/health/cosidServerStore`); a readiness group of your own includes it by that name. A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`, and
 the image carries the MySQL, MariaDB, PostgreSQL and SQL Server drivers.
 [`examples/server/compose.yaml`](https://github.com/Ahoo-Wang/CosId/tree/main/examples/server) runs the server on Redis
 with a client next to it. To build the image from source: `./gradlew :server:dockerImage` (or `:server:bootBuildImage`).
+
+**The image runs on JDK 25** (`eclipse-temurin:25-jre`, D48); the jars stay Java 21 bytecode, and the libraries still
+support Java 21. From JDK 24 on (JEP 491) a virtual thread no longer pins its carrier thread inside `synchronized`, and
+the server runs its requests on virtual threads (below). No JVM option changes with it: `JAVA_OPTS` (default
+`-XX:MaxRAMPercentage=75.0`, the heap follows the container's memory limit) adds options.
 
 ## Clients
 
@@ -81,7 +87,7 @@ Keys and namespaces travel in the JSON body, never in the path. Errors are `{cod
 | POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
 | POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`; `409 lease_lost` |
 | GET | `/ids[/{generator}]?count=n` | | `{ids: [...]}` (optional) |
-| GET | `/ids[/{generator}]/strings?count=n` | | `{ids: ["..."]}` through the generator's codec (optional) |
+| GET | `/ids[/{generator}]/strings?count=n` | | `{ids: ["..."]}`: the text ids of any strategy (optional): `long` ids through the generator's codec, cosid80, periodic segment and uuidv7 text |
 | GET | `/ids/{generator}/periodic?count=n` | | `{period, values: [...]}`, all of one period (optional) |
 
 A lease is `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`. Without a generator in
@@ -212,6 +218,8 @@ curl -H "Authorization: Bearer $TOKEN" 'http://cosid-server:8688/ids/ticket?coun
 ```
 
 The server is then an ordinary `CosIdRuntime`: a time-based generator also needs `cosid.machine`, and each server
-instance leases its own slot.
+instance leases its own slot. Ids from one server namespace are unique for every caller, which is one way to get ids
+unique across services; the other is a [shared named machine](concepts/slot-lease.md#ids-unique-across-services) in
+each service, which costs no call per id.
 
 All `cosid.server.*` properties: [configuration reference](../reference/config/server.md).

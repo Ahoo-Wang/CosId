@@ -14,10 +14,6 @@
 package me.ahoo.cosid.spring.autoconfigure;
 
 import me.ahoo.cosid.GeneratorDisabledException;
-import me.ahoo.cosid.GroupedIdGenerator;
-import me.ahoo.cosid.PartsIdGenerator;
-import me.ahoo.cosid.codec.GroupedCodec;
-import me.ahoo.cosid.codec.PartsCodec;
 import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 
@@ -26,7 +22,10 @@ import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.annotation.Selector;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Objects;
 
 /**
  * The read-only {@code cosid} Actuator endpoint (07 §4.2, D17), replacing the 4.x {@code cosid},
@@ -34,7 +33,7 @@ import java.util.Map;
  * <ul>
  *     <li>{@code GET /actuator/cosid}: every generator ({@link CosIdRuntime#describe()});</li>
  *     <li>{@code GET /actuator/cosid/{name}}: one generator;</li>
- *     <li>{@code GET /actuator/cosid/{name}/long}: a {@code long} id ({@code snowflake} and {@code segment});</li>
+ *     <li>{@code GET /actuator/cosid/{name}/long}: a {@code long} id ({@code snowflake}, {@code segment} and {@code custom});</li>
  *     <li>{@code GET /actuator/cosid/{name}/string}: a text id, through the generator's codec.</li>
  * </ul>
  * An unknown generator answers 404; a disabled one, or {@code long} of a text-only one, 400.
@@ -47,18 +46,37 @@ public class CosIdEndpoint {
 
     private final CosIdRuntime runtime;
 
+    /**
+     * Creates the endpoint.
+     *
+     * @param runtime the runtime it describes and generates from
+     */
     public CosIdEndpoint(CosIdRuntime runtime) {
         this.runtime = runtime;
     }
 
+    /**
+     * Describes every generator.
+     *
+     * @return the generators by name
+     */
     @ReadOperation
-    public Map<String, GeneratorInfo> describe() {
-        return runtime.describe();
+    public Map<String, Generator> describe() {
+        Map<String, Generator> generators = new LinkedHashMap<>();
+        runtime.describe().forEach((name, info) -> generators.put(name, Generator.of(info)));
+        return generators;
     }
 
+    /**
+     * Describes one generator.
+     *
+     * @param name the generator name
+     * @return the generator, or null for an unknown one
+     */
     @ReadOperation
-    public GeneratorInfo generator(@Selector String name) {
-        return runtime.describe().get(name);
+    public Generator generator(@Selector String name) {
+        GeneratorInfo info = runtime.describe().get(name);
+        return info == null ? null : Generator.of(info);
     }
 
     /**
@@ -76,22 +94,36 @@ public class CosIdEndpoint {
         }
         try {
             return switch (format) {
-                case LONG -> {
-                    if (!CosIdSpecs.SNOWFLAKE.equals(info.strategy()) && !CosIdSpecs.SEGMENT.equals(info.strategy())) {
-                        throw new InvalidEndpointRequestException("Generator [" + name + "] (" + info.strategy() + ") issues no long ids",
-                            "no long ids");
-                    }
-                    yield runtime.generator(name).generate();
-                }
-                case STRING -> switch (info.strategy()) {
-                    case CosIdSpecs.COSID80 -> runtime.get(name, PartsCodec.class).encode(runtime.get(name, PartsIdGenerator.class).nextParts());
-                    case CosIdSpecs.PERIODIC_SEGMENT -> runtime.get(name, GroupedCodec.class).encode(runtime.get(name, GroupedIdGenerator.class).generate());
-                    default -> runtime.stringGenerator(name).generate();
-                };
+                case LONG -> runtime.generator(name).generate();
+                case STRING -> runtime.text(name).get();
                 default -> throw new InvalidEndpointRequestException("Unknown format [" + format + "]: long or string", "unknown format");
             };
         } catch (GeneratorDisabledException e) {
             throw new InvalidEndpointRequestException(e.getMessage(), "disabled");
+        } catch (NoSuchElementException e) {
+            // A strategy without long ids (cosid80, periodic-segment, uuidv7).
+            throw new InvalidEndpointRequestException(e.getMessage(), "no long ids");
+        }
+    }
+
+    /**
+     * The JSON body of a generator: {@link GeneratorInfo}, which has no bean accessors for Jackson, as a record.
+     *
+     * @param name     the generator name
+     * @param strategy {@code snowflake}, {@code cosid80}, {@code segment}, {@code periodic-segment}, {@code custom} or {@code uuidv7}
+     * @param store    the store name, empty for time-based generators
+     * @param details  layout, slot, window, ready range headroom, batch size and the like
+     */
+    public record Generator(String name, String strategy, String store, Map<String, Object> details) {
+        public Generator {
+            Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(strategy, "strategy");
+            Objects.requireNonNull(store, "store");
+            details = Map.copyOf(Objects.requireNonNull(details, "details"));
+        }
+
+        static Generator of(GeneratorInfo info) {
+            return new Generator(info.name(), info.strategy(), info.store(), info.details());
         }
     }
 }

@@ -84,7 +84,7 @@ public interface SlotLeaseStore extends AutoCloseable {
 **客户端规则**:每次发号读取一次绑定(§4.1),取时间戳 `t`(换算为毫秒的区间 `[t_ms, t_ms + unit − 1]`):
 - `t_ms ≤ floor` → 等待(首次发号与每次换绑都会如此);
 - `t_ms + unit − 1 > ceiling` → 不发号,抛出 `SlotWindowExceededException`(或在 `WaitUpTo` 策略下等待续约);
-- 否则在该绑定的序列器上 CAS。
+- 否则在该绑定的序列器上发布新状态(短临界区内,03 §4.1)。
 
 由 W 与客户端规则,同一槽位上不同任期发出的时间戳区间不相交;同一任期内由序列器保证不重复。**结论不依赖任何时钟。**
 
@@ -115,9 +115,9 @@ public final class SlotBinding {
 ```
 
 - 一个运行时的多个时间型生成器共享同一个 `SlotHandle`,而它们的 `Layout`(序列位、时间单位)可以不同,因此**序列器状态由每个生成器自己持有**:
-  生成器内部是一个 `AtomicReference<Bound>`,`Bound = (SlotBinding, AtomicLong state)`。发现 `slot.current()` 换了对象时,用一次 CAS 换上新的 `Bound`,
-  两个线程同时发现换绑也只会有一个成功重置。
-- 生成器每次 `generate` 只取一次 `Bound`,槽位、窗口与序列都来自它,不会混用两次绑定。
+  生成器内部是一个 `AtomicReference<Bound>`,`Bound = (SlotBinding, AtomicLong state)`,读写都在生成器自己的锁(`synchronized`)内。发现 `slot.current()` 换了对象时,
+  在锁内 `bound.set` 换上新的 `Bound`,并把旧状态 `getAndSet` 为 `CLOSED`;两个线程同时发现换绑也只会有一个重置。
+- 生成器每次尝试只取一次 `Bound`,槽位、窗口与序列都来自它,不会混用两次绑定。
 - 续约只提高当前绑定的 `ceiling`(volatile 写);重新获取槽位则创建新绑定(`generation + 1`)。
 
 ### 4.2 LeaseKeeper
@@ -132,7 +132,7 @@ public final class SlotBinding {
 
 ### 4.3 关闭顺序
 
-1. 每个生成器把序列器状态 CAS 为终止哨兵 `CLOSED`,并从被替换的状态中取得精确的 `lastIssued`。之后任何并发 CAS 都会失败并抛出 `IllegalStateException`。
+1. 每个生成器在锁内换上终止 `Bound`,把被替换的状态 `getAndSet` 为 `CLOSED`,从中取得精确的 `lastIssued`。之后的发号尝试都抛出 `IllegalStateException`。
 2. 每个 machine `release(lease, max(lastIssued))`,其中的最大值只取**选了该 machine 的**生成器(D37);命名 machine 按启动的逆序,最后是默认 machine。
 3. 关闭存储与自建执行器。
 

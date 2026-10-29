@@ -30,12 +30,18 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The one registry and lifecycle owner of stores, the machine slot and generators (07-runtime-and-spring.md §1).
  * Its generators are fixed at start (D17); there is no global singleton, and runtimes in one JVM do not share a slot.
+ * Code that needs ids gets the runtime, or its generators, from whoever started it: in Spring, inject the
+ * {@code IdGenerator} beans; static code (4.x {@code DefaultIdGeneratorProvider.INSTANCE}) keeps them in a holder of its
+ * own, set when the context has started and cleared when it closes (the migration guide shows one).
  *
  * <p>Lookups of a disabled generator (D24, {@link GeneratorSpec.Disabled}) throw
  * {@link me.ahoo.cosid.GeneratorDisabledException}.
@@ -73,6 +79,11 @@ public final class CosIdRuntime implements AutoCloseable {
         return new CosIdRuntime(RuntimeParts.assemble(spec, options, ownExecutors));
     }
 
+    /**
+     * The namespace of the runtime: of the default machine and of the segment keys.
+     *
+     * @return the namespace
+     */
     public String namespace() {
         return parts.namespace();
     }
@@ -99,11 +110,13 @@ public final class CosIdRuntime implements AutoCloseable {
     }
 
     /**
-     * The generator of that name with its codec.
+     * The {@code long} generator of that name with its codec. For the text ids of any strategy, cosid80, periodic
+     * segments and uuidv7 included, use {@link #text(String)}.
      *
      * @param name the generator name
      * @return the generator
-     * @throws java.util.NoSuchElementException          if there is none, or it has no {@code long} ids
+     * @throws java.util.NoSuchElementException          if there is none, or it has no {@code long} ids (cosid80,
+     *                                                   periodic segment, uuidv7: use {@link #text(String)})
      * @throws me.ahoo.cosid.GeneratorDisabledException if it is disabled
      */
     public StringIdGenerator stringGenerator(String name) {
@@ -138,9 +151,13 @@ public final class CosIdRuntime implements AutoCloseable {
     /**
      * The generator of that name as {@code type}: an {@code IdGenerator}, {@code PartsIdGenerator} (time-based) or
      * {@code GroupedIdGenerator} (periodic segment), the concrete generator ({@code TimeBasedGenerator},
-     * {@code SegmentGenerator}, {@code PeriodicSegmentGenerator}; never counted), or for {@code long} ids a
+     * {@code SegmentGenerator}, {@code PeriodicSegmentGenerator}, {@code UuidV7Generator}; never counted), or for {@code long} ids a
      * {@code StringIdGenerator}, an {@code IntIdGenerator} (range checked) or its {@code IdCodec}; for the 80-bit CosId
      * its {@code PartsCodec}; for a periodic segment its {@code GroupedCodec}.
+     *
+     * <p>Whatever it returns belongs to the runtime (R1-core-18): never close it, even where its type is
+     * {@code AutoCloseable}; it closes with the runtime ({@link #close()}), and closing it earlier would break every other
+     * user of the generator.
      *
      * @param name the generator name
      * @param type the wanted type
@@ -167,12 +184,44 @@ public final class CosIdRuntime implements AutoCloseable {
     }
 
     /**
-     * The slot lease.
+     * The slot lease of the default machine.
      *
-     * @return the lease, or empty without a leased machine slot
+     * @return the lease, or empty without a leased default machine
      */
     public Optional<SlotLease> slot() {
         return parts.lease();
+    }
+
+    /**
+     * The slot lease of a machine (D37).
+     *
+     * @param machine the machine name; {@value RuntimeSpec#DEFAULT_MACHINE} for the default one
+     * @return the lease, or empty when that machine is static or did not start (no enabled generator chose it)
+     */
+    public Optional<SlotLease> slot(String machine) {
+        return parts.lease(Objects.requireNonNull(machine, "machine"));
+    }
+
+    /**
+     * The machines that started: those an enabled time-based generator chose (D37).
+     *
+     * @return the machine names in name order, {@value RuntimeSpec#DEFAULT_MACHINE} included when it started
+     */
+    public Set<String> machines() {
+        return Collections.unmodifiableSet(new TreeSet<>(parts.machines().keySet()));
+    }
+
+    /**
+     * The text ids of the generator of that name, whatever its strategy (R1-int-01): the codec of its {@code long}
+     * ids, its parts codec (cosid80), its grouped codec (periodic segment) or the canonical UUID form (uuidv7, D46).
+     *
+     * @param name the generator name
+     * @return the text ids
+     * @throws java.util.NoSuchElementException          if there is none
+     * @throws me.ahoo.cosid.GeneratorDisabledException if it is disabled
+     */
+    public Supplier<String> text(String name) {
+        return entry(name).text();
     }
 
     /**

@@ -66,6 +66,15 @@ java -jar cosid-migration.jar plan \
 - `--group-pattern name=yyyy-MM-dd`：分组键不是 5.0 预设（`yyyy`、`yyyyMM`、`yyyyMMdd`）的分组号段。它的 key 会被重新格式化为
   同粒度的预设。**每个周期都会迁移，包括过去的周期**，因为 4.x 使用服务器的默认时区。
 - `--slot-bits`（4.x 的 `machine-bit`，默认 10）、`--tolerance`（1s）：5.0 命名空间的槽位参数。
+- `--machine-from <4.x 存储>` 与 `--machine-to <5.0 存储>`：4.x 把机器号放在与号段不同的存储里时（`cosid.machine.distributor.type`
+  与 `cosid.segment.distributor.type` 不同），两个都要指定；`plan` 会用 `--layout-config` 比对，未声明的拆分会被拒绝。
+- `--target-config application-5.yaml`：已经写好的 5.0 配置；布局检查改用它，而不是转换出来的 4.x 布局。
+- 账号选项：`--from-option user=…` / `--to-option user=…`，也可以写 `username`（与 5.0 JDBC 存储的名字一致）；
+  `password`（或环境变量 `COSID_MIGRATION_FROM_PASSWORD` / `_TO_PASSWORD`）不会写入 `plan.json`。
+- `--to-option rangeTable=ids_range` 这类存储选项按 5.0 存储的规则校验：不区分大小写，忽略 `-` 与 `_`（`range-table` 即 `rangeTable`），
+  未知或拼错的键直接拒绝，数据不会落进 5.0 不读的默认表。
+
+全部选项及其防护作用见[工具的 README](https://github.com/Ahoo-Wang/CosId/blob/main/migration/README.md#commands)。
 
 key 映射：`{ns}.{name}` → `{ns}/{name}`；分组的 `{ns}.{name}@{groupKey}` → `{ns}/{name}/{period}`。
 
@@ -80,6 +89,17 @@ java -jar cosid-migration.jar apply --plan plan.json --confirm-stopped --layout-
    并从封存后的值读取 `lastMaxId`。被遗漏的 4.x 实例会拿到远高于 5.0 的区间，`verify` 会报告它。
 3. **写入目标**：把每个 5.0 key 提升到 `next`，记录 `{limit, tolerance}`，并以 `next_floor = W` 准备每个槽位。目标值只升不降
    （`max(current, planned)`）。
+
+在 Redis 上，这几步写入（封存、提升、准备槽位）之后，如果写入的节点有副本，就执行 `WAIT 1` 等待副本确认；
+5 秒内没有副本确认时 `apply` 报错停止，因为此时发生 failover 会丢掉这次写入。确认复制正常后再运行一次 `apply` 即可。
+
+`apply` 的其他选项：
+
+- `--allow-unmigrated <ns>.<name>`：计划中有 `NOT MIGRATED` 的 key（5.0 读不了的分组模式、含 `/` 的名字）时 `apply` 会中止；
+  逐个列出你接受不迁移的 key。它在 4.x 中的值不会带过来，所以不能让任何 5.0 生成器发出同一批 ID。
+- `--gap <n>`（0）：每个 5.0 key 从 `lastMaxId + 1` 再加 `n` 开始，是在封存之外自己选的余量。
+- `--target-config`、`--layout-config`：同 `plan`，用于再次检查。`--machine-from` / `--machine-to` 指定的机器号存储从计划中读取，
+  `--machine-from-option` / `--machine-to-option` 用于再次提供它们的选项（如密码）。
 
 `apply` 是幂等的。如果中途停止（崩溃、超时），再运行一次即可。当某个 5.0 运行时已在该命名空间持有槽位，或命名空间的槽位参数不同时，
 它会拒绝执行。结果文件 `apply-result.json` 包含 `T_apply`、W 和 `notBefore`（ISO-8601 格式的 W）。
@@ -101,7 +121,33 @@ java -jar cosid-migration.jar config --input application.yaml --result apply-res
 ```
 
 4.x 的 `cosid.*` 配置被转换为 5.0 模型。**所有无法原样转换的内容都以注释形式放在输出文件顶部：请逐条审阅。**
+每个号段生成器都必须在结果文件中有对应的 key，否则失败；4.x 从未发过号的生成器用 `--allow-new <generator>` 指定。
 静态槽位会从结果中得到 `not-before: W`。4.x 的 proxy 配置变为一个 `remote` 存储（`baseUrl`、`token`、`connectTimeout`、`requestTimeout`）。
+
+- **存储以 `apply` 实际写入的为准**，即结果中的 `target` 与 `machineTarget`：类型、JDBC 表名选项（`rangeTable`、`slotTable`、
+  `namespaceTable`）、Mongo `database`、Redis `cluster` 与 ZooKeeper 连接串，口令一律不写。迁移到另一种类型（例如 Redis 到 JDBC）后，
+  应用需要那种存储的模块和客户端（`jdbc` 是 `DataSource`），而不是 4.x 的；报告会写明，并丢弃旧类型的 4.x 选项。每个迁移过的普通号段
+  还会写 `initial-offset`，即迁移后的下一个值：万一 5.0 打开的存储里没有迁移过的 key，它们也从所有 4.x 号之后开始，而不是从 1 开始。
+- **4.x 的存储选项**在 5.0 有对应时照转：`redis.wait-replicas: N` 写成 `wait: N`（WAIT N 个副本），`jdbc.fetch-plan` 写成 `fetchPlan`，
+  `mongo.write-concern` 写成 `writeConcern`，`cosid.zookeeper.retry` 的 Curator 重试（`base-sleep-time-ms`、`max-retries`、`max-sleep-ms`）
+  写成 `retry.baseSleepTime`、`retry.maxRetries`、`retry.maxSleep`。
+- **Friendly 文本。** 4.x 的 `snowflake_friendly` 转换器与 `@AsString(FRIENDLY_ID)` 不给节点号和序列补零（`…-1-5`），5.0 的 `friendly`
+  默认补零（`…-0001-0005`）。`config` 会写 `pad-start: false`，文本保持原样；代码中给 `@AsString` 写 `padStart = false`。两种形式都能解析。
+- **独立命名空间的 snowflake** 会得到一个命名 machine（[见下文](#共享的-cosidgenerator-命名空间)）。
+
+CosIdGenerator 的键按下表对应（`config` 会写出）：
+
+| 4.x `cosid.generator.*` | 5.0 `cosid.generators.<name>.*`（策略 `cosid80`） |
+|---|---|
+| `type: radix62` / `radix36` / `friendly` | `codec[0]`：`radix: { radix: 62 }` / `radix: { radix: 36 }` / `friendly` |
+| `timestamp-bit`（44）、`machine-bit`（20）、`sequence-bit`（16） | `time-bits`、`node-bits`、`seq-bits`（默认相同） |
+| `sequence-reset-threshold`（32767） | `seq-reset-threshold`（默认相同；超出序列范围的 4.x 取值按最大值处理） |
+| `zone-id` | `codec[0].friendly.zone` |
+| `pad-start`（true，只作用于 friendly 文本） | `codec[0].friendly.pad-start`（true） |
+| `namespace` | `machine: generator` + `cosid.machines.generator.namespace`（见[下文](#共享的-cosidgenerator-命名空间)） |
+
+其他键：`cosid.metrics.generated.enabled` 沿用 4.x 的名字。健康检查名为 `cosid`（`/actuator/health/cosid`，开关
+`management.health.cosid.enabled`）。5.0 不认识的 `cosid.*` 键会导致启动失败。
 
 ### 6. 启动 5.0
 
@@ -109,7 +155,7 @@ java -jar cosid-migration.jar config --input application.yaml --result apply-res
 
 ### 之后：清理旧周期
 
-运行时周期号段的 key 只封存、不删除（D23）。物理删除过去的周期是一个离线步骤：
+运行时周期号段的 key 只封存、不删除（D23）。物理删除过去的周期是一个离线步骤，**必须先停止所有 5.0 实例**：store 正在使用的 key，其节点或行不得被删除。
 
 ```bash
 java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 20250101 --dry-run
@@ -230,13 +276,66 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
   包括 share（`{ns}.__share__`）和各周期 key。
 - **时间型 ID**：等最后一个 5.0 ceiling 过去（租约 `ttl` 加 `tolerance`，默认 31s）之后再重新启动 4.x。
 
-## 已知限制
+## 共享的 CosIdGenerator 命名空间
 
-- **独立命名空间的 CosIdGenerator 暂时不能迁移。** 4.x 部署若把 `cosid.generator.namespace` 设成与 `cosid.namespace` 不同的命名空间，
-  就是在各服务之间共享这个命名空间里 CosIdGenerator 的机器号，使 80 位 ID 跨服务唯一。5.0 的当前版本还没有对应的能力：转换出的
-  `cosid80` 会在服务命名空间里取槽位，重新发出其他服务已经发过的 ID。`config` 以及带 `--layout-config` 的 `plan` / `apply` 会拒绝这样的配置。
-  在后续 5.0 版本提供命名的 machine（D37）之前，请让这些服务继续使用 4.x，或者让所有服务都从同一个 cosid-server 获取 80 位 ID。
-  `cosid.generator.namespace` 等于 `cosid.namespace` 或未设置时，照常迁移。
+- **独立命名空间的 CosIdGenerator 先单独迁移一次，再迁移各服务。** 4.x 部署若把 `cosid.generator.namespace` 设成与 `cosid.namespace`
+  不同的命名空间，就是在各服务之间共享这个命名空间里 CosIdGenerator 的机器号。5.0 用命名 machine `cosid.machines.generator` 承接：
+  1. 单独迁移共享命名空间一次：`plan --namespace <共享命名空间> --layout-config <任一服务的配置>`，再 `apply`。计划默认把 5.0 的槽位放在 CosIdGenerator
+     节点空间的顶端（`--slot-offset` 可改），并报告余量：4.x 还能分出多少机器号才会碰到 5.0 的节点号（4.x 默认位宽下约 104 万个）。
+     没有机制阻止 4.x 用完余量，所以计划记录 `guaranteed: false`。有偏移时 4.x 可以继续运行，各服务逐个切换；切换期间不要把 4.x 扩容到偏移以上（`verify` 会检查）。
+     `--slot-offset 0` 表示一次性切换，共享它的服务都必须停止。
+  2. 照常迁移各服务：在第 1 步完成之前，服务的 `apply` 会拒绝执行；`config` 会写出 `cosid.machines.generator`，并给 cosid80 写 `machine: generator`。
+  共享该命名空间的所有服务必须使用相同的 `bits`、`tolerance` 与 `slot-offset`。（5.0.0-alpha.1 会拒绝这样的配置。）
+- **独立命名空间的 snowflake 按同样的方式迁移。** 4.x 的 snowflake 定义若有与 `cosid.namespace` 不同的 `namespace`
+  （`cosid.snowflake.provider.<name>.namespace` 或共享 snowflake 的），它的机器号就在那个命名空间按自己的 `machine-bit` 分配，
+  常用来让多个服务的号互不重复。5.0 为每个这样的命名空间生成一个命名 machine `cosid.machines.<命名空间>`（字母、数字与 `-` 以外的字符换成 `-`），
+  并给 snowflake 写 `machine: <该名字>`。先按上文单独迁移这个命名空间一次，再迁移各服务：`plan --namespace <它> --layout-config <任一服务的配置>`，
+  再 `apply`。槽位位数默认等于 snowflake 的 `machine-bit`，没有留出偏移的空间，因此是一次性切换，使用它的 4.x 实例都必须停止
+  （`--slot-bits` 取小一些才能用 `--slot-offset`）。在这一步完成之前，各服务的 `apply` 会拒绝执行；`config` 按迁移后的槽位参数写出该 machine。
+  （5.0.0-rc.1 的 `config` 会丢掉这个命名空间，共享它的服务会发出相同的号。）
+
+## 静态代码中取号
+
+4.x 代码常在任意位置用 `DefaultIdGeneratorProvider.INSTANCE.getShare().generate()` 取号。5.0 没有全局单例（D17）：每个运行时
+都属于启动它的一方。替代做法：
+
+1. **注入生成器。** 名为 `default` 的生成器是主 `IdGenerator` Bean，每个生成器也以自己的名字注册为 Bean
+   （`@Qualifier("order") IdGenerator`）。大多数静态调用所在的代码都可以改为接收 Bean。
+2. **必须静态调用时**（实体构造器、静态工具类），在应用里自己放一个 holder：上下文启动后赋值，关闭时清空：
+
+```java
+@Component
+public class Ids implements SmartInitializingSingleton, DisposableBean {
+    private static volatile IdGenerator generator;
+    private final IdGenerator injected;
+
+    public Ids(IdGenerator generator) {          // 名为 default 的生成器，即主 IdGenerator Bean
+        this.injected = generator;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        generator = injected;
+    }
+
+    @Override
+    public void destroy() {
+        generator = null;
+    }
+
+    public static long next() {
+        IdGenerator current = generator;
+        if (current == null) {
+            throw new IllegalStateException("CosId is not started yet, or its context is closed");
+        }
+        return current.generate();
+    }
+}
+```
+
+   上下文启动前或关闭后调用会失败，而不是从已关闭的运行时发号。同一个 JVM 里有两个 Spring 上下文时（测试、父子上下文），
+   每个都会给 holder 赋值：每个上下文一个 holder，或者不用 holder。
+3. **不用 Spring 时**，调用 `CosIdRuntime.start` 的代码持有运行时（并负责关闭它）：把运行时或其生成器传给使用它们的地方。
 
 ## Artifact 与代码
 
@@ -246,11 +345,12 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
 | `cosid-spring-redis`、`cosid-jdbc`、`cosid-mongo`、`cosid-zookeeper` | `cosid-store-redis`、`-jdbc`、`-mongo`、`-zookeeper` |
 | proxy 客户端 / proxy 服务端 | `cosid-store-remote` / cosid-server 镜像（仅新 API） |
 | `cosid-jackson`、`cosid-mybatis`、`cosid-spring-data-jdbc`、`cosid-activiti`、`cosid-flowable`、`cosid-axon` | 同名 artifact（D29），各自只依赖 `cosid-core` 与自己的三方库 |
+| `cosid-jackson` 的 `@AsString` | 属性改名（`value` → `codec`、`radixCharSize` → `width`……，见 [Jackson](../integrations/jackson.md#从-4-x-迁移)）；只支持 Jackson 3，不支持 Jackson 2 |
 | `cosid-accessor` | `cosid-core`（`me.ahoo.cosid.accessor`） |
 | `cosid-test` | `cosid-store-tck` |
 | `cosid-dependencies` | `cosid-bom` |
 | `cosid-sharding` | `cosid-sharding`（用 `ShardingRange` 取代 Guava 的 `Range`） |
-| Java 17 | **Java 21**，Spring Boot 4.0+ |
+| Java 17 | **Java 21**，Spring Boot 4.1.2+ |
 
 | 4.x API | 5.0 |
 |---|---|
@@ -260,9 +360,11 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
 | `CosIdGenerator`（Radix62 / Friendly） | `cosid80` + `PartsCodec` |
 | `IdConverter` 系列 | `IdCodec`：`Radix`、`Friendly`、`DatePrefix`、前缀 / 后缀 |
 | `SnowflakeIdStateParser` | `Layout.unpack`、`Friendly.decode` |
-| `IdGeneratorProvider`、`DefaultIdGeneratorProvider.INSTANCE`、share | `CosIdRuntime`、名为 `default` 的生成器 |
+| `IdGeneratorProvider`、`DefaultIdGeneratorProvider.INSTANCE`、share | `CosIdRuntime`、名为 `default` 的生成器（[静态代码中取号](#静态代码中取号)） |
+| `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>`（`GeneratorSpec.Custom`），或在 `RuntimeSpecCustomizer` 中用 `GeneratorSpec.Instance` |
 | `MachineIdDistributor` 系列、guarder、`~/.cosid-machine-state` | `cosid.machine.leased` / `static`（见[槽位租约](../concepts/slot-lease.md)） |
 | `IntegerIdGenerator`、`UncertaintyIdGenerator`、`LazyIdGenerator` | `IdGenerators.toInt`、`.uncertain`、`.lazy` |
+| `UuidGenerator`（随机的 UUIDv4） | `IdGenerators.uuid()`；需要按时间有序的 UUID 时用 `strategy: uuidv7`（[生成器](../../reference/config/generators.md#uuidv7)） |
 | `CosIdStoreProvider` | `StoreProvider` |
 | `Customize*Properties` | `RuntimeSpecCustomizer` |
 | Actuator 对生成器的 DELETE | `cosid.generators.<name>.disabled: true` |

@@ -25,11 +25,17 @@ import javax.sql.DataSource;
 /**
  * A data source without a pool, for a store the provider opens from {@code options.url} alone: each operation opens
  * a connection of its own. Applications that care about latency pass a pooled {@code DataSource} as the client.
+ *
+ * <p>Its login timeout and log writer are its own (R1-jdbc-09): setting them changes nothing of {@link DriverManager},
+ * which is JVM-wide; a connection then opens under {@code DriverManager}'s login timeout. Its {@link #toString()} and the
+ * failures of {@link #getConnection()} keep the password of the url out.
  */
 final class DriverManagerDataSource implements DataSource {
     private final String url;
     private final String username;
     private final String password;
+    private volatile int loginTimeout;
+    private volatile PrintWriter logWriter;
 
     DriverManagerDataSource(String url, String username, String password) {
         this.url = Objects.requireNonNull(url, "url");
@@ -39,32 +45,55 @@ final class DriverManagerDataSource implements DataSource {
 
     @Override
     public Connection getConnection() throws SQLException {
-        return username == null ? DriverManager.getConnection(url) : DriverManager.getConnection(url, username, password);
+        try {
+            return username == null ? DriverManager.getConnection(url) : DriverManager.getConnection(url, username, password);
+        } catch (SQLException e) {
+            throw withoutPassword(e);
+        }
     }
 
     @Override
     public Connection getConnection(String user, String pass) throws SQLException {
-        return DriverManager.getConnection(url, user, pass);
+        try {
+            return DriverManager.getConnection(url, user, pass);
+        } catch (SQLException e) {
+            throw withoutPassword(e);
+        }
+    }
+
+    /**
+     * A failure as it is, unless its message quotes the url with a password, as {@code DriverManager}'s
+     * {@code "No suitable driver found for <url>"} does (R2-mig-05): then a copy that quotes {@link #redacted} instead.
+     */
+    private SQLException withoutPassword(SQLException e) {
+        String message = e.getMessage();
+        String safe = redacted(url);
+        if (message == null || safe.equals(url) || !message.contains(url)) {
+            return e;
+        }
+        SQLException copy = new SQLException(message.replace(url, safe), e.getSQLState(), e.getErrorCode());
+        copy.setStackTrace(e.getStackTrace());
+        return copy;
     }
 
     @Override
     public PrintWriter getLogWriter() {
-        return DriverManager.getLogWriter();
+        return logWriter;
     }
 
     @Override
     public void setLogWriter(PrintWriter out) {
-        DriverManager.setLogWriter(out);
+        logWriter = out;
     }
 
     @Override
     public void setLoginTimeout(int seconds) {
-        DriverManager.setLoginTimeout(seconds);
+        loginTimeout = seconds;
     }
 
     @Override
     public int getLoginTimeout() {
-        return DriverManager.getLoginTimeout();
+        return loginTimeout;
     }
 
     @Override
@@ -87,6 +116,12 @@ final class DriverManagerDataSource implements DataSource {
 
     @Override
     public String toString() {
-        return "DriverManagerDataSource[" + url + "]";
+        return "DriverManagerDataSource[" + redacted(url) + "]";
+    }
+
+    /** The url without a password: of its user info ({@code //user:secret@}) or of a {@code password} / {@code pwd} parameter. */
+    static String redacted(String url) {
+        return url.replaceAll("(//[^/:@?;]*):[^/@?;]*@", "$1:***@")
+            .replaceAll("(?i)([?&;](password|pwd)=)[^&;]*", "$1***");
     }
 }

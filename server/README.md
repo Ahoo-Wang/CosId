@@ -21,7 +21,7 @@ Keys and namespaces travel in the JSON body, never in the path. Errors are `{cod
 | POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
 | POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`; `409 lease_lost` |
 | GET | `/ids[/{generator}]?count=n` | — | `{ids: [...]}` (optional) |
-| GET | `/ids[/{generator}]/strings?count=n` | — | `{ids: ["..."]}`, through the generator's codec (optional) |
+| GET | `/ids[/{generator}]/strings?count=n` | — | `{ids: ["..."]}`: the text ids of any strategy (optional): `long` ids through the generator's codec, cosid80, periodic segment and uuidv7 text |
 | GET | `/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`, all of one period (optional) |
 
 A lease is `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`. Renew and release
@@ -39,7 +39,7 @@ Failures of the backing store answer a generic message; their details go to the 
 |---|---|---|
 | `store` | the only store | the backing store among `cosid.stores` |
 | `auth.tokens` | — | tokens that may use everything |
-| `auth.clients[i].{name, token, namespaces, key-prefixes}` | — | tokens limited to slot namespaces, range keys whose first segment is one of the namespaces, or range keys with one of the prefixes; `*` allows every namespace; the id endpoints need `cosid.namespace` |
+| `auth.clients[i].{name, token, namespaces, key-prefixes}` | — | tokens limited to slot namespaces, range keys whose first segment is one of the namespaces, or range keys with one of the prefixes; `*` allows every namespace; the id endpoints need `cosid.namespace`. A client with a named machine leases its slot in the machine's own namespace, so list both, such as `[order-service, global-ids]`, or it gets `403` |
 | `auth.allow-anonymous` | `false` | without any token, the server **refuses to start** unless this is set; tokens shorter than 16 characters or holding `${` (an unresolved placeholder) are refused too. Anonymous opens **everything** to every caller, Actuator's `cosid` endpoint included: only on a trusted network (a `ClusterIP` Service behind a `NetworkPolicy`, no Ingress); see the guide |
 | `auth.public-paths` | `/actuator/health`, `/actuator/health/**` | path patterns that need no token |
 | `docs.public` | `false` | adds the springdoc paths (`/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**`, `/v3/api-docs.yaml`, following `springdoc.*.path`) to the public paths, on top of `auth.public-paths`, so a browser shows Swagger UI without a token; its "Try it out" calls still need one (Authorize), and Actuator still needs a token of `tokens` |
@@ -76,11 +76,14 @@ it off.
 - OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`; they need a token of `auth.tokens` unless `docs.public=true`. The document
   lists the Actuator endpoints too (`springdoc.show-actuator`); set it to `false` to leave them out.
 - Image: `./gradlew :server:dockerImage` (the `Dockerfile` on `build/libs/cosid-server.jar`), or `:server:bootBuildImage`.
+  It runs on **JDK 25** (`eclipse-temurin:25-jre`, D48; the jar stays Java 21 bytecode): from JDK 24 on (JEP 491) a
+  virtual thread no longer pins its carrier inside `synchronized`, and requests run on virtual threads. No JVM option
+  changes: `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75.0`) adds options.
 
 ```bash
 docker run -d -p 8688:8688 \
   -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
-  -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token ahoowang/cosid-server:5.0.0-alpha.1
+  -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token ahoowang/cosid-server:5.0.0-rc.1
 ```
 
 Clients:

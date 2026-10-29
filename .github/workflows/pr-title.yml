@@ -26,6 +26,7 @@ jobs:
   conventional-title:
     name: Conventional Commits title
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Check title
         uses: amannn/action-semantic-pull-request@v6

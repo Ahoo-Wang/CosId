@@ -79,7 +79,7 @@ public class ZookeeperStoreBenchmark {
     }
 
     static SlotLease acquired(SlotLeaseStore slots, String namespace, Owner owner) {
-        return ((AcquireResult.Acquired) slots.acquire(namespace, owner, LIMIT, TTL, TOLERANCE, OptionalInt.empty())).lease();
+        return ((AcquireResult.Acquired) slots.acquire(namespace, owner, LIMIT, TTL, TOLERANCE, 0, OptionalInt.empty())).lease();
     }
 
     @TearDown

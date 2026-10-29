@@ -15,8 +15,6 @@
 #  - cosid.segment.provider.grouped-inside.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
 #  - cosid.segment.provider.grouped-plain.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
 #  - cosid.generator: a generator named [cosid] exists already; the CosIdGenerator is written as [cosid80]
-#  - cosid.generator: the 4.x bits differ from the 5.0 COSID_80 layout (44/20/16); the 5.0 ids keep COSID_80 (M3 fails in plan)
-#  - cosid.generator.pad-start = false: 5.0 cosid80 text ids are always padded
 #  - cosid.machine.port = 8080: set owner-key to host:port if the slot should follow it
 #  - cosid.machine.distributor.type = stateful_set: the slot is ${POD_ORDINAL}; set it from the pod ordinal
 #  - cosid.machine.static.not-before: pass --result apply-result.json; without it the static slot does not start after the 4.x timestamps (09 §4.4)
@@ -118,8 +116,11 @@ cosid:
       - prefix: "N"
     cosid80:
       strategy: cosid80
+      node-bits: 19
       codec:
       - friendly:
           zone: Asia/Shanghai
+          pad-start: false
   metrics:
-    generated: true
+    generated:
+      enabled: true

@@ -31,6 +31,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.UUID;
@@ -105,18 +106,71 @@ abstract class LastInsertIdTest {
         assertThrows(RangeExhaustedException.class, () -> store.reserve(full, 10, 0), "a full key is not reserved at the stale value");
     }
 
+    /**
+     * R1-jdbc-06: behind an SQL proxy that loses the generated key, or answers with one the statement did not set, a
+     * reserve fails instead of handing out a range; {@link FetchPlan#TRANSACTION} needs no generated key at all.
+     */
+    @Test
+    void aLostOrRewrittenGeneratedKeyFailsAndTheTransactionPlanNeedsNone() throws SQLException {
+        String key = newKey();
+        store.reserve(key, 10, 0);
+        RangeStore lost = new JdbcStore(new OneConnection(physical, -1), database().dialect(), JdbcTables.DEFAULT, TestDatabase.TIMEOUT).ranges();
+        IllegalStateException noKey = assertThrows(IllegalStateException.class, () -> lost.reserve(key, 10, 0));
+        assertTrue(noKey.getMessage().contains("set options.fetchPlan=transaction"), noKey.getMessage());
+        RangeStore rewritten = new JdbcStore(new OneConnection(physical, 3), database().dialect(), JdbcTables.DEFAULT, TestDatabase.TIMEOUT).ranges();
+        IllegalStateException small = assertThrows(IllegalStateException.class, () -> rewritten.reserve(key, 10, 0));
+        assertTrue(small.getMessage().contains("below the size"), small.getMessage());
+        // A sealed key still reads as sealed without a generated key.
+        String sealed = newKey();
+        store.reserve(sealed, 10, 0);
+        assertTrue(store.seal(sealed));
+        assertThrows(RangeSealedException.class, () -> lost.reserve(sealed, 10, 0));
+
+        RangeStore transactional = new JdbcStore(new OneConnection(physical, -1), database().dialect(), JdbcTables.DEFAULT, TestDatabase.TIMEOUT,
+            FetchPlan.TRANSACTION).ranges();
+        long before = store.reserve(key, 1, 0).end();
+        assertEquals(new Range(before, before + 10), transactional.reserve(key, 10, 0));
+        String fresh = newKey();
+        assertEquals(new Range(7, 17), transactional.reserve(fresh, 10, 7));
+    }
+
     /** A data source of one physical connection that its users cannot close, as a pool of one hands it out. */
     private static final class OneConnection implements DataSource {
         private final Connection connection;
 
         private OneConnection(Connection physical) {
+            this(physical, 0);
+        }
+
+        /**
+         * @param generatedKey 0 to pass the generated keys through; -1 for a proxy that loses them; otherwise the key
+         *                     a proxy answers instead
+         */
+        private OneConnection(Connection physical, long generatedKey) {
             this.connection = (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[] {Connection.class},
                 (proxy, method, args) -> {
                     if ("close".equals(method.getName())) {
                         return null;
                     }
                     try {
-                        return method.invoke(physical, args);
+                        Object result = method.invoke(physical, args);
+                        return generatedKey != 0 && result instanceof PreparedStatement statement ? keys(statement, generatedKey) : result;
+                    } catch (InvocationTargetException e) {
+                        throw e.getCause();
+                    }
+                });
+        }
+
+        /** A statement whose generated keys are lost (-1) or replaced by another key. */
+        private static PreparedStatement keys(PreparedStatement statement, long generatedKey) {
+            return (PreparedStatement) Proxy.newProxyInstance(PreparedStatement.class.getClassLoader(), new Class<?>[] {PreparedStatement.class},
+                (proxy, method, args) -> {
+                    if ("getGeneratedKeys".equals(method.getName())) {
+                        String sql = generatedKey < 0 ? "select 1 from dual where 1 = 0" : "select " + generatedKey;
+                        return statement.getConnection().createStatement().executeQuery(sql);
+                    }
+                    try {
+                        return method.invoke(statement, args);
                     } catch (InvocationTargetException e) {
                         throw e.getCause();
                     }

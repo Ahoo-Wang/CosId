@@ -61,7 +61,16 @@ import java.util.concurrent.Executors;
 class RemoteStoreTest {
     private static final UUID INCARNATION = UUID.fromString("6f1c7c2a-0d7e-4c35-9a53-2a3f3d1f0b11");
     private static final Owner OWNER = new Owner("host:8080", INCARNATION);
-    private static final SlotLease LEASE = new SlotLease("ns", 3, OWNER, 7, 2_000, 1_000, 3_000, 1_500);
+    private static final SlotLease LEASE = SlotLease.builder()
+        .namespace("ns")
+        .slot(3)
+        .owner(OWNER)
+        .fence(7)
+        .expiresAt(2_000)
+        .floor(1_000)
+        .ceiling(3_000)
+        .storeNow(1_500)
+        .build();
     private static final String LEASE_JSON = "\"namespace\":\"ns\",\"slot\":3,\"ownerKey\":\"host:8080\",\"incarnation\":\"" + INCARNATION
         + "\",\"fence\":7,\"expiresAt\":2000,\"floor\":1000,\"ceiling\":3000,\"storeNow\":1500";
 
@@ -167,32 +176,32 @@ class RemoteStoreTest {
     void acquireMapsLeasesExhaustionAndMismatch() {
         answer(RemoteApi.ACQUIRE, 200, "{" + LEASE_JSON + ",\"reason\":\"STICKY\",\"duplicateOwnerKey\":true}");
         AcquireResult.Acquired acquired = assertInstanceOf(AcquireResult.Acquired.class,
-            store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.of(3)));
+            store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 1024, OptionalInt.of(3)));
         assertEquals(LEASE, acquired.lease());
         assertEquals(AcquireReason.STICKY, acquired.reason());
         assertTrue(acquired.duplicateOwnerKey());
         assertEquals("{\"namespace\":\"ns\",\"ownerKey\":\"host:8080\",\"incarnation\":\"" + INCARNATION
-            + "\",\"limit\":8,\"ttlMs\":30000,\"toleranceMs\":1000,\"preferredSlot\":3}", requests.get(RemoteApi.ACQUIRE));
-        store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
+            + "\",\"limit\":8,\"ttlMs\":30000,\"toleranceMs\":1000,\"slotOffset\":1024,\"preferredSlot\":3}", requests.get(RemoteApi.ACQUIRE));
+        store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
         assertFalse(requests.get(RemoteApi.ACQUIRE).contains("preferredSlot"));
 
         answer(RemoteApi.ACQUIRE, 409, "{\"code\":\"slots_exhausted\",\"message\":\"full\",\"earliestExpiresAt\":12345}");
-        assertEquals(new AcquireResult.Exhausted(12345), store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+        assertEquals(new AcquireResult.Exhausted(12345), store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
 
         answer(RemoteApi.ACQUIRE, 409, error(RemoteApi.NAMESPACE_MISMATCH));
         NamespaceMismatchException mismatch = assertThrows(NamespaceMismatchException.class,
-            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         assertEquals("ns", mismatch.namespace());
         answer(RemoteApi.ACQUIRE, 409, "{\"code\":\"namespace_mismatch\"}");
         assertThrows(NamespaceMismatchException.class,
-            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
 
         answer(RemoteApi.ACQUIRE, 401, error(RemoteApi.UNAUTHORIZED));
         assertEquals(RemoteApi.UNAUTHORIZED, assertThrows(RemoteStoreException.class,
-            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty())).code());
+            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty())).code());
         answer(RemoteApi.ACQUIRE, 200, "{" + LEASE_JSON + ",\"reason\":7}");
         assertThat(assertThrows(RemoteStoreException.class,
-            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty())).getMessage(),
+            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty())).getMessage(),
             containsString("not a string"));
     }
 

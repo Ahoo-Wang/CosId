@@ -13,22 +13,114 @@
 
 package me.ahoo.cosid.lease;
 
+import java.util.Objects;
+
 /**
- * The outcome of {@link SlotLeaseStore#acquire}.
+ * The outcome of {@link SlotLeaseStore#acquire}. Closed: an acquisition either succeeds or finds every slot held,
+ * and both store implementations and the core switch over the two variants.
  */
 public sealed interface AcquireResult {
     /**
-     * A slot was acquired.
-     *
-     * @param lease             the lease
-     * @param reason            which step of the slot choice gave the slot (§2.1)
-     * @param duplicateOwnerKey whether another incarnation of the owner key holds a live lease in the namespace, as two
-     *                          runtimes started with one identity would
+     * A slot was acquired. Immutable; built with {@link #builder(SlotLease, AcquireReason)}, the only way to create
+     * one, so fields can be added with a default (api-freeze.md §4).
      */
-    record Acquired(SlotLease lease, AcquireReason reason, boolean duplicateOwnerKey) implements AcquireResult {
-        public Acquired {
-            java.util.Objects.requireNonNull(lease, "lease");
-            java.util.Objects.requireNonNull(reason, "reason");
+    final class Acquired implements AcquireResult {
+        private final SlotLease lease;
+        private final AcquireReason reason;
+        private final boolean duplicateOwnerKey;
+
+        private Acquired(Builder builder) {
+            this.lease = builder.lease;
+            this.reason = builder.reason;
+            this.duplicateOwnerKey = builder.duplicateOwnerKey;
+        }
+
+        /**
+         * A builder of an acquisition.
+         *
+         * @param lease  the lease
+         * @param reason which step of the slot choice gave the slot (§2.1)
+         * @return the builder
+         */
+        public static Builder builder(SlotLease lease, AcquireReason reason) {
+            return new Builder(lease, reason);
+        }
+
+        /**
+         * The lease.
+         *
+         * @return the lease
+         */
+        public SlotLease lease() {
+            return lease;
+        }
+
+        /**
+         * Which step of the slot choice gave the slot (§2.1).
+         *
+         * @return the reason
+         */
+        public AcquireReason reason() {
+            return reason;
+        }
+
+        /**
+         * Whether another incarnation of the owner key holds a live lease in the namespace, as two runtimes started
+         * with one identity would.
+         *
+         * @return whether the owner key is held twice; default false
+         */
+        public boolean duplicateOwnerKey() {
+            return duplicateOwnerKey;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Acquired that && lease.equals(that.lease) && reason == that.reason && duplicateOwnerKey == that.duplicateOwnerKey;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(lease, reason, duplicateOwnerKey);
+        }
+
+        @Override
+        public String toString() {
+            return "Acquired[lease=" + lease + ", reason=" + reason + ", duplicateOwnerKey=" + duplicateOwnerKey + "]";
+        }
+
+        /**
+         * Builds an {@link Acquired}.
+         */
+        public static final class Builder {
+            private final SlotLease lease;
+            private final AcquireReason reason;
+            private boolean duplicateOwnerKey;
+
+            private Builder(SlotLease lease, AcquireReason reason) {
+                this.lease = Objects.requireNonNull(lease, "lease");
+                this.reason = Objects.requireNonNull(reason, "reason");
+            }
+
+            /**
+             * Sets whether another incarnation of the owner key holds a live lease in the namespace.
+             *
+             * @param duplicateOwnerKey whether the owner key is held twice; default false
+             * @return this builder
+             */
+            public Builder duplicateOwnerKey(boolean duplicateOwnerKey) {
+                this.duplicateOwnerKey = duplicateOwnerKey;
+                return this;
+            }
+
+            /**
+             * Builds the acquisition.
+             *
+             * @return the acquisition
+             */
+            public Acquired build() {
+                return new Acquired(this);
+            }
         }
     }
 

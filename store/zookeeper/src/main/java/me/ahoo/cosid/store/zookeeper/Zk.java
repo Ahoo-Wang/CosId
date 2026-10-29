@@ -69,9 +69,9 @@ final class Zk {
      * @return the event of the operation, completed on Curator's event thread
      */
     CompletableFuture<CuratorEvent> start(Operation operation) {
-        CompletableFuture<CuratorEvent> event = new CompletableFuture<>();
+        Event event = new Event();
         try {
-            operation.start((client, completed) -> event.complete(completed));
+            operation.start(event);
         } catch (Exception e) {
             event.completeExceptionally(e);
         }
@@ -87,7 +87,20 @@ final class Zk {
      * @return the event; its result code is the ZooKeeper outcome
      */
     CuratorEvent call(String what, long deadline, Operation operation) {
-        return await(what, deadline, start(operation));
+        return call(what, null, deadline, operation);
+    }
+
+    /**
+     * Runs a background operation and waits for it up to the deadline.
+     *
+     * @param verb      the operation, for the messages, which are built only when one is needed (R1-zk-01)
+     * @param path      the path, for the messages, or null
+     * @param deadline  the deadline from {@link #deadline()}
+     * @param operation starts the operation with the callback
+     * @return the event; its result code is the ZooKeeper outcome
+     */
+    CuratorEvent call(String verb, String path, long deadline, Operation operation) {
+        return await(verb, path, deadline, start(operation));
     }
 
     /**
@@ -101,17 +114,26 @@ final class Zk {
      * @throws CosIdException on interruption or a failure; {@link StoreTimeoutException} on timeout
      */
     <T> T await(String what, long deadline, CompletableFuture<T> result) {
+        return await(what, null, deadline, result);
+    }
+
+    private <T> T await(String verb, String path, long deadline, CompletableFuture<T> result) {
         try {
             return result.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
         } catch (TimeoutException e) {
             result.cancel(false);
-            throw new StoreTimeoutException("ZooKeeper " + what + " timed out", e);
+            throw new StoreTimeoutException("ZooKeeper " + what(verb, path) + " timed out", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new CosIdException("ZooKeeper " + what + " interrupted", e);
+            throw new CosIdException("ZooKeeper " + what(verb, path) + " interrupted", e);
         } catch (ExecutionException e) {
-            throw new CosIdException("ZooKeeper " + what + " failed: " + e.getCause(), e.getCause());
+            throw new CosIdException("ZooKeeper " + what(verb, path) + " failed: " + e.getCause(), e.getCause());
         }
+    }
+
+    /** The operation and path of a message. */
+    static String what(String verb, String path) {
+        return path == null ? verb : verb + " " + path;
     }
 
     /**
@@ -132,8 +154,12 @@ final class Zk {
      * @return never returns normally
      */
     static CosIdException unexpected(String what, CuratorEvent event) {
+        return unexpected(what, null, event);
+    }
+
+    static CosIdException unexpected(String verb, String path, CuratorEvent event) {
         KeeperException.Code code = code(event);
-        return new CosIdException("ZooKeeper " + what + " failed: " + code, KeeperException.create(code, event.getPath()));
+        return new CosIdException("ZooKeeper " + what(verb, path) + " failed: " + code, KeeperException.create(code, event.getPath()));
     }
 
     /**
@@ -144,9 +170,13 @@ final class Zk {
      * @return the stat
      */
     static Stat stat(String what, CuratorEvent event) {
+        return stat(what, null, event);
+    }
+
+    static Stat stat(String verb, String path, CuratorEvent event) {
         Stat stat = event.getStat();
         if (stat == null) {
-            throw new CosIdException("ZooKeeper " + what + " returned no stat");
+            throw new CosIdException("ZooKeeper " + what(verb, path) + " returned no stat");
         }
         return stat;
     }
@@ -160,12 +190,16 @@ final class Zk {
      * @param what     the operation and path
      */
     static void backoff(int attempt, long deadline, String what) {
+        backoff(attempt, deadline, what, null);
+    }
+
+    static void backoff(int attempt, long deadline, String verb, String path) {
         if (System.nanoTime() >= deadline) {
-            throw new StoreTimeoutException("ZooKeeper " + what + " timed out after " + (attempt + 1) + " conflicts");
+            throw new StoreTimeoutException("ZooKeeper " + what(verb, path) + " timed out after " + (attempt + 1) + " conflicts");
         }
         // Checked here, not left to the sleep: a pause of 0 (the first attempts, or a random 0) never looks at the flag.
         if (Thread.currentThread().isInterrupted()) {
-            throw new CosIdException("ZooKeeper " + what + " interrupted");
+            throw new CosIdException("ZooKeeper " + what(verb, path) + " interrupted");
         }
         if (attempt < 2) {
             return;
@@ -177,7 +211,18 @@ final class Zk {
             TimeUnit.NANOSECONDS.sleep(pauseNanos);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new CosIdException("ZooKeeper " + what + " interrupted", e);
+            throw new CosIdException("ZooKeeper " + what(verb, path) + " interrupted", e);
+        }
+    }
+
+    /**
+     * The event of a background operation: the future is its own callback, one object per call rather than a future
+     * and a lambda (R1-zk-01).
+     */
+    private static final class Event extends CompletableFuture<CuratorEvent> implements BackgroundCallback {
+        @Override
+        public void processResult(CuratorFramework client, CuratorEvent event) {
+            complete(event);
         }
     }
 

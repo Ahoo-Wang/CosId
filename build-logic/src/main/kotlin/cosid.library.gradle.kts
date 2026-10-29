@@ -35,13 +35,20 @@ publishing {
     publications {
         create<MavenPublication>("mavenLibrary") {
             from(components["java"])
+            // The versions this build resolved, under the BOM of cosid.java: the BOM itself is never published. For
+            // spring/* they are the versions of the lowest Boot supported, the build's (D49).
+            versionMapping {
+                allVariants {
+                    fromResolutionResult()
+                }
+            }
         }
     }
 }
 
-// The published metadata of every library (E-N2): no enforced platform, none of the build's platforms (cosid.spring
+// The published metadata of every library (E-N2): no enforced platform, none of the build's platforms (cosid.java
 // puts the Spring Boot BOM on the build classpaths only), and a version for every dependency, unless a published
-// platform of the same variant manages it (store/tck's JUnit through junit-bom).
+// platform of the same variant manages it.
 val checkPublishedMetadata = tasks.register("checkPublishedMetadata") {
     group = "verification"
     description = "Fails when the published metadata has a dependency without a version, an enforced platform, or the build's Spring Boot BOM."

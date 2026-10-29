@@ -43,7 +43,16 @@ public final class RedisTarget implements TargetAdmin {
     private final RedisConnection redis;
 
     public RedisTarget(StoreLocation location) {
-        this.redis = RedisConnection.open(location);
+        this(RedisConnection.open(location));
+    }
+
+    /**
+     * A target on a connection of its own.
+     *
+     * @param redis the connection, closed with the target
+     */
+    public RedisTarget(RedisConnection redis) {
+        this.redis = redis;
     }
 
     static String resource(Class<?> owner, String name) {
@@ -90,7 +99,10 @@ public final class RedisTarget implements TargetAdmin {
         if (next < 0) {
             throw new IllegalArgumentException("next must not be negative: " + next);
         }
-        List<Object> reply = commands().eval(RAISE, ScriptOutputType.MULTI, new String[]{rangeKey(key), rangeKey(key) + ":sealed"}, Long.toString(next));
+        // On the connection WAIT then counts (R2-mig-03).
+        List<Object> reply = redis.commandsFor(rangeKey(key)).eval(RAISE, ScriptOutputType.MULTI, new String[]{rangeKey(key), rangeKey(key) + ":sealed"},
+            Long.toString(next));
+        redis.replicated(rangeKey(key));
         return new RangeState(key, Long.parseLong(String.valueOf(reply.get(0))), "1".equals(String.valueOf(reply.get(1))));
     }
 
@@ -131,6 +143,7 @@ public final class RedisTarget implements TargetAdmin {
         }
         int limit = Integer.parseInt(meta.get("limit"));
         long tolerance = Long.parseLong(meta.get("tolerance"));
+        int slotOffset = meta.get("slotOffset") == null ? 0 : Integer.parseInt(meta.get("slotOffset"));
         Map<String, String> rows = commands().hgetall(nsKey(namespace, "slot"));
         int slots = 0;
         long minNextFloor = Long.MAX_VALUE;
@@ -144,7 +157,7 @@ public final class RedisTarget implements TargetAdmin {
             }
         }
         long live = commands().zcount(nsKey(namespace, "live"), io.lettuce.core.Range.create((double) now(), Double.POSITIVE_INFINITY));
-        return Optional.of(new NamespaceState(limit, tolerance, slots, minNextFloor, Math.toIntExact(live)));
+        return Optional.of(new NamespaceState(limit, tolerance, slotOffset, slots, minNextFloor, Math.toIntExact(live)));
     }
 
     /** The next floor of a slot row {@code "ownerKey|incarnation|lastOwnerKey|fence|expiresAt|floor|ceiling|nextFloor"}. */
@@ -154,13 +167,16 @@ public final class RedisTarget implements TargetAdmin {
     }
 
     @Override
-    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor) {
-        List<Object> reply = commands().eval(PREPARE, ScriptOutputType.MULTI,
+    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor) {
+        List<Object> reply = redis.commandsFor(nsKey(namespace, "meta")).eval(PREPARE, ScriptOutputType.MULTI,
             new String[]{nsKey(namespace, "meta"), nsKey(namespace, "slot"), nsKey(namespace, "free"), nsKey(namespace, "live")},
-            Integer.toString(limit), Long.toString(toleranceMillis), Long.toString(nextFloor));
+            Integer.toString(limit), Long.toString(toleranceMillis), Long.toString(nextFloor), Integer.toString(slotOffset));
+        redis.replicated(nsKey(namespace, "meta"));
         String status = String.valueOf(reply.get(0));
         if ("mismatch".equals(status)) {
-            throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, Integer.parseInt(String.valueOf(reply.get(1))), Long.parseLong(String.valueOf(reply.get(2))));
+            NamespaceState recorded = new NamespaceState(Integer.parseInt(String.valueOf(reply.get(1))), Long.parseLong(String.valueOf(reply.get(2))),
+                Integer.parseInt(String.valueOf(reply.get(3))), 0, 0, 0);
+            throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, slotOffset, recorded);
         }
         if ("live".equals(status)) {
             throw TargetAdmin.live(namespace, Integer.parseInt(String.valueOf(reply.get(1))));

@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.benchmark;
 
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.segment.BatchPolicy;
-import me.ahoo.cosid.segment.SegmentGenerator;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -27,7 +28,6 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -37,16 +37,24 @@ import java.util.concurrent.TimeUnit;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class SegmentNoPrefetchBenchmark {
-    SegmentGenerator segment;
+    CosIdRuntime runtime;
+    IdGenerator segment;
 
     @Setup
     public void setup() {
-        segment = V5.segment("p6", new BatchPolicy(1, 0, Duration.ZERO, 1, Duration.ofSeconds(3), Optional.empty()));
+        runtime = V5.segmentRuntime("p6", BatchPolicy.builder()
+            .step(1)
+            .initialOffset(0)
+            .lookahead(Duration.ZERO)
+            .maxBatch(1)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build());
+        segment = runtime.generator("p6");
     }
 
     @TearDown
     public void tearDown() {
-        segment.close();
+        runtime.close();
     }
 
     @Benchmark

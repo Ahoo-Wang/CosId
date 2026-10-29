@@ -62,8 +62,8 @@ public final class JdbcSource implements SourceReader {
 
     static Connection connect(StoreLocation location) throws SQLException {
         Properties properties = new Properties();
-        if (location.option("user") != null) {
-            properties.setProperty("user", location.option("user"));
+        if (location.user() != null) {
+            properties.setProperty("user", location.user());
         }
         if (location.option("password") != null) {
             properties.setProperty("password", location.option("password"));
@@ -78,6 +78,7 @@ public final class JdbcSource implements SourceReader {
         Map<String, String> machines = new TreeMap<>();
         List<String> unrecognized = new ArrayList<>();
         long maxTimestamp = 0;
+        int maxMachineId = -1;
         try (Connection connection = connect(location)) {
             try (PreparedStatement select = connection.prepareStatement("select name, last_max_id from " + segmentTable);
                  ResultSet rs = select.executeQuery()) {
@@ -107,6 +108,9 @@ public final class JdbcSource implements SourceReader {
                             if ("name".equals(label)) {
                                 id = value;
                             }
+                            if ("machine_id".equals(label) && value != null) {
+                                maxMachineId = Math.max(maxMachineId, rs.getInt(column));
+                            }
                             if (TIMESTAMPS.contains(label) && value != null) {
                                 maxTimestamp = Math.max(maxTimestamp, rs.getLong(column));
                             }
@@ -121,9 +125,10 @@ public final class JdbcSource implements SourceReader {
                 // A deployment of segments only has no machine table.
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("Reading the 4.x JDBC store " + location.url() + " failed: " + e.getMessage(), e);
+            SQLException failure = StoreLocation.withoutPassword(e, location.url());
+            throw new IllegalStateException("Reading the 4.x JDBC store " + StoreLocation.redactUrl(location.url()) + " failed: " + failure.getMessage(), failure);
         }
-        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized);
+        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized, maxMachineId);
     }
 
     static boolean isMissingTable(SQLException e) {
@@ -163,6 +168,12 @@ public final class JdbcSource implements SourceReader {
                         sealed = rs.getLong(1);
                     }
                 }
+                // R1-jdbc-06: the update added the increment to what was read, under the row lock; a value below that was
+                // not read from the row it wrote (an SQL proxy that routed the statements apart).
+                if (sealed < current + increment) {
+                    throw new IllegalStateException("Segment [" + key + "] read back last_max_id " + sealed + " after adding " + increment + " to "
+                        + current + ": the statements did not reach one database (an SQL proxy?); connect to the primary directly");
+                }
                 connection.commit();
                 return sealed;
             } catch (SQLException | RuntimeException e) {
@@ -172,7 +183,8 @@ public final class JdbcSource implements SourceReader {
                 connection.setAutoCommit(autoCommit);
             }
         } catch (SQLException e) {
-            throw new IllegalStateException("Sealing segment [" + key + "] failed: " + e.getMessage(), e);
+            SQLException failure = StoreLocation.withoutPassword(e, location.url());
+            throw new IllegalStateException("Sealing segment [" + key + "] failed: " + failure.getMessage(), failure);
         }
     }
 

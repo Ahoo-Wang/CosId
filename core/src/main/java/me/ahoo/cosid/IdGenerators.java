@@ -52,7 +52,7 @@ public final class IdGenerators {
      * @param ids    the generator
      * @param bits   the number of random low bits
      * @param random the source of the random bits
-     * @return the generator
+     * @return the generator; it throws {@link IdOverflowException} for a negative id or one that leaves no room for the bits
      */
     public static IdGenerator uncertain(IdGenerator ids, int bits, RandomGenerator random) {
         Objects.requireNonNull(ids, "ids");
@@ -65,7 +65,7 @@ public final class IdGenerators {
         return () -> {
             long id = ids.generate();
             if (id < 0 || id > maxId) {
-                throw new IllegalStateException("id " + id + " leaves no room for " + bits + " random bits");
+                throw new IdOverflowException(id, "id " + id + " leaves no room for " + bits + " random bits");
             }
             return id << bits | random.nextLong(bound);
         };

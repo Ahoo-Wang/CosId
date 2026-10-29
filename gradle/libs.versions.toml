@@ -1,49 +1,46 @@
+# D45: the Spring Boot BOM (spring-boot below) manages the versions of every project's build classpaths (cosid.java),
+# so a dependency it manages has no version here. A version here is one the BOM does not manage, at its latest stable
+# release, or one held above the BOM for a security fix, with the condition for its removal.
 [versions]
 # toolchain and code quality
 java = "21"
-checkstyle = "10.26.1"
-# libraries
-slf4j = "2.0.18"
-logback = "1.5.38"
+checkstyle = "14.3.0"
+spotbugs-tool = "4.10.5"
+# build-logic's own tests (an included build, outside the BOM)
 junit = "6.1.3"
-hamcrest = "3.0"
 jmh = "1.37"
-# The 4.x release the benchmarks compare against (D21, docs/architecture/10-performance-and-parity.md).
-cosid4 = "4.1.0"
-# R2-JDBC: the drivers and containers of store/jdbc tests and the P7 / P10 benchmarks.
-mysql-connector = "9.7.0"
-mariadb-client = "3.5.11"
-postgresql = "42.7.14"
-mssql-jdbc = "13.4.0.jre11"
-h2 = "2.4.240"
-hikari = "7.0.2"
-# R2-Mongo: the MongoDB store and its integration tests.
-mongodb = "5.13.0"
-testcontainers = "2.0.5"
-# R2-Redis: the Redis store (testcontainers above)
-lettuce = "7.5.2.RELEASE"
-# benchmark/v5 only: one Netty for Lettuce and ZooKeeper, as the Spring Boot BOM gives applications.
-netty = "4.2.13.Final"
-# the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.0 brings, for benchmark/baseline-4x
+# The 4.x release the benchmarks compare against: the latest 4.x (D21, D45; docs/architecture/10-performance-and-parity.md).
+cosid4 = "4.1.1"
+# benchmark/baseline-4x takes no BOM, so that its 4.x jars keep the versions they bring; its own direct dependencies
+# are pinned at the versions the BOM gives benchmark/v5, so both sides of a scenario run on the same drivers.
+baseline4x-mysql-connector = "9.7.0"
+baseline4x-hikari = "7.0.2"
+baseline4x-mongodb = "5.8.1"
+# the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.1 brings, for benchmark/baseline-4x
 lettuce4 = "6.8.2.RELEASE"
+# Above the BOM's 7.5.2 for a security fix: 7.5.2 brings Netty 4.2.13 (netty-handler, -resolver-dns, -codec-dns
+# advisories) to an application that does not manage Netty itself; 7.9 brings 4.2.17. Until the BOM manages Lettuce >= 7.9.
+lettuce = "7.9.0.RELEASE"
 # store/zookeeper (R2-ZK)
 curator = "5.9.0"
-# R3-S: spring/* builds and tests on this Spring Boot; -PspringBootVersion swaps it (02-modules.md §5). The published
-# metadata requires the versions of spring-boot-minimum, the lowest Boot the compatibility matrix tests.
+# Curator 5.9.0 (the latest) brings ZooKeeper 3.9.3 and Guava 32.0.0: store/zookeeper declares patched ones so that
+# Maven and Gradle consumers alike resolve them, until a Curator after 5.9.0 brings ZooKeeper >= 3.9.5 and Guava >= 33.7.2.
+zookeeper = "3.9.6"
+guava = "33.7.2-jre"
+# R3-S: every project builds and tests on this Spring Boot; -PspringBootVersion swaps it (02-modules.md §5). It is
+# also the lowest Boot supported (D49): the published metadata of spring/* requires the versions it resolves.
 spring-boot = "4.1.2"
-spring-boot-minimum = "4.0.8"
 # compileOnly in spring/autoconfigure: InetUtils for the owner key host (07 §1.1); Spring Cloud 2025.1
 spring-cloud-commons = "5.0.4"
 # R4-A: the OpenAPI document and Swagger UI of server/ (springdoc 3.x is the Spring Boot 4 line)
 springdoc = "3.2.0"
 # R4-B: integrations (all compileOnly in integrations; the application brings them)
-mybatis = "3.5.19"
+mybatis = "3.6.0"
 activiti = "7.0.0.SR1"
 flowable = "8.0.0"
 # Axon 5 has no IdentifierFactory; 4.x is the line the integration serves.
 axon = "4.13.2"
-# R4-C migration: plan / result JSON and the YAML of `config`; the fat jar
-jackson = "2.22.2"
+# R4-C migration: the fat jar
 shadow = "9.6.1"
 # plugins
 test-retry = "1.6.6"
@@ -52,52 +49,59 @@ jmh-plugin = "0.7.3"
 spotbugs = "6.5.13"
 
 [libraries]
-slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+slf4j-api = { module = "org.slf4j:slf4j-api" }
+logback-classic = { module = "ch.qos.logback:logback-classic" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
-hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
+hamcrest = { module = "org.hamcrest:hamcrest" }
 jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 cosid4-core = { module = "me.ahoo.cosid:cosid-core", version.ref = "cosid4" }
 cosid4-accessor = { module = "me.ahoo.cosid:cosid-accessor", version.ref = "cosid4" }
 cosid4-jdbc = { module = "me.ahoo.cosid:cosid-jdbc", version.ref = "cosid4" }
-testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 testcontainers-core = { module = "org.testcontainers:testcontainers" }
 testcontainers-mysql = { module = "org.testcontainers:testcontainers-mysql" }
 testcontainers-mariadb = { module = "org.testcontainers:testcontainers-mariadb" }
 testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
 testcontainers-mssqlserver = { module = "org.testcontainers:testcontainers-mssqlserver" }
-mysql-connector = { module = "com.mysql:mysql-connector-j", version.ref = "mysql-connector" }
-mariadb-client = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb-client" }
-postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
-mssql-jdbc = { module = "com.microsoft.sqlserver:mssql-jdbc", version.ref = "mssql-jdbc" }
-h2 = { module = "com.h2database:h2", version.ref = "h2" }
-hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+# R2-JDBC: the drivers of store/jdbc tests, server/, migration/ and the P7 / P10 benchmarks
+mysql-connector = { module = "com.mysql:mysql-connector-j" }
+mariadb-client = { module = "org.mariadb.jdbc:mariadb-java-client" }
+postgresql = { module = "org.postgresql:postgresql" }
+mssql-jdbc = { module = "com.microsoft.sqlserver:mssql-jdbc" }
+h2 = { module = "com.h2database:h2" }
+hikari = { module = "com.zaxxer:HikariCP" }
 # R2-Mongo
-mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongodb" }
-testcontainers-mongodb = { module = "org.testcontainers:testcontainers-mongodb", version.ref = "testcontainers" }
+mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync" }
+testcontainers-mongodb = { module = "org.testcontainers:testcontainers-mongodb" }
 cosid4-mongo = { module = "me.ahoo.cosid:cosid-mongo", version.ref = "cosid4" }
 # R2-Redis
 lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
-netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
-testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+testcontainers = { module = "org.testcontainers:testcontainers" }
 cosid4-spring-redis = { module = "me.ahoo.cosid:cosid-spring-redis", version.ref = "cosid4" }
 cosid4-lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce4" }
 cosid4-zookeeper = { module = "me.ahoo.cosid:cosid-zookeeper", version.ref = "cosid4" }
 curator-framework = { module = "org.apache.curator:curator-framework", version.ref = "curator" }
 curator-test = { module = "org.apache.curator:curator-test", version.ref = "curator" }
-# R3-S: Spring Boot. The BOM manages the versionless Spring dependencies of spring/* (cosid.spring); the explicit ones
-# are what spring/* exposes to the projects of this build.
+zookeeper = { module = "org.apache.zookeeper:zookeeper", version.ref = "zookeeper" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+# R3-S: Spring Boot
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 spring-cloud-commons = { module = "org.springframework.cloud:spring-cloud-commons", version.ref = "spring-cloud-commons" }
-spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure", version.ref = "spring-boot" }
+spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure" }
+# spring/autoconfigure tests: YAML configuration, as an application has it
+snakeyaml = { module = "org.yaml:snakeyaml" }
 # P11 (benchmark/*): the same Spring Boot on both sides.
-spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
 cosid4-spring-boot-starter = { module = "me.ahoo.cosid:cosid-spring-boot-starter", version.ref = "cosid4" }
 springdoc-openapi-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+# benchmark/baseline-4x (no BOM; see the versions above)
+baseline4x-mysql-connector = { module = "com.mysql:mysql-connector-j", version.ref = "baseline4x-mysql-connector" }
+baseline4x-hikari = { module = "com.zaxxer:HikariCP", version.ref = "baseline4x-hikari" }
+baseline4x-mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref = "baseline4x-mongodb" }
+baseline4x-spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
 # R4-B: integrations
 mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
 activiti-engine = { module = "org.activiti:activiti-engine", version.ref = "activiti" }
@@ -108,8 +112,7 @@ flowable-engine = { module = "org.flowable:flowable-engine", version.ref = "flow
 flowable-spring = { module = "org.flowable:flowable-spring", version.ref = "flowable" }
 flowable-spring-boot-autoconfigure = { module = "org.flowable:flowable-spring-boot-autoconfigure", version.ref = "flowable" }
 axon-messaging = { module = "org.axonframework:axon-messaging", version.ref = "axon" }
-# R4-C migration
-jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
+# R4-C migration: plan / result JSON and the YAML of `config`
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml" }
 # Gradle plugins used by the convention plugins in build-logic/

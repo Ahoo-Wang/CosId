@@ -42,8 +42,6 @@ import me.ahoo.cosid.time.TimeBasedGenerator;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -52,13 +50,19 @@ import java.util.OptionalLong;
  */
 class CountGeneratedTest {
     static RuntimeSpec spec() {
-        return new RuntimeSpec("count", Map.of("mem", store("memory")), Optional.of(leased("mem")), Map.of(
-            "default", snowflake(Layout.SNOWFLAKE_MS),
-            "order", segment("mem"),
-            "token", new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62)),
-            "bill", new GeneratorSpec.PeriodicSegment("mem", Period.YEAR_MONTH_DAY, SHANGHAI, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT,
-                new GroupedCodecSpec.DatePrefix("-", List.of())),
-            "off", new GeneratorSpec.Disabled(segment("mem"))));
+        return RuntimeSpec.builder("count")
+            .store("mem", store("memory"))
+            .machine(leased("mem"))
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .generator("order", segment("mem"))
+            .generator("token", GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build())
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("mem", Period.YEAR_MONTH_DAY, SHANGHAI)
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
+                .build())
+            .generator("off", new GeneratorSpec.Disabled(segment("mem")))
+            .build();
     }
 
     @Test
@@ -75,7 +79,7 @@ class CountGeneratedTest {
 
     @Test
     void onCountsEveryViewButTheConcreteGenerators() {
-        RuntimeOptions options = options(new TestStores("memory")).withCountGenerated(true);
+        RuntimeOptions options = options(new TestStores("memory")).toBuilder().countGenerated(true).build();
         assertThat(options.countGenerated(), is(true));
         try (CosIdRuntime runtime = CosIdRuntime.start(spec(), options)) {
             runtime.generator("default").generate();

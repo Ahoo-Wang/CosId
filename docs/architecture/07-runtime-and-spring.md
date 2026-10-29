@@ -42,10 +42,12 @@ public final class CosIdRuntime implements AutoCloseable {
     public static CosIdRuntime start(RuntimeSpec spec, RuntimeOptions options);
     // options:TimeSource、Executor、GeneratorListener、额外的 StoreProvider、已有客户端(按存储名)、
     //          codecs / generators(解析 CodecSpec.Custom / GeneratorSpec.Custom 的引用)、countGenerated
+    public String namespace();
     public IdGenerator generator(String name);
     public StringIdGenerator stringGenerator(String name);
     public Supplier<String> text(String name);                 // 任意策略的文本 ID(R1-int-01)
     public PeriodicSegmentGenerator periodic(String name);
+    public OptionalLong generated(String name);                 // 生成计数,未开启计数时为空
     public <T> T get(String name, Class<T> type);
     public Map<String, GeneratorInfo> describe();
     public Optional<SlotLease> slot();                         // 默认 machine
@@ -207,9 +209,13 @@ cosid:
   codec 只能是一个 `radix`(62/36,`width`/`pad-start` 报错)或 `friendly`(`zone`、`pad-start`,默认 true)。
 - `cosid.namespace` 默认取 `spring.application.name`(D38),解析在 `CosIdAutoConfiguration` 中完成,`CosIdSpecs` 仍是纯函数;两者都未设置时用 `cosid` 并 WARN。
 - 未知的 `cosid.*` 键启动失败(`NoUnboundElementsBindHandler`,`cosid.stores.*.options` 除外,R1-spring-03)。
-- 不再需要各特性的 `enabled` 开关,依赖关系从声明中推导;只保留总开关 `cosid.enabled`(默认 true)。
+- 生成器与存储没有各自的 `enabled` 开关,依赖关系从声明中推导;总开关 `cosid.enabled`(默认 true)。
+  集成保留各自的开关:`cosid.mybatis.enabled`、`cosid.activiti.enabled`、`cosid.flowable.enabled`(默认 true)、`cosid.jdbc.enabled`(Spring Data JDBC,默认 false);
+  生成计数的开关是 `cosid.metrics.generated.enabled`(默认 false)。
   单个生成器可以用 `cosid.generators.<name>.disabled: true` 禁用(D24):不创建实例,其 Bean 调用时抛出 `GeneratorDisabledException`。
-- codec 一律是有序列表,写的顺序就是应用顺序。周期号段的列表第一项必须是分组前缀(`date-prefix`),其余项作用于值部分。
+- codec 一律是有序列表,写的顺序就是应用顺序。周期号段的列表要么含一个 `period` 项,要么第一项是分组前缀(`date-prefix`,期号在最前,其余项作用于值部分):
+  `period: { enabled, delimiter }`(默认 true、`-`,对应 4.x `group-prefix`)放在期号所在的位置,它之前的项作用于值,之后的项装饰以期号开头的整段文本
+  (如其后的 `prefix` 让期号跟在业务前缀之后,4.x `group-prefix.before-prefix`);`enabled: false` 不输出期号,这样的文本无法反解(`GroupedCodecSpec.ValueOnly`)。
 - 绑定类是不可变的 `record`;`CosIdProperties → RuntimeSpec` 是纯函数,无需 Spring 即可单测。绑定类不属于 API 兼容承诺,承诺的是属性键(api-freeze.md §0)。
 - 编程式扩展:`RuntimeSpecCustomizer` Bean(按 `@Order` 执行)可以在启动前增加、删除或修改生成器(取代 4.x 的 `Customize*Properties`)。
   由 customizer 增加的生成器同样会注册为 Bean:注册器在 `BeanDefinitionRegistryPostProcessor` 阶段只登记名字和类型,实例在 `CosIdRuntime` 启动后提供。

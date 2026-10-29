@@ -16,3 +16,22 @@
 - 内联编解码器不需要注册 module。`generator = …` 需要在 `JsonMapper` 上注册 `new CosIdJacksonModule(runtime)`；
   Spring Boot 会注册一个 `CosIdJacksonModule` Bean。
 - 读取时接受文本、该编解码器可能写出的 JSON 数字，空字符串视为 `null`。
+- 只支持 Jackson 3：不支持 Jackson 2（`com.fasterxml.jackson.databind`）。
+
+## 从 4.x 迁移
+
+`@AsString` 的属性已改名：
+
+| 4.x | 5.0 |
+|---|---|
+| `value`（`AsString.Type`） | `codec`（`AsString.Codec`） |
+| `Type.TO_STRING`、`Type.RADIX` | `Codec.TO_STRING`、`Codec.RADIX` |
+| `Type.FRIENDLY_ID` | `Codec.FRIENDLY` |
+| `radixCharSize` | `width`（默认 `0`，即该进制下 `long` 所需的位数） |
+| `radixPadStart` | `padStart` |
+| `timestampBit`、`machineBit`、`sequenceBit` | `timeBits`、`nodeBits`、`seqBits`（三者都设或都不设） |
+| `epoch` | `epoch`（不设时取 `layout` 的 epoch） |
+| — | `generator`、`radix`（默认 62）、`layout`、`zone` |
+
+friendly 文本的默认值变了：4.x 的 `FRIENDLY_ID` 不给节点号和序列补零（`…-1-5`），5.0 的 `Codec.FRIENDLY` 补零（`…-0001-0005`）。
+要保持 4.x 的文本，请写 `padStart = false`。两种形式都能解析。

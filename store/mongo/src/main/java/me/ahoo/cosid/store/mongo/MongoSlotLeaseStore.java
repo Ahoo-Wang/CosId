@@ -36,6 +36,12 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
+import org.bson.BsonArray;
+import org.bson.BsonDocument;
+import org.bson.BsonInt32;
+import org.bson.BsonInt64;
+import org.bson.BsonString;
+import org.bson.BsonValue;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -53,7 +59,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link SlotLeaseStore} on the {@code cosid_slot} collection (06-stores.md §2.3): one document per slot,
  * {@code {ns, slot, ownerKey, incarnation, lastOwnerKey, fence, expiresAt, floor, ceiling, nextFloor, writtenAt}}, unique
  * on {@code (ns, slot)}, with every slot of a namespace created on its first use; the namespace parameters live in
- * {@code cosid_namespace}, {@code {_id: ns, limit, toleranceMs}}.
+ * {@code cosid_namespace}, {@code {_id: ns, limit, toleranceMs, slotOffset}}. A namespace document written by 5.0.0-alpha.1 has no
+ * {@code slotOffset}: it reads as offset 0 and is never rewritten.
  *
  * <p>An acquire first reads the slots the owner key holds or held last (one aggregation, with {@code $$NOW}): that
  * answers the idempotent step and the duplicate key check and names the sticky candidates. Each step that takes a slot
@@ -82,6 +89,8 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     private static final String READ_AT = "readAt";
     static final String LIMIT = "limit";
     static final String TOLERANCE_MS = "toleranceMs";
+    /** Appended after 5.0.0-alpha.1: a namespace document without it was first used with offset 0. */
+    static final String SLOT_OFFSET = "slotOffset";
     /** The store clock: {@code $$NOW} in epoch milliseconds. */
     private static final Document NOW = new Document("$toLong", "$$NOW");
     /** Free: nobody holds the slot, or the lease expired (§2.1). Released slots keep an explicit null incarnation. */
@@ -92,6 +101,15 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     /** Attempts of the namespace upsert that lose the first-use race (E11000) before the error is rethrown. */
     static final int NAMESPACE_ATTEMPTS = 5;
     private static final FindOneAndUpdateOptions AFTER = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
+    /** A renewal returns the fields of the lease only. */
+    private static final FindOneAndUpdateOptions RENEWED = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
+        .projection(Projections.include(NS, SLOT, FENCE, EXPIRES_AT, FLOOR, CEILING, WRITTEN_AT));
+    private static final BsonString WRITTEN_AT_FIELD = new BsonString("$" + WRITTEN_AT);
+    private static final BsonString EXPIRES_AT_FIELD = new BsonString("$" + EXPIRES_AT);
+    private static final BsonString CEILING_FIELD = new BsonString("$" + CEILING);
+    private static final BsonDocument STAMP_BSON = new BsonDocument("$set",
+        new BsonDocument(WRITTEN_AT, new BsonDocument("$toLong", new BsonString("$$NOW"))));
+    private static final BsonDocument NEXT_FLOOR_IS_CEILING = new BsonDocument("$set", new BsonDocument(NEXT_FLOOR, CEILING_FIELD));
     private static final FindOneAndUpdateOptions LOWEST_AFTER = new FindOneAndUpdateOptions()
         .returnDocument(ReturnDocument.AFTER).sort(Sorts.ascending(SLOT));
 
@@ -143,28 +161,33 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-        return MongoStore.timed("acquire", () -> acquireNow(namespace, owner, limit, ttl, tolerance, preferredSlot));
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+        return MongoStore.timed("acquire", () -> acquireNow(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot));
     }
 
-    private AcquireResult acquireNow(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    private AcquireResult acquireNow(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         Objects.requireNonNull(namespace, "namespace");
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(preferredSlot, "preferredSlot");
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be positive: " + limit);
         }
+        if (slotOffset < 0) {
+            throw new IllegalArgumentException("slotOffset must not be negative: " + slotOffset);
+        }
         final long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
-        ensureNamespace(namespace, new NamespaceParams(limit, toleranceMillis));
+        ensureNamespace(namespace, new NamespaceParams(limit, toleranceMillis, slotOffset));
         final Bson inNamespace = Filters.and(Filters.eq(NS, namespace), Filters.lt(SLOT, limit));
         String incarnation = owner.incarnation().toString();
 
         // One read of the slots the key holds or held last, stamped with the store clock: it finds this owner's slot,
         // live leases of other incarnations of the key and the sticky candidates, so the common acquire is one read
-        // and one conditional update.
+        // and one conditional update. A take writes ownerKey and lastOwnerKey together and a release keeps
+        // lastOwnerKey, so the slots a key holds are among those it held last: the ns_lastOwnerKey index finds them all
+        // (R1-mongo-01).
         List<Document> ofKey = slots.aggregate(List.of(
-            Aggregates.match(Filters.and(Filters.eq(NS, namespace), Filters.or(Filters.eq(OWNER_KEY, owner.key()), Filters.eq(LAST_OWNER_KEY, owner.key())))),
+            Aggregates.match(Filters.and(Filters.eq(NS, namespace), Filters.eq(LAST_OWNER_KEY, owner.key()))),
             Aggregates.addFields(new Field<>(READ_AT, NOW)),
             Aggregates.sort(Sorts.ascending(SLOT)))).into(new ArrayList<>());
         List<Integer> liveOfOtherIncarnations = new ArrayList<>();
@@ -188,7 +211,9 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         }
         // 1. A slot this very owner holds: returned as it is, stamped with the read.
         if (held != null) {
-            return new AcquireResult.Acquired(toLease(held, owner, held.getLong(READ_AT)), AcquireReason.IDEMPOTENT, !liveOfOtherIncarnations.isEmpty());
+            return AcquireResult.Acquired.builder(toLease(held, owner, held.getLong(READ_AT)), AcquireReason.IDEMPOTENT)
+                .duplicateOwnerKey(!liveOfOtherIncarnations.isEmpty())
+                .build();
         }
         List<Bson> take = take(owner, ttlMillis, toleranceMillis);
         // 2. The preferred slot, if free.
@@ -224,7 +249,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     private static AcquireResult acquired(Document slot, Owner owner, AcquireReason reason, List<Integer> liveOfOtherIncarnations) {
         SlotLease lease = toLease(slot, owner);
         boolean duplicateOwnerKey = liveOfOtherIncarnations.stream().anyMatch(other -> other != lease.slot());
-        return new AcquireResult.Acquired(lease, reason, duplicateOwnerKey);
+        return AcquireResult.Acquired.builder(lease, reason).duplicateOwnerKey(duplicateOwnerKey).build();
     }
 
     /**
@@ -255,11 +280,12 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
         // §2.2 renew: expiresAt = max(expiresAt, now + ttl); ceiling = max(ceiling, expiresAt + tolerance); nextFloor = ceiling.
+        // BSON values, which encode as they are, and only the fields of the lease in the reply (D21, allocation).
         Document renewed = slots.findOneAndUpdate(holding(lease), List.of(
-            STAMP,
-            new Document("$set", new Document(EXPIRES_AT, max("$" + EXPIRES_AT, add("$" + WRITTEN_AT, ttlMillis)))),
-            new Document("$set", new Document(CEILING, max("$" + CEILING, add("$" + EXPIRES_AT, toleranceMillis)))),
-            new Document("$set", new Document(NEXT_FLOOR, "$" + CEILING))), AFTER);
+            STAMP_BSON,
+            new BsonDocument("$set", new BsonDocument(EXPIRES_AT, bsonMax(EXPIRES_AT_FIELD, bsonAdd(WRITTEN_AT_FIELD, ttlMillis)))),
+            new BsonDocument("$set", new BsonDocument(CEILING, bsonMax(CEILING_FIELD, bsonAdd(EXPIRES_AT_FIELD, toleranceMillis)))),
+            NEXT_FLOOR_IS_CEILING), RENEWED);
         return renewed == null ? Optional.empty() : Optional.of(toLease(renewed, lease.owner()));
     }
 
@@ -281,9 +307,19 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     }
 
     /** The CAS condition of renew and release: the slot, the incarnation and the fence of the lease. */
-    private static Bson holding(SlotLease lease) {
-        return Filters.and(Filters.eq(NS, lease.namespace()), Filters.eq(SLOT, lease.slot()),
-            Filters.eq(INCARNATION, lease.owner().incarnation().toString()), Filters.eq(FENCE, lease.fence()));
+    private static BsonDocument holding(SlotLease lease) {
+        return new BsonDocument(NS, new BsonString(lease.namespace()))
+            .append(SLOT, new BsonInt32(lease.slot()))
+            .append(INCARNATION, new BsonString(lease.owner().incarnation().toString()))
+            .append(FENCE, new BsonInt64(lease.fence()));
+    }
+
+    private static BsonDocument bsonAdd(BsonString field, long value) {
+        return new BsonDocument("$add", new BsonArray(List.of(field, new BsonInt64(value))));
+    }
+
+    private static BsonDocument bsonMax(BsonString left, BsonValue right) {
+        return new BsonDocument("$max", new BsonArray(List.of(left, right)));
     }
 
     /**
@@ -304,27 +340,30 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
             }
         }
         if (!checked.equals(params)) {
-            throw new NamespaceMismatchException(namespace, "first used with limit " + checked.limit() + " and tolerance "
-                + checked.toleranceMillis() + "ms, now " + params.limit() + " and " + params.toleranceMillis() + "ms");
+            throw new NamespaceMismatchException(namespace, "first used with limit " + checked.limit() + ", tolerance " + checked.toleranceMillis()
+                + "ms and slot offset " + checked.slotOffset() + ", now " + params.limit() + ", " + params.toleranceMillis() + "ms and " + params.slotOffset());
         }
     }
 
     /** Creates the slot indexes, idempotently. */
     private void createIndexes() {
         slots.createIndex(Indexes.ascending(NS, SLOT), new IndexOptions().unique(true).name("ns_slot"));
-        // The acquire read of the slots a key holds or held last.
-        slots.createIndex(Indexes.ascending(NS, OWNER_KEY), new IndexOptions().name("ns_ownerKey"));
+        // The acquire read of the slots a key holds or held last. Stores of 5.0.0-alpha.1 also created ns_ownerKey, which
+        // no query uses now: a database may drop it (store/mongo/README.md).
         slots.createIndex(Indexes.ascending(NS, LAST_OWNER_KEY), new IndexOptions().name("ns_lastOwnerKey"));
     }
 
     /**
      * Records the parameters of a new namespace, or reads those it was first used with. Concurrent first uses race on
      * the {@code _id} insert of the upsert, and the server does not retry the loser in every case: it gets {@code E11000},
-     * then reads the winner's document back (or upserts again, when that write is not majority-visible yet).
+     * then reads the winner's document back (or upserts again, when that write is not majority-visible yet). The
+     * {@code $setOnInsert} never touches an existing document, so one written by 5.0.0-alpha.1 keeps its shape and its
+     * missing {@code slotOffset} reads as 0.
      */
     private NamespaceParams recordNamespace(String namespace, NamespaceParams params) {
         Bson id = Filters.eq(MongoRangeStore.ID, namespace);
-        Bson setOnInsert = Updates.combine(Updates.setOnInsert(LIMIT, params.limit()), Updates.setOnInsert(TOLERANCE_MS, params.toleranceMillis()));
+        Bson setOnInsert = Updates.combine(Updates.setOnInsert(LIMIT, params.limit()), Updates.setOnInsert(TOLERANCE_MS, params.toleranceMillis()),
+            Updates.setOnInsert(SLOT_OFFSET, params.slotOffset()));
         for (int attempt = 1; ; attempt++) {
             Document stored;
             try {
@@ -336,7 +375,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
                 stored = namespaces.find(id).first();
             }
             if (stored != null) {
-                return new NamespaceParams(stored.getInteger(LIMIT), stored.getLong(TOLERANCE_MS));
+                return new NamespaceParams(stored.getInteger(LIMIT), stored.getLong(TOLERANCE_MS), stored.getInteger(SLOT_OFFSET, 0));
             }
         }
     }
@@ -367,8 +406,16 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     }
 
     private static SlotLease toLease(Document slot, Owner owner, long storeNow) {
-        return new SlotLease(slot.getString(NS), slot.getInteger(SLOT), owner, slot.getLong(FENCE), slot.getLong(EXPIRES_AT),
-            slot.getLong(FLOOR), slot.getLong(CEILING), storeNow);
+        return SlotLease.builder()
+            .namespace(slot.getString(NS))
+            .slot(slot.getInteger(SLOT))
+            .owner(owner)
+            .fence(slot.getLong(FENCE))
+            .expiresAt(slot.getLong(EXPIRES_AT))
+            .floor(slot.getLong(FLOOR))
+            .ceiling(slot.getLong(CEILING))
+            .storeNow(storeNow)
+            .build();
     }
 
     /** A constant in a pipeline stage: a key starting with {@code $} stays a string, never a field path. */
@@ -400,6 +447,6 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         return tolerance.toMillis();
     }
 
-    private record NamespaceParams(int limit, long toleranceMillis) {
+    private record NamespaceParams(int limit, long toleranceMillis, int slotOffset) {
     }
 }

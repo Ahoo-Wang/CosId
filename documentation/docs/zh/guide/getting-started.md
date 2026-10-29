@@ -1,9 +1,9 @@
 # 快速开始
 
-CosId 5 需要 **Java 21** 或更高版本。在 Spring Boot 下支持 Boot 4.0 及更高版本。
+CosId 5 需要 **Java 21** 或更高版本。在 Spring Boot 下需要 **Boot 4.1.2** 或更高版本（D49），不支持 Boot 4.0.x。
 
-::: warning 预览版
-`5.0.0-alpha.x` 是预览版，不做兼容性承诺。API、配置、存储格式和 cosid-server HTTP 接口在 alpha 之间以及 GA 之前都可能变化，alpha 之间不提供数据迁移。不建议用于生产：生产环境请继续使用 4.x（[4.x 文档](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/zh)）。
+::: warning 候选发布版
+`5.0.0-rc.x` 是候选发布版。从 RC1 起,Java API、`cosid.*` 配置以及存储格式与协议冻结，之后的 5.x 只做向后兼容的增量。生产环境仍建议等待 GA,在此之前请继续使用 4.x（[4.x 文档](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/zh)）。
 :::
 
 ## 1. 添加依赖
@@ -107,19 +107,18 @@ public class OrderService {
 `CosIdRuntime` 是唯一的装配路径；Spring 只是把 `cosid.*` 绑定到 `RuntimeSpec`。同样的配置用代码表示：
 
 ```java
-RuntimeSpec spec = new RuntimeSpec("shop",
-    Map.of("db", new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of("initSchema", "true"))),
-    Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1),
-        OptionalInt.empty(), Optional.empty())),
-    Map.of(
-        "default", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT,
-            List.of(new CodecSpec.Radix(62, 11, true))),
-        "order", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of())));
+RuntimeSpec spec = RuntimeSpec.builder("shop")
+    .store("db", StoreSpec.builder("jdbc").option("initSchema", "true").build())
+    .machine(MachineSpec.Leased.builder("db").build())        // 默认 10 位、ttl 30s、tolerance 1s
+    .generator("default", GeneratorSpec.Snowflake.builder()
+        .codec(List.of(new CodecSpec.Radix(62, 11, true)))
+        .build())
+    .generator("order", GeneratorSpec.Segment.builder("db").build())
+    .build();
 
-RuntimeOptions defaults = RuntimeOptions.defaults();
-RuntimeOptions options = new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(),
-    defaults.storeProviders(), Map.of("db", dataSource),           // 按存储名提供已有客户端
-    defaults.hostResolver(), defaults.port(), defaults.codecs());
+RuntimeOptions options = RuntimeOptions.builder()
+    .client("db", dataSource)                                 // 按存储名提供已有客户端
+    .build();
 
 try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
     long id = runtime.generator("default").generate();
@@ -137,5 +136,11 @@ try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
   [号段](concepts/segment.md)：每种策略做什么以及如何调优。
 - [选择后端](backends/index.md)：各存储支持的版本与前提条件。
 - 上线前阅读[生产检查清单](operations/production.md)。
-- [示例](https://github.com/Ahoo-Wang/CosId/tree/main/examples)：`segment-jdbc`、`snowflake-redis` 与 `server`，
-  均可通过 `./gradlew :examples:<name>:bootRun` 运行。
+- [示例](https://github.com/Ahoo-Wang/CosId/tree/main/examples)：
+
+  | 示例 | 运行 |
+  |---|---|
+  | `segment-jdbc` | `./gradlew :examples:segment-jdbc:bootRun` |
+  | `snowflake-redis` | `REDIS_URI=redis://localhost:6379 ./gradlew :examples:snowflake-redis:bootRun` |
+  | `server`（cosid-server 的客户端，compose 文件会一并启动 server） | `./gradlew :server:dockerImage :examples:server:bootJar && docker compose -f examples/server/compose.yaml up` |
+  | `plain-stores`（只有测试，没有应用；需要 Docker） | `./gradlew :examples:plain-stores:test` |

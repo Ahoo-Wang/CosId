@@ -63,6 +63,7 @@ class IdEndpointsTest {
             "cosid.generators.order.store=mem",
             "cosid.generators.order.codec[0].radix.radix=62",
             "cosid.generators.order.codec[1].prefix=O",
+            "cosid.generators.uuid.strategy=uuidv7",
             "cosid.generators.bill.strategy=periodic-segment",
             "cosid.generators.bill.store=mem",
             "cosid.generators.bill.period=YEAR_MONTH_DAY",
@@ -158,6 +159,17 @@ class IdEndpointsTest {
         try (TestServer off = TestServer.memory(new InMemoryStore(), "cosid.generators.strings.strategy=segment", "cosid.generators.strings.store=mem")) {
             assertEquals(404, off.get(RemoteApi.IDS + "/strings", TestServer.TOKEN).statusCode(), "without the id endpoints the name is free");
         }
+    }
+
+    @Test
+    void textIdsOfEveryStrategy() {
+        // D46: /strings serves the text of any strategy (CosIdRuntime.text), a UUIDv7 among them.
+        JsonNode uuids = ok(RemoteApi.IDS + "/uuid/strings?count=2", TestServer.TOKEN).get("ids");
+        assertEquals(2, uuids.size());
+        java.util.UUID first = java.util.UUID.fromString(uuids.get(0).asString());
+        assertEquals(7, first.version());
+        assertThat(java.util.UUID.fromString(uuids.get(1).asString()).compareTo(first), greaterThan(0));
+        assertEquals(404, server.get(RemoteApi.IDS + "/uuid", TestServer.TOKEN).statusCode(), "no long ids");
     }
 
     @Test

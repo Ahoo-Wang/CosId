@@ -1,6 +1,7 @@
 # Why CosId
 
-CosId is a distributed ID generator for the JVM: it hands out ids that are unique across every instance of a service,
+CosId is a distributed ID generator for the JVM: it hands out ids that are unique across every instance of a service
+(and [across services](concepts/slot-lease.md#ids-unique-across-services) that share a namespace for them),
 fast enough that generating an id never shows up in a profile, and in the shape the application wants (a `long`, a
 short base-62 text, a readable time-based text, a per-day bill number).
 
@@ -9,7 +10,7 @@ This site describes **CosId 5**. 5.0 is a full rewrite with no backward compatib
 
 | Line | Branch | Java / Spring Boot | Documentation |
 |---|---|---|---|
-| 5.x | `main` (the default branch) | 21+ / 4.0+ | this site |
+| 5.x | `main` (the default branch) | 21+ / 4.1.2+ | this site |
 | 4.x | `4.x` (maintenance: bug fixes only) | 17+ / 4.x | the site of the 4.x release tags |
 
 ## Two ways to be unique
@@ -47,7 +48,7 @@ The [recipes](recipes.md) give the configuration of each.
 - **No global state.** Time source, executor, listeners and stores are injected; a JVM may run several independent
   runtimes.
 - **Performance and features not below 4.x** (D21): every 4.x capability has a 5.0 counterpart, and each benchmark
-  scenario is compared with 4.1.0 as a release gate ([benchmarks](../reference/performance/benchmark.md)).
+  scenario is compared with 4.1.1 as a release gate ([benchmarks](../reference/performance/benchmark.md)).
 
 ## Core metrics of an id scheme
 

@@ -22,8 +22,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * The slot lease contract of the Redis store on {@link SpringDataRedisScripts}.
@@ -38,7 +36,9 @@ class SpringDataRedisScriptsSlotTest extends SlotLeaseStoreContract {
 
     @Override
     protected SlotLeaseStore newStore() {
-        return new RedisStoreProvider().open(new StoreConfig("spring", RedisStoreProvider.TYPE, Duration.ofSeconds(5), Map.of(),
-            Optional.of(new SpringDataRedisScripts(FACTORY, Duration.ofSeconds(5), "off")))).slots();
+        return new RedisStoreProvider().open(StoreConfig.builder("spring", RedisStoreProvider.TYPE)
+            .timeout(Duration.ofSeconds(5))
+            .client(new SpringDataRedisScripts(FACTORY, Duration.ofSeconds(5), "off"))
+            .build()).slots();
     }
 }

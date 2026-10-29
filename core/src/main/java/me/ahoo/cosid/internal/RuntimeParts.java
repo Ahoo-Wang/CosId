@@ -33,14 +33,15 @@ import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
-import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
+import me.ahoo.cosid.time.UuidV7Generator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,8 +66,8 @@ public final class RuntimeParts {
     private final String namespace;
     private final List<OpenStore> stores = new ArrayList<>();
     private final Map<String, GeneratorEntry> generators = new LinkedHashMap<>();
-    private LeaseKeeper keeper;
-    private StaticSlot staticSlot;
+    /** The started machines, in start order: the default one first. */
+    private final List<StartedMachine> machines = new ArrayList<>();
     private ExecutorService ownExecutor;
     private boolean closed;
 
@@ -75,6 +76,10 @@ public final class RuntimeParts {
     }
 
     private record OpenStore(String name, Store store) {
+    }
+
+    /** A started machine: a lease keeper or a static slot, and the node offset of its generators. */
+    private record StartedMachine(String name, String namespace, SlotHandle slot, LeaseKeeper keeper, StaticSlot staticSlot, int nodeOffset) {
     }
 
     /**
@@ -109,20 +114,25 @@ public final class RuntimeParts {
             Executor executor = options.executor().orElse(parts.ownExecutor);
             for (String name : plan.stores()) {
                 StoreSpec store = spec.stores().get(name);
-                StoreConfig config = new StoreConfig(name, store.type(), store.timeout(), store.options(),
-                    Optional.ofNullable(options.clients().get(name)));
-                Store opened = providers.find(store.type()).orElseThrow().open(config);
+                StoreConfig.Builder config = StoreConfig.builder(name, store.type()).timeout(store.timeout()).options(plan.storeOptions(name));
+                Optional.ofNullable(options.clients().get(name)).ifPresent(config::client);
+                Store opened = providers.find(store.type()).orElseThrow().open(config.build());
                 if (opened == null) {
                     throw new CosIdException("StoreProvider of type [" + store.type() + "] opened no store [" + name + "]");
                 }
                 parts.stores.add(new OpenStore(name, opened));
             }
-            SlotHandle slot = plan.machine().map(machine -> parts.startSlot(machine, plan, options, executor, listener)).orElse(null);
-            for (RuntimePlan.Generator generator : plan.generators()) {
-                parts.generators.put(generator.name(), parts.create(generator, slot, options, executor, listener));
+            // One after the other (api-freeze.md §2.3): each blocks until it holds its slot or its acquire timeout.
+            for (RuntimePlan.Machine machine : plan.machines()) {
+                parts.machines.add(parts.startMachine(machine, options, executor, listener));
             }
-            log.info("CosIdRuntime [{}] started: stores {}, slot {}, generators {}", spec.namespace(), plan.stores(),
-                slot == null ? "none" : slot.current().slot(), parts.generators.keySet());
+            for (RuntimePlan.Generator generator : plan.generators()) {
+                parts.generators.put(generator.name(), parts.create(generator, options, executor, listener));
+            }
+            Map<String, Object> slots = new LinkedHashMap<>();
+            parts.machines.forEach(machine -> slots.put(machine.name(), machine.namespace() + "#" + machine.slot().current().slot()));
+            log.info("CosIdRuntime [{}] started: stores {}, slots {}, generators {}", spec.namespace(), plan.stores(), slots.isEmpty() ? "none" : slots,
+                parts.generators.keySet());
             return parts;
         } catch (RuntimeException | Error e) {
             for (Exception failure : parts.closeAll()) {
@@ -135,23 +145,32 @@ public final class RuntimeParts {
         }
     }
 
-    private SlotHandle startSlot(MachineSpec machine, RuntimePlan plan, RuntimeOptions options, Executor executor,
-                                 GeneratorListener listener) {
-        switch (machine) {
+    private StartedMachine startMachine(RuntimePlan.Machine machine, RuntimeOptions options, Executor executor, GeneratorListener listener) {
+        switch (machine.spec()) {
             case MachineSpec.Leased leased -> {
-                Owner owner = new Owner(plan.ownerKey().orElseThrow(), UUID.randomUUID());
-                keeper = new LeaseKeeper(ObservedStores.slots(leased.store(), store(leased.store()).slots(), listener), namespace, owner, leased.bits(), leased.ttl(),
-                    leased.tolerance(), leased.preferredSlot(), leased.ttl(), executor, options.time(), listener);
+                Owner owner = new Owner(machine.ownerKey().orElseThrow(), UUID.randomUUID());
+                LeaseKeeper keeper = new LeaseKeeper(ObservedStores.slots(leased.store(), store(leased.store()).slots(), listener), machine.namespace(), owner,
+                    leased.bits(), leased.ttl(), leased.tolerance(), leased.slotOffset(), leased.preferredSlot(), leased.acquireTimeout(), executor,
+                    options.time(), listener);
                 keeper.start();
-                return keeper;
+                return new StartedMachine(machine.name(), machine.namespace(), keeper, keeper, null, leased.slotOffset());
             }
             case MachineSpec.Static fixed -> {
-                staticSlot = new StaticSlot(fixed.slot(), fixed.bits(), fixed.stateFile(), fixed.ahead(), fixed.notBefore(),
+                StaticSlot staticSlot = new StaticSlot(fixed.slot(), fixed.bits(), fixed.stateFile(), fixed.ahead(), fixed.notBefore(),
                     executor, options.time());
                 staticSlot.start();
-                return staticSlot;
+                return new StartedMachine(machine.name(), machine.namespace(), staticSlot, null, staticSlot, 0);
             }
         }
+    }
+
+    private StartedMachine machine(String name) {
+        for (StartedMachine machine : machines) {
+            if (machine.name().equals(name)) {
+                return machine;
+            }
+        }
+        throw new IllegalStateException("Machine [" + name + "] is not started");
     }
 
     private Store store(String name) {
@@ -168,18 +187,23 @@ public final class RuntimeParts {
         return ObservedStores.ranges(name, store(name).ranges(), listener);
     }
 
-    private GeneratorEntry create(RuntimePlan.Generator generator, SlotHandle slot, RuntimeOptions options, Executor executor,
-                                  GeneratorListener listener) {
+    private GeneratorEntry create(RuntimePlan.Generator generator, RuntimeOptions options, Executor executor, GeneratorListener listener) {
         String name = generator.name();
         String key = namespace + '/' + name;
         LongAdder counter = options.countGenerated() ? new LongAdder() : null;
         return switch (generator.spec()) {
-            case GeneratorSpec.Snowflake snowflake -> GeneratorEntry.snowflake(
-                new TimeBasedGenerator(name, snowflake.layout(), slot, options.time(), snowflake.regression(), listener),
-                (IdCodec) generator.codec(), slot, counter);
-            case GeneratorSpec.CosId80 cosId80 -> GeneratorEntry.cosId80(
-                new TimeBasedGenerator(name, Layout.COSID_80, slot, options.time(), cosId80.regression(), listener),
-                (PartsCodec) generator.codec(), slot, counter);
+            case GeneratorSpec.Snowflake snowflake -> {
+                StartedMachine machine = machine(generator.machine());
+                yield GeneratorEntry.snowflake(
+                    new TimeBasedGenerator(name, snowflake.layout(), machine.slot(), machine.nodeOffset(), options.time(), snowflake.regression(), listener),
+                    (IdCodec) generator.codec(), machine.slot(), machine.name(), machine.namespace(), counter);
+            }
+            case GeneratorSpec.CosId80 cosId80 -> {
+                StartedMachine machine = machine(generator.machine());
+                yield GeneratorEntry.cosId80(
+                    new TimeBasedGenerator(name, cosId80.layout(), machine.slot(), machine.nodeOffset(), options.time(), cosId80.regression(), listener),
+                    (PartsCodec) generator.codec(), machine.slot(), machine.name(), machine.namespace(), counter);
+            }
             case GeneratorSpec.Segment segment -> GeneratorEntry.segment(
                 new SegmentGenerator(name, key, segment.store(), ranges(segment.store(), listener), segment.batch(), executor, options.time(),
                     listener),
@@ -191,8 +215,14 @@ public final class RuntimeParts {
                     "key", key,
                     "zone", periodic.zone().getId(),
                     "step", periodic.batch().step(),
+                    "maxBatch", periodic.batch().maxBatch(),
+                    "lookahead", periodic.batch().lookahead().toString(),
+                    "reserveTimeout", periodic.batch().reserveTimeout().toString(),
                     "prewarm", periodic.periodic().prewarm().toString(),
                     "sealAfter", periodic.periodic().sealAfter().map(Object::toString).orElse("")), counter);
+            case GeneratorSpec.Custom custom -> GeneratorEntry.custom(name, generator.ids(), (IdCodec) generator.codec(), counter);
+            case GeneratorSpec.Instance instance -> GeneratorEntry.custom(name, generator.ids(), (IdCodec) generator.codec(), counter);
+            case GeneratorSpec.UuidV7 uuidV7 -> GeneratorEntry.uuidV7(new UuidV7Generator(name, options.time()), counter);
             case GeneratorSpec.Disabled disabled -> GeneratorEntry.disabled(name, strategy(disabled.generator()), storeOf(disabled.generator()));
         };
     }
@@ -203,6 +233,9 @@ public final class RuntimeParts {
             case GeneratorSpec.CosId80 cosId80 -> GeneratorEntry.COSID80;
             case GeneratorSpec.Segment segment -> GeneratorEntry.SEGMENT;
             case GeneratorSpec.PeriodicSegment periodic -> GeneratorEntry.PERIODIC_SEGMENT;
+            case GeneratorSpec.Custom custom -> GeneratorEntry.CUSTOM;
+            case GeneratorSpec.Instance instance -> GeneratorEntry.CUSTOM;
+            case GeneratorSpec.UuidV7 uuidV7 -> GeneratorEntry.UUIDV7;
             case GeneratorSpec.Disabled disabled -> strategy(disabled.generator());
         };
     }
@@ -229,12 +262,38 @@ public final class RuntimeParts {
     }
 
     /**
-     * The slot lease of a leased slot.
+     * The slot lease of the default machine, when it is leased.
      *
      * @return the lease, empty with a static slot, without a slot, or once closed
      */
     public Optional<SlotLease> lease() {
-        return keeper == null ? Optional.empty() : keeper.lease();
+        return lease(RuntimeSpec.DEFAULT_MACHINE);
+    }
+
+    /**
+     * The slot lease of a started machine, when it is leased.
+     *
+     * @param machine the machine name, {@value RuntimeSpec#DEFAULT_MACHINE} for the default one
+     * @return the lease, empty with a static slot, for a machine that did not start, or once closed
+     */
+    public Optional<SlotLease> lease(String machine) {
+        for (StartedMachine started : machines) {
+            if (started.name().equals(machine)) {
+                return started.keeper() == null ? Optional.empty() : started.keeper().lease();
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * The started machines by name, in start order, with their namespaces.
+     *
+     * @return the namespaces by machine name
+     */
+    public Map<String, String> machines() {
+        Map<String, String> names = new LinkedHashMap<>();
+        machines.forEach(machine -> names.put(machine.name(), machine.namespace()));
+        return Collections.unmodifiableMap(names);
     }
 
     /**
@@ -261,12 +320,12 @@ public final class RuntimeParts {
         }
         closed = true;
         // 1. Time-based generators reach their terminal state: their last issued time is exact from here on.
-        long lastIssued = 0;
+        Map<String, Long> lastIssued = new HashMap<>();
         for (GeneratorEntry entry : generators.values()) {
             Optional<TimeBasedGenerator> timeBased = entry.timeBased();
             if (timeBased.isPresent()) {
                 run(failures, "close generator [" + entry.name() + "]", entry::close);
-                lastIssued = Math.max(lastIssued, timeBased.get().lastIssuedMillis());
+                lastIssued.merge(entry.machine().orElseThrow(), timeBased.get().lastIssuedMillis(), Math::max);
             }
         }
         for (GeneratorEntry entry : generators.values()) {
@@ -274,13 +333,16 @@ public final class RuntimeParts {
                 run(failures, "close generator [" + entry.name() + "]", entry::close);
             }
         }
-        // 2. Release the slot with the exact largest timestamp issued on it.
-        long released = lastIssued;
-        if (keeper != null) {
-            run(failures, "release the slot", () -> keeper.close(released));
-        }
-        if (staticSlot != null) {
-            run(failures, "close the static slot", () -> staticSlot.close(released));
+        // 2. Release each machine in reverse start order, with the exact largest timestamp its own generators issued
+        //    (api-freeze.md §2.3): another machine's timestamps would raise its next floor for nothing.
+        for (int i = machines.size() - 1; i >= 0; i--) {
+            StartedMachine machine = machines.get(i);
+            long released = lastIssued.getOrDefault(machine.name(), 0L);
+            if (machine.keeper() != null) {
+                run(failures, "release the slot of machine [" + machine.name() + "]", () -> machine.keeper().close(released));
+            } else {
+                run(failures, "close the static slot of machine [" + machine.name() + "]", () -> machine.staticSlot().close(released));
+            }
         }
         // 3. Stores, in reverse order of opening.
         for (int i = stores.size() - 1; i >= 0; i--) {

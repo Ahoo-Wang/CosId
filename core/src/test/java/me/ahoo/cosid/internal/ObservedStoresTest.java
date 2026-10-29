@@ -59,6 +59,7 @@ class ObservedStoresTest {
         SlotLeaseStore slots = ObservedStores.slots("db", new FaultySlotLeaseStore(memory, faults), listener);
         Owner owner = new Owner("host", UUID.randomUUID());
         SlotLease lease = ((AcquireResult.Acquired) slots.acquire("ns", owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1),
+            0,
             OptionalInt.empty())).lease();
         StoreTimeoutException timeout = new StoreTimeoutException("timed out");
         // A store's own exception carrying the timeout as its cause counts too.
@@ -68,7 +69,7 @@ class ObservedStoresTest {
         }
         assertThat(assertThrows(StoreTimeoutException.class, () -> ranges.reserve("k", 1, 0)), sameInstance(timeout));
         assertThat(assertThrows(CosIdException.class, () -> ranges.seal("k")), sameInstance(wrapped));
-        assertThrows(StoreTimeoutException.class, () -> slots.acquire("ns", owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+        assertThrows(StoreTimeoutException.class, () -> slots.acquire("ns", owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         assertThrows(StoreTimeoutException.class, () -> slots.renew(lease, Duration.ofSeconds(30), Duration.ofSeconds(1)));
         assertThrows(StoreTimeoutException.class, () -> slots.release(lease, 0));
         assertThat(timeouts, contains("db:reserve", "db:seal", "db:acquire", "db:renew", "db:release"));

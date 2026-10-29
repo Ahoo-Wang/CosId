@@ -31,6 +31,7 @@ import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.time.IdParts;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
+import me.ahoo.cosid.time.UuidV7Generator;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -54,24 +55,37 @@ public final class GeneratorEntry {
     public static final String COSID80 = "cosid80";
     public static final String SEGMENT = "segment";
     public static final String PERIODIC_SEGMENT = "periodic-segment";
+    public static final String CUSTOM = "custom";
+    public static final String UUIDV7 = "uuidv7";
 
     private final String name;
     private final String strategy;
     private final String store;
-    private final AutoCloseable generator;
+    /** The generator itself, the last view; null when disabled. */
+    private final Object generator;
+    /** Whether the runtime closes {@link #generator}: not a user one (D41). */
+    private final boolean owned;
     private final IdGenerator ids;
     private final StringIdGenerator strings;
     private final Supplier<String> text;
     private final List<Object> views;
     private final Supplier<Map<String, Object>> details;
     private final LongAdder counter;
+    /** The machine of a time-based generator; null otherwise. */
+    private String machine;
 
     private GeneratorEntry(String name, String strategy, String store, AutoCloseable generator, IdGenerator ids, IdCodec codec,
+                           Supplier<String> text, List<Object> extraViews, Supplier<Map<String, Object>> details, LongAdder counter) {
+        this(name, strategy, store, generator, true, ids, codec, text, extraViews, details, counter);
+    }
+
+    private GeneratorEntry(String name, String strategy, String store, Object generator, boolean owned, IdGenerator ids, IdCodec codec,
                            Supplier<String> text, List<Object> extraViews, Supplier<Map<String, Object>> details, LongAdder counter) {
         this.name = Objects.requireNonNull(name, "name");
         this.strategy = Objects.requireNonNull(strategy, "strategy");
         this.store = Objects.requireNonNull(store, "store");
         this.generator = generator;
+        this.owned = owned;
         this.ids = ids;
         this.strings = ids == null ? null : new StringIdGenerator(ids, codec);
         this.text = text;
@@ -128,34 +142,41 @@ public final class GeneratorEntry {
     /**
      * A Snowflake generator.
      *
-     * @param generator the generator
-     * @param codec     its codec
-     * @param slot      the slot it issues on
-     * @param counter   counts the ids issued; null for none
+     * @param generator        the generator
+     * @param codec            its codec
+     * @param slot             the slot it issues on
+     * @param machine          the name of the machine of the slot
+     * @param machineNamespace the namespace of the machine
+     * @param counter          counts the ids issued; null for none
      * @return the entry
      */
-    public static GeneratorEntry snowflake(TimeBasedGenerator generator, IdCodec codec, SlotHandle slot, LongAdder counter) {
+    public static GeneratorEntry snowflake(TimeBasedGenerator generator, IdCodec codec, SlotHandle slot, String machine, String machineNamespace,
+                                           LongAdder counter) {
         Objects.requireNonNull(codec, "codec");
         IdGenerator ids = counted((IdGenerator) generator, counter);
         return new GeneratorEntry(generator.name(), SNOWFLAKE, "", generator, ids, codec,
             () -> codec.encode(ids.generate()), List.of(counted((PartsIdGenerator) generator, counter)),
-            () -> timeBasedDetails(generator, slot), counter);
+            () -> timeBasedDetails(generator, slot, machine, machineNamespace), counter).onMachine(machine);
     }
 
     /**
      * An 80-bit CosId generator: parts and text ids only.
      *
-     * @param generator the generator
-     * @param codec     its parts codec
-     * @param slot      the slot it issues on
-     * @param counter   counts the ids issued; null for none
+     * @param generator        the generator
+     * @param codec            its parts codec
+     * @param slot             the slot it issues on
+     * @param machine          the name of the machine of the slot
+     * @param machineNamespace the namespace of the machine
+     * @param counter          counts the ids issued; null for none
      * @return the entry
      */
-    public static GeneratorEntry cosId80(TimeBasedGenerator generator, PartsCodec codec, SlotHandle slot, LongAdder counter) {
+    public static GeneratorEntry cosId80(TimeBasedGenerator generator, PartsCodec codec, SlotHandle slot, String machine, String machineNamespace,
+                                         LongAdder counter) {
         Objects.requireNonNull(codec, "codec");
         PartsIdGenerator parts = counted((PartsIdGenerator) generator, counter);
         return new GeneratorEntry(generator.name(), COSID80, "", generator, null, null,
-            () -> codec.encode(parts.nextParts()), List.of(parts, codec), () -> timeBasedDetails(generator, slot), counter);
+            () -> codec.encode(parts.nextParts()), List.of(parts, codec), () -> timeBasedDetails(generator, slot, machine, machineNamespace), counter)
+            .onMachine(machine);
     }
 
     /**
@@ -192,9 +213,47 @@ public final class GeneratorEntry {
         return new GeneratorEntry(generator.name(), PERIODIC_SEGMENT, store, generator, null, null,
             () -> codec.encode(grouped.generate()), List.of(grouped, codec), () -> {
                 Map<String, Object> all = new LinkedHashMap<>(fixed);
+                all.put("batch", generator.batch());
+                all.put("held", generator.held());
                 all.put("period", generator.currentPeriod());
                 return all;
             }, counter);
+    }
+
+    /**
+     * A user generator ({@code GeneratorSpec.Custom} or {@code Instance}, D41): the runtime hands it out but does not
+     * own it, so closing the entry leaves it open.
+     *
+     * @param name    the generator name
+     * @param ids     the user generator
+     * @param codec   its codec
+     * @param counter counts the ids issued; null for none
+     * @return the entry
+     */
+    public static GeneratorEntry custom(String name, IdGenerator ids, IdCodec codec, LongAdder counter) {
+        Objects.requireNonNull(ids, "ids");
+        Objects.requireNonNull(codec, "codec");
+        IdGenerator counted = counted(ids, counter);
+        String type = ids.getClass().getName();
+        return new GeneratorEntry(name, CUSTOM, "", ids, false, counted, codec, () -> codec.encode(counted.generate()), List.of(),
+            () -> Map.of("class", type), counter);
+    }
+
+    /**
+     * A UUIDv7 generator (D46): no {@code long} ids; its text is the canonical form, counted.
+     *
+     * @param generator the generator
+     * @param counter   counts the text ids, or null
+     * @return the entry
+     */
+    public static GeneratorEntry uuidV7(UuidV7Generator generator, LongAdder counter) {
+        Supplier<String> text = counter == null ? generator::generate : () -> {
+            String id = generator.generate();
+            counter.increment();
+            return id;
+        };
+        return new GeneratorEntry(generator.name(), UUIDV7, "", generator, true, null, null, text, List.of(),
+            () -> Map.of("version", 7, "text", "canonical"), counter);
     }
 
     /**
@@ -206,7 +265,21 @@ public final class GeneratorEntry {
      * @return the entry
      */
     public static GeneratorEntry disabled(String name, String strategy, String store) {
-        return new GeneratorEntry(name, strategy, store, null, null, null, null, List.of(), () -> Map.of("disabled", true), null);
+        return new GeneratorEntry(name, strategy, store, null, false, null, null, null, List.of(), () -> Map.of("disabled", true), null);
+    }
+
+    private GeneratorEntry onMachine(String machine) {
+        this.machine = Objects.requireNonNull(machine, "machine");
+        return this;
+    }
+
+    /**
+     * The machine a time-based generator issues on.
+     *
+     * @return the machine name; empty for other strategies
+     */
+    public Optional<String> machine() {
+        return Optional.ofNullable(machine);
     }
 
     /**
@@ -236,7 +309,7 @@ public final class GeneratorEntry {
      * @return the generator, or empty for other strategies
      */
     public Optional<TimeBasedGenerator> timeBased() {
-        return generator instanceof TimeBasedGenerator timeBased ? Optional.of(timeBased) : Optional.empty();
+        return owned && generator instanceof TimeBasedGenerator timeBased ? Optional.of(timeBased) : Optional.empty();
     }
 
     private void requireEnabled() {
@@ -255,7 +328,7 @@ public final class GeneratorEntry {
     public IdGenerator ids() {
         requireEnabled();
         if (ids == null) {
-            throw new NoSuchElementException("Generator [" + name + "] (" + strategy + ") issues no long ids");
+            throw new NoSuchElementException("Generator [" + name + "] (" + strategy + ") issues no long ids; use text(name) for its text");
         }
         return ids;
     }
@@ -309,21 +382,21 @@ public final class GeneratorEntry {
      * @return the info
      */
     public GeneratorInfo info() {
-        return new GeneratorInfo(name, strategy, store, details.get());
+        return GeneratorInfo.builder(name, strategy).store(store).details(details.get()).build();
     }
 
     /**
-     * Closes the generator; a disabled one has nothing to close.
+     * Closes the generator; a disabled one has nothing to close, and a user one is left to its owner.
      *
      * @throws Exception if the generator fails to close
      */
     public void close() throws Exception {
-        if (generator != null) {
-            generator.close();
+        if (owned && generator instanceof AutoCloseable closeable) {
+            closeable.close();
         }
     }
 
-    private static Map<String, Object> timeBasedDetails(TimeBasedGenerator generator, SlotHandle slot) {
+    private static Map<String, Object> timeBasedDetails(TimeBasedGenerator generator, SlotHandle slot, String machine, String machineNamespace) {
         Layout layout = generator.layout();
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("epoch", layout.epoch().toString());
@@ -337,6 +410,9 @@ public final class GeneratorEntry {
         details.put("floor", binding.floor());
         details.put("ceiling", binding.ceiling());
         details.put("slotValid", binding.isValid());
+        details.put("node", generator.node());
+        details.put("machine", machine);
+        details.put("machineNamespace", machineNamespace);
         return details;
     }
 

@@ -38,8 +38,9 @@ cosid:
 |---|---|---|
 | `url`, `username`, `password` | | a connection without a `DataSource` (through `DriverManager`, unpooled) |
 | `dialect` | detected | `mysql`, `mariadb`, `postgresql`, `sqlserver`, `h2`, or a registered dialect's name |
-| `initSchema` | `false` | create the missing tables at start-up |
+| `initSchema` | `false` | create the missing tables at start-up, and the column and index tables of 5.0.0-alpha.1 lack |
 | `rangeTable`, `slotTable`, `namespaceTable` | `cosid_range`, `cosid_slot`, `cosid_namespace` | table names, optionally schema-qualified |
+| `fetchPlan` | `statement` | `transaction` behind an SQL proxy or read-write splitting (4.x `fetch-plan`): a reserve updates and reads its row in one transaction instead of reading the generated key |
 
 The store never closes a `DataSource` it was given. In code: `JdbcStore.of(dataSource, timeout)`.
 
@@ -85,6 +86,10 @@ Rows are never deleted (D23): a sealed key keeps its value. Physical clean-up of
   `on conflict … returning`, SQL Server `merge … with (holdlock) … output`, and H2 merges and reads in a transaction.
   The range is `[next − size, next)`. A sealed key updates no row (`RangeSealedException`), and past `Long.MAX_VALUE`
   the store throws `RangeExhaustedException`.
+- **SQL proxies** (as 4.x): a `next_value` below the size cannot be the one the statement wrote, and the reserve fails
+  instead of handing out a range; on MySQL / MariaDB so does a reserve that returned no generated key for a key that is
+  neither sealed nor full. Behind a proxy that rewrites or loses `last_insert_id`, or with read-write splitting, set
+  `fetchPlan: transaction`.
 - **acquire**: the first use of a namespace records `{limit, tolerance}` and creates its `limit` slot rows. Then one
   non-locking read returns the candidates (the owner key's rows, the preferred slot, the first free slots) with the store
   clock. Each step of the slot choice is one auto-commit compare-and-set, `update … where namespace = ? and slot = ? and

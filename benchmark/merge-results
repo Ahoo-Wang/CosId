@@ -1,0 +1,176 @@
+#!/usr/bin/env python3
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+"""Joins JMH JSON results, merging the runs of one benchmark into one row.
+
+    benchmark/merge-results OUT IN...
+
+A row is a benchmark at a mode, threads and params (as benchmark/compare matches them). The store scenarios run each
+side twice, in ABBA order (benchmark/run-smoke), so one row comes in two results: their forks are pooled and every
+metric is computed again from the pooled raw data, as JMH computes it. Score: the mean of the iterations (thrpt, avgt,
+ss) or of the samples (sample); error: the half-width of the 99.9 % Student t interval; percentiles: of the pooled
+iterations or samples. A row that comes once is written as it is. Exits 2 on bad input.
+"""
+
+import json
+import math
+import sys
+
+CONFIDENCE = 0.999
+PERCENTILES = ["0.0", "50.0", "90.0", "95.0", "99.0", "99.9", "99.99", "99.999", "99.9999", "100.0"]
+
+
+def key(row):
+    params = ",".join(f"{k}={v}" for k, v in sorted((row.get("params") or {}).items()))
+    return row["benchmark"], row["mode"], row["threads"], params
+
+
+def _beta_fraction(a, b, x):
+    """The continued fraction of the regularized incomplete beta function (Numerical Recipes betacf)."""
+    tiny, qab, qap, qam = 1e-300, a + b, a + 1.0, a - 1.0
+    c, d = 1.0, 1.0 - qab * x / qap
+    d = 1.0 / (d if abs(d) > tiny else tiny)
+    h = d
+    for m in range(1, 300):
+        m2 = 2 * m
+        for numerator in (m * (b - m) * x / ((qam + m2) * (a + m2)), -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))):
+            d = 1.0 + numerator * d
+            d = 1.0 / (d if abs(d) > tiny else tiny)
+            c = 1.0 + numerator / c
+            c = c if abs(c) > tiny else tiny
+            h *= d * c
+        if abs(d * c - 1.0) < 1e-15:
+            break
+    return h
+
+
+def _incomplete_beta(a, b, x):
+    if x <= 0.0:
+        return 0.0
+    if x >= 1.0:
+        return 1.0
+    front = math.exp(math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b) + a * math.log(x) + b * math.log(1.0 - x))
+    if x < (a + 1.0) / (a + b + 2.0):
+        return front * _beta_fraction(a, b, x) / a
+    return 1.0 - front * _beta_fraction(b, a, 1.0 - x) / b
+
+
+def t_quantile(p, df):
+    """The p quantile (p > 0.5) of Student's t with df degrees of freedom."""
+    def cdf(t):
+        return 1.0 - 0.5 * _incomplete_beta(df / 2.0, 0.5, df / (df + t * t))
+    low, high = 0.0, 1.0
+    while cdf(high) < p:
+        high *= 2.0
+    for _ in range(200):
+        middle = (low + high) / 2.0
+        low, high = (middle, high) if cdf(middle) < p else (low, middle)
+    return (low + high) / 2.0
+
+
+def _value_at(sorted_pairs, rank):
+    """The value of 1-based rank in (value, count) pairs sorted by value."""
+    seen = 0
+    for value, count in sorted_pairs:
+        seen += count
+        if seen >= rank:
+            return value
+    return sorted_pairs[-1][0]
+
+
+def _percentile(sorted_pairs, total, q):
+    """The q-th percentile (0 to 100), estimated as JMH does (Apache Commons Math's legacy estimate): at position
+    q / 100 x (n + 1), interpolated between the two ranks around it."""
+    position = q / 100.0 * (total + 1)
+    if position < 1:
+        return sorted_pairs[0][0]
+    if position >= total:
+        return sorted_pairs[-1][0]
+    lower = math.floor(position)
+    below, above = _value_at(sorted_pairs, lower), _value_at(sorted_pairs, lower + 1)
+    return below + (position - lower) * (above - below)
+
+
+def statistics(pairs):
+    """{score, scoreError, scoreConfidence, scorePercentiles} of (value, count) pairs."""
+    pairs = sorted(pairs)
+    n = sum(count for _, count in pairs)
+    mean = sum(value * count for value, count in pairs) / n
+    if n > 1:
+        variance = sum(count * (value - mean) ** 2 for value, count in pairs) / (n - 1)
+        error = t_quantile(1.0 - (1.0 - CONFIDENCE) / 2.0, n - 1) * math.sqrt(variance / n)
+    else:
+        error = float("nan")
+    return {"score": mean, "scoreError": error, "scoreConfidence": [mean - error, mean + error],
+            "scorePercentiles": {q: _percentile(pairs, n, float(q)) for q in PERCENTILES}}
+
+
+def merge_metric(metrics):
+    """One metric of several runs: their forks pooled (rawData or rawDataHistogram), the statistics computed again."""
+    merged = dict(metrics[0])
+    if all("rawDataHistogram" in m for m in metrics):
+        forks = [fork for m in metrics for fork in m["rawDataHistogram"]]
+        pairs = [(value, count) for fork in forks for iteration in fork for value, count in iteration]
+        merged["rawDataHistogram"] = forks
+    elif all("rawData" in m for m in metrics):
+        forks = [fork for m in metrics for fork in m["rawData"]]
+        pairs = [(value, 1) for fork in forks for value in fork]
+        merged["rawData"] = forks
+    else:
+        raise ValueError(f"cannot merge a metric without raw data ({metrics[0].get('scoreUnit')})")
+    merged.update(statistics(pairs))
+    return merged
+
+
+def merge(rows):
+    """The rows of several JMH results, those of one benchmark merged; first-seen order."""
+    groups = {}
+    for row in rows:
+        groups.setdefault(key(row), []).append(row)
+    merged = []
+    for same in groups.values():
+        if len(same) == 1:
+            merged.append(same[0])
+            continue
+        row = dict(same[0])
+        row["forks"] = sum(r["forks"] for r in same)
+        row["primaryMetric"] = merge_metric([r["primaryMetric"] for r in same])
+        names = set.intersection(*(set(r.get("secondaryMetrics") or {}) for r in same))
+        row["secondaryMetrics"] = {name: merge_metric([r["secondaryMetrics"][name] for r in same]) for name in sorted(names)}
+        merged.append(row)
+    return merged
+
+
+def main(argv):
+    if len(argv) < 2:
+        print(__doc__, file=sys.stderr)
+        return 2
+    try:
+        rows = []
+        for path in argv[1:]:
+            with open(path, encoding="utf-8") as file:
+                loaded = json.load(file)
+            if not isinstance(loaded, list):
+                raise ValueError(f"{path}: not a JMH JSON result (expected a list)")
+            rows += loaded
+        merged = merge(rows)
+    except (OSError, ValueError, KeyError) as problem:
+        print(f"merge-results: {problem}", file=sys.stderr)
+        return 2
+    with open(argv[0], "w", encoding="utf-8") as file:
+        json.dump(merged, file, indent=2)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

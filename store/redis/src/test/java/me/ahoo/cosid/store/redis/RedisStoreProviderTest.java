@@ -45,7 +45,9 @@ class RedisStoreProviderTest {
     private static final Owner OWNER = new Owner("host", UUID.randomUUID());
 
     private static StoreConfig config(Map<String, Object> options, Object client) {
-        return new StoreConfig("test", RedisStoreProvider.TYPE, RedisServers.TIMEOUT, options, Optional.ofNullable(client));
+        StoreConfig.Builder config = StoreConfig.builder("test", RedisStoreProvider.TYPE).timeout(RedisServers.TIMEOUT).options(options);
+        Optional.ofNullable(client).ifPresent(config::client);
+        return config.build();
     }
 
     @Test
@@ -98,12 +100,21 @@ class RedisStoreProviderTest {
         try (RedisStore store = new RedisStore(unexpected)) {
             assertThrows(IllegalArgumentException.class, () -> store.reserve("k", 0, 0));
             assertThrows(IllegalArgumentException.class, () -> store.reserve("k", 1, -1));
-            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 0, TTL, TOLERANCE, OptionalInt.empty()));
-            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 1, Duration.ZERO, TOLERANCE, OptionalInt.empty()));
-            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 1, TTL, Duration.ofSeconds(-1), OptionalInt.empty()));
-            SlotLease lease = new SlotLease("ns", 0, OWNER, 1, 0, 0, 0, 0);
+            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 0, TTL, TOLERANCE, 0, OptionalInt.empty()));
+            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 1, Duration.ZERO, TOLERANCE, 0, OptionalInt.empty()));
+            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 1, TTL, Duration.ofSeconds(-1), 0, OptionalInt.empty()));
+            SlotLease lease = SlotLease.builder()
+                .namespace("ns")
+                .slot(0)
+                .owner(OWNER)
+                .fence(1)
+                .expiresAt(0)
+                .floor(0)
+                .ceiling(0)
+                .storeNow(0)
+                .build();
             assertThrows(RedisStoreException.class, () -> store.reserve("k", 1, 0));
-            assertThrows(RedisStoreException.class, () -> store.acquire("ns", OWNER, 1, TTL, TOLERANCE, OptionalInt.empty()));
+            assertThrows(RedisStoreException.class, () -> store.acquire("ns", OWNER, 1, TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertThrows(RedisStoreException.class, () -> store.renew(lease, TTL, TOLERANCE));
             assertThrows(RedisStoreException.class, () -> store.release(lease, 0));
         }
@@ -124,8 +135,11 @@ class RedisStoreProviderTest {
         try (GenericContainer<?> redis = new GenericContainer<>(RedisServers.IMAGE).withExposedPorts(6379)) {
             redis.start();
             String uri = "redis://" + redis.getHost() + ":" + redis.getMappedPort(6379);
-            StoreConfig config = new StoreConfig("paused", RedisStoreProvider.TYPE, Duration.ofMillis(500), Map.of("uri", uri, "wait", "off"),
-                Optional.empty());
+            StoreConfig config = StoreConfig.builder("paused", RedisStoreProvider.TYPE)
+                .timeout(Duration.ofMillis(500))
+                .option("uri", uri)
+                .option("wait", "off")
+                .build();
             try (Store store = new RedisStoreProvider().open(config)) {
                 String key = "timeout-" + UUID.randomUUID();
                 assertEquals(0, store.ranges().reserve(key, 1, 0).start());
@@ -148,7 +162,7 @@ class RedisStoreProviderTest {
     void acquireReportsExhaustedWithTheEarliestExpiry() {
         RedisScripts exhausted = (sha, script, keys, args) -> List.of("exhausted", "1234");
         try (RedisStore store = new RedisStore(exhausted)) {
-            assertEquals(new AcquireResult.Exhausted(1234), store.acquire("ns", OWNER, 1, TTL, TOLERANCE, OptionalInt.of(0)));
+            assertEquals(new AcquireResult.Exhausted(1234), store.acquire("ns", OWNER, 1, TTL, TOLERANCE, 0, OptionalInt.of(0)));
         }
     }
 }

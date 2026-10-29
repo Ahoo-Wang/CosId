@@ -1,7 +1,7 @@
 # Benchmarks
 
 **5.0 must not be slower than 4.x** (D21). This is a release gate, not a goal. Every scenario runs on the released
-4.1.0 jars and on 5.0, and the comparison decides.
+4.1.1 jars and on 5.0, and the comparison decides.
 
 ## How it is measured
 
@@ -10,7 +10,7 @@ with the same scenarios and the same class and method names (`<Scenario>Benchmar
 
 ```
 benchmark/
-  baseline-4x/   me.ahoo.cosid:*:4.1.0
+  baseline-4x/   me.ahoo.cosid:*:4.1.1
   v5/            the 5.0 modules
   scenarios.md   the scenarios: parameters, threads, warm-up, iterations
   compare        reads both JMH JSON results and prints PASS / FAIL per row
@@ -23,16 +23,22 @@ benchmark/
 | P3 | Snowflake + Radix62 text, + Friendly text | throughput, allocation |
 | P4 | 80-bit CosId Radix62 / Friendly | throughput, allocation |
 | P5 | segment on an in-memory store, 1 / 4 / 16 / 64 threads | throughput, p99 / p99.9 |
+| P5 reference | one shared `AtomicLong`, 1 / 4 / 16 / 64 threads (5.x side only, not judged): P5 on both sides as a share of it | throughput |
 | P6 | segment, step 1, no prefetch | throughput |
-| P7 | segment on MySQL / Redis | throughput, p99 / p99.9 |
+| P7 | segment on MySQL / Redis / MongoDB / ZooKeeper | throughput, p99 / p99.9 |
 | P8 | periodic segment (daily) across period switches | throughput, p99.9 at the switch |
 | P9 | codecs: Radix62/36 encode and decode, Friendly | throughput, allocation |
 | P10 | store primitives: reserve, acquire, renew, per backend | mean and p99 latency |
 | P11 | Spring context start to the first id | time |
 | P12 | `IdFiller.fill` | throughput, allocation |
+| P13 | UUIDv7 (5.x only, a trend, not judged), 1 / 4 / 16 threads | throughput |
 
-A row passes when 5.0's throughput is at least 4.x's minus 4.x's error (JMH's 99.9% confidence interval), and its
-latency at most 4.x's plus its error. Release numbers come only from a fixed, quiet physical machine. Numbers from a
+A row's limit is the wider of 4.x with its error (JMH's 99.9% confidence interval) and 4.x with a tolerance: 5% for
+throughput and average time, 10% for p99 / p99.9, and the larger of 5% and +64 B for allocation. A row that fails runs
+again in fresh forks, and only a failed re-run counts as a regression. The store scenarios (P7, P10) run each side
+twice in ABBA order (4.x, 5.x, 5.x, 4.x), so that neither side always runs right after the other on the store. The gate is end-to-end ID generation (D44): a
+row of a component (P9 codecs, P10 store primitives) that misses these limits only warns, up to 20% for throughput and
+average time, 30% for p99 / p99.9 and the larger of 25% and +64 B for allocation, and fails beyond them. Release numbers come only from a fixed, quiet physical machine. Numbers from a
 shared machine or another time are noise.
 
 Run it yourself:

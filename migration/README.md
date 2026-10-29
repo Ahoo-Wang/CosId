@@ -55,7 +55,8 @@ timestamp of the 4.x machine records, `sourceSkew` (10s) the clock skew 4.x allo
    Everything it could not convert as is sits as comments at the top of the output: review them. A static slot gets
    `not-before: W`.
 6. **Start 5.0.** The first time-based id waits until the clock passes W, at most about `sourceSkew`.
-7. Later, as an offline maintenance step, physically remove sealed period keys of past periods (D23):
+7. Later, as an offline maintenance step **with every 5.0 instance stopped** (a store must never see a key's node
+   deleted while it uses the key), physically remove sealed period keys of past periods (D23):
    `java -jar cosid-migration.jar purge --to jdbc:... --namespace shop --before 20250101 --dry-run`, then with
    `--confirm-stopped` instead of `--dry-run`.
 
@@ -76,6 +77,15 @@ reports the segment as grown. It cannot keep its time-based ids apart, which is 
 | `redis://` / `rediss://`, option `cluster=true` | `cosid:{ns.name}.adder`; `cosid:{ns}:itc_idx`, `:revert`, `:adder`, `:stable`, `:lease` | `cosid:{key}` and `cosid:{key}:sealed`; `cosid:{ns}:meta`, `:slot`, `:free` (rows encoded by store/redis `slot-row.lua`) |
 | `mongodb://`, option `database` (`cosid_db`) | `cosid {_id: '{ns}.{name}', lastMaxId}`, `cosid_machine` | `cosid_range`, `cosid_namespace`, `cosid_slot` (+ its indexes) |
 | `zookeeper://host:port[/chroot]` | `/cosid/{ns}.{name}` (8-byte counter), `/cosid/{ns}/__itc_idx`, `__revert`, `__counter`, `__stable` | `/cosid/range/{key}`, `/cosid/slot/{ns}` and its slot nodes |
+
+The options are checked as the 5.0 stores check theirs: case, `-` and `_` do not count (`range-table` is `rangeTable`),
+and any key the side does not read is refused, so a misspelt table name cannot leave the data in the default table.
+
+Redis writes (the 4.x seal, the 5.0 raise, the slot preparation) wait for a replica: when the written node has a
+connected replica, each write is followed by `WAIT 1`, and the step stops with an error if no replica acknowledges
+within 5 s, since a failover would lose the write. Check the replication and run the step again. A node without
+replicas is not waited for. In a cluster the write and its `WAIT` go over the connection to the primary of the key's
+slot: `WAIT` counts the writes of its own connection only.
 
 Key mapping (09 §4.1): `{ns}.{name}` → `{ns}/{name}`; grouped `{ns}.{name}@{groupKey}` → `{ns}/{name}/{period}`, every
 period, past ones included. A group key must be a 5.0 preset (`yyyy`, `yyyyMM`, `yyyyMMdd`), or its 4.x pattern is named
@@ -99,6 +109,8 @@ enabled; `--rename` overrides). 5.0 generator names cannot contain `/`. Keys tha
 | `machines` | `{records, maxTimestamp (T4), targetNow, sourceSkewMillis, estimatedW}` |
 | `layouts[]` | `{generator, source, target, ok, reason}`, M3 per time-based generator |
 | `warnings[]` | everything else to read |
+| `shared` | the plan of a namespace of its own itself (the shared `cosid.generator.namespace`, a snowflake's): `{maxMachineId, recommendedOffset, nodeBits, rolling, legacyCap, headroom, guaranteed}` |
+| `generatorNamespace`, `machineNamespaces` | the namespaces of their own of the service's generators as the target records them, `{namespace, limit, toleranceMillis, slotOffset}`, `machineNamespaces` by 5.0 machine name (`generatorNamespace` is its `generator`; a plan of 5.0.0-rc.1 has that one only) |
 
 ## `apply-result.json`
 
@@ -113,6 +125,8 @@ enabled; `--rename` overrides). 5.0 generator names cannot contain `/`. Keys tha
 | `w`, `notBefore` | W in epoch milliseconds and ISO-8601 (`cosid.machine.static.not-before`) |
 | `slots` | `{bits, limit, toleranceMillis}` |
 | `segments[]` | `{sourceName, targetKey, lastMaxId, next, targetNext, sealedAt}`: `lastMaxId` bounds what 4.x reserved before the seal, `next = lastMaxId + 1 + gap`, `targetNext` the target after the write, `sealedAt` the 4.x value after the seal |
+| `machineTarget` | where the slots went when not in `target` (`--machine-to`) |
+| `generatorNamespace`, `machineNamespaces` | as in the plan, as `apply` found them prepared: `config` writes `cosid.machines.<machine>` from them |
 | `warnings[]` | everything else to read |
 
 ## Commands
@@ -138,11 +152,29 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
   its machine id in `other`). With `--layout-config`, `plan` reads those namespaces too and maps `other.{name}` to
   `{ns}/{name}`, the generator 5.0 gives it; a key `shop.v2.order` of namespace `shop.v2` is not taken for a segment
   `v2.order` of `shop`. Without `--layout-config` a dotted segment name is reported.
-- **A CosIdGenerator in a namespace of its own** (`cosid.generator.namespace` other than `cosid.namespace`, GA review
-  R1-x-07): 4.x shares its machine ids across services to keep their 80-bit ids apart, which this 5.0 release cannot
-  carry over until named machines (D37). `config`, and `plan` / `apply` with `--layout-config`, refuse it while the
-  CosIdGenerator is enabled. With it disabled, the machine records of that namespace still count for T4 and the quiet
-  period.
+- **A CosIdGenerator in a namespace of its own** (`cosid.generator.namespace` other than `cosid.namespace`, D37): 4.x
+  shares its machine ids across services to keep their 80-bit ids apart; 5.0 keeps them in the named machine
+  `cosid.machines.generator`. Migrate the shared namespace **once**, before any service: `plan --namespace <shared>
+  --layout-config <a service's yaml>` reads the largest 4.x machine id M there. The default slot offset puts the 5.0 slots at
+  the top of the nodes, `2^node-bits - 2^bits` (`2^20 - 1024` with the 4.x defaults), which leaves 4.x the most room
+  below them; `--slot-offset` overrides it, above M with `offset + 2^bits <= 2^node-bits`. `plan` reports and records the
+  `headroom`, `offset - (M + 1)`: how many more machine ids 4.x can hand out before its nodes meet 5.0's, loudly when it
+  is below `2^bits`. 4.x could hand out ids up to its hard cap `2^(cosid.generator.machine-bit)`, which `config` keeps as
+  `node-bits`, so the separation is not by construction (`guaranteed: false`): 4.x must stay below the offset. With an offset, `apply` needs no `--confirm-stopped` and
+  watches no quiet period: 4.x keeps running while each service moves, and `verify` fails once 4.x hands out a machine
+  id at or above the offset. `--slot-offset 0` migrates it at once,
+  every sharing service stopped. Each service's `apply` then refuses unless the shared namespace is prepared as its plan
+  saw it, and `config` writes `cosid.machines.generator` (with that `slot-offset`) and `machine: generator` on cosid80.
+  With the CosIdGenerator disabled, the machine records of that namespace count for T4 and the quiet period.
+- **A snowflake in a namespace of its own** (R2-parity-01): 4.x distributed its machine id there with its own
+  `machine-bit`, possibly shared across services. It is migrated the same way, once, before each service; its slot bits
+  default to that `machine-bit` (the fewest of the snowflakes sharing it), so the default offset is 0 and it migrates
+  at once. `config` writes it as the named machine `cosid.machines.<namespace>` (characters other than letters, digits
+  and `-` become `-`) and `machine: <that name>` on each snowflake there; a static default machine gives it a static
+  slot `${COSID_<NAME>_SLOT}`.
+- **CosIdGenerator bits.** `config` keeps the 4.x `timestamp-bit`, `machine-bit`, `sequence-bit` and
+  `sequence-reset-threshold` (a threshold beyond the sequence range is taken as its largest value) and the friendly
+  `pad-start`; bits whose time and sequence exceed 63 are refused by `plan` and `config`.
 - **The share.** `__share__` is `default`, or `segment-share` when the 4.x snowflake share is enabled too: `plan`
   refuses it without `--layout-config` or `--rename __share__=<generator>`.
 - **Keys that do not map** (a group pattern 5.0 cannot read, a name with `/`): `apply` aborts unless each is named with
@@ -154,9 +186,16 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
 - **`config` continues the migrated keys.** It names the generators as the plan did (`--rename`, the share) and fails
   unless each segment or periodic segment generator has its key in `apply-result.json`; a generator 4.x never issued
   from is named with `--allow-new`. The slot `bits` and `tolerance` come from the result.
+- **`config` points at the stores `apply` wrote to** (R2-mig-01): `cosid.stores` takes the type of the result's `target`
+  (and `machineTarget`), the JDBC table options, the Mongo `database`, Redis `cluster` and the ZooKeeper connect string,
+  never a password; a migration to another type is reported, with the client the application then needs. Each
+  migrated plain segment gets `initial-offset`, its migrated next value, so that a 5.0 store without the migrated keys
+  would still start past every 4.x id. The 4.x store options become their 5.0 ones (`wait-replicas: N` → `wait: N`,
+  `fetch-plan` → `fetchPlan`, `write-concern` → `writeConcern`, the Curator retry), and a 4.x snowflake friendly
+  converter keeps its unpadded text (`pad-start: false`).
 - **Credentials.** `plan.json` keeps no password: the password of a URL's userinfo and `password=` / `pwd=` parameters
   are removed, so give them again with `--from-option password=...` (MongoDB takes `user` / `password` /
-  `authSource` options too).
+  `authSource` options too). The account option is `user`, or `username` as the 5.0 JDBC store names it.
 - W is taken from the later of the source and target store clocks.
 
 `apply` refuses when the 5.0 namespace has a live slot lease (5.0 runs) or other slot parameters, and, given
@@ -164,7 +203,7 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
 
 ## Tests
 
-The tests write real 4.x data with the released 4.1.0 jars: `src/test/legacy4x` is a source set compiled against them
+The tests write real 4.x data with the released 4.1.1 jars: `src/test/legacy4x` is a source set compiled against them
 alone and loaded in a class loader of its own (4.x and 5.0 share the package `me.ahoo.cosid`). Each scenario
 (`MigrationScenarioTest`) migrates segments, grouped segments of the current and past periods and machine ids, issues
 ids with a 5.0 `CosIdRuntime` and asserts M1–M3; leaves a 4.x instance running (the quiet period aborts `apply`; with
@@ -172,5 +211,7 @@ the check off, the seal keeps its ranges away); and interrupts `apply` before an
 ZooKeeper (curator-test) always run, Redis and MongoDB in Testcontainers when Docker is available; the cross-type cases
 are ZooKeeper → H2, Redis → H2 and MongoDB → ZooKeeper. `config` has goldens under `src/test/resources/config`
 (`-Pcosid.migration.updateGoldens=true` rewrites them; each case has the `apply-result.json` of its keys), and `ConfigBindingTest` binds each golden through Spring Boot's
-YAML loader and `Binder` into the `CosIdProperties` of `spring/autoconfigure` and maps it with `CosIdSpecs.toSpec`. That
+YAML loader and `Binder` into the `CosIdProperties` of `spring/autoconfigure` and maps it with `CosIdSpecs.toSpec`;
+`ConfigRuntimeTest` starts a 5.0 `CosIdRuntime` from `config`'s output after a migration (ZooKeeper → H2, tables and a
+snowflake namespace of their own) and issues past every 4.x id. That
 edge is test scope only (`DependencyRules.TEST_EDGES`); `checkNoSpring` fails the build if the fat jar carries Spring.

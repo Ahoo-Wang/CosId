@@ -22,8 +22,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * The range contract of the Redis store on {@link SpringDataRedisScripts}.
@@ -32,8 +30,10 @@ class SpringDataRedisScriptsRangeTest extends RangeStoreContract {
     static final LettuceConnectionFactory FACTORY = TestRedis.lettuce();
 
     static me.ahoo.cosid.store.Store open() {
-        return new RedisStoreProvider().open(new StoreConfig("spring", RedisStoreProvider.TYPE, Duration.ofSeconds(5), Map.of(),
-            Optional.of(new SpringDataRedisScripts(FACTORY, Duration.ofSeconds(5), "auto"))));
+        return new RedisStoreProvider().open(StoreConfig.builder("spring", RedisStoreProvider.TYPE)
+            .timeout(Duration.ofSeconds(5))
+            .client(new SpringDataRedisScripts(FACTORY, Duration.ofSeconds(5), "auto"))
+            .build());
     }
 
     @AfterAll

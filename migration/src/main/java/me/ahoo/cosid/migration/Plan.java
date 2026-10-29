@@ -37,11 +37,20 @@ import java.util.Map;
  * @param machines      the machine records and the W estimate
  * @param layouts       the layout validation (M3)
  * @param warnings      everything else the operator should read
+ * @param shared        the plan of a namespace of its own itself (api-freeze.md §2.7), the shared
+ *                      {@code cosid.generator.namespace} or a snowflake's ({@link me.ahoo.cosid.migration.config.Legacy4x#machineNamespaces()}); null
+ *                      otherwise
+ * @param generatorNamespace the shared namespace the CosIdGenerator of this service uses, as the target records it;
+ *                      null when the service has none; also in {@code machineNamespaces}
+ * @param machineNamespaces the namespaces of their own of this service's time-based generators, as the target records
+ *                      them, by the name of their 5.0 machine ({@link me.ahoo.cosid.migration.config.Legacy4x#machineNamespaces()}); null in plans of
+ *                      5.0.0-rc.1, which know {@code generatorNamespace} only
  */
 public record Plan(String format, String createdAt, String namespace, StoreLocation source, StoreLocation target, StoreLocation machineSource,
                    StoreLocation machineTarget, Map<String, List<String>> extraNamespaces, Slots slots,
                    Map<String, String> renames, Map<String, String> groupPatterns, List<SegmentPlan> segments, List<String> unrecognized,
-                   Machines machines, List<LayoutCheck> layouts, List<String> warnings) {
+                   Machines machines, List<LayoutCheck> layouts, List<String> warnings, Shared shared, GeneratorNamespace generatorNamespace,
+                   Map<String, GeneratorNamespace> machineNamespaces) {
     public static final String FORMAT = "cosid-migration-plan/1";
 
     /**
@@ -59,13 +68,70 @@ public record Plan(String format, String createdAt, String namespace, StoreLocat
      * @param bits            the slot bits
      * @param limit           {@code 2^bits}
      * @param toleranceMillis the tolerance
+     * @param slotOffset      the slot offset (api-freeze.md §2.1.1); 0 but in a shared namespace migrated rolling
      */
-    public record Slots(int bits, int limit, long toleranceMillis) {
+    public record Slots(int bits, int limit, long toleranceMillis, int slotOffset) {
         public static Slots of(int bits, long toleranceMillis) {
+            return of(bits, toleranceMillis, 0);
+        }
+
+        public static Slots of(int bits, long toleranceMillis, int slotOffset) {
             if (bits < 1 || bits > 20) {
                 throw new IllegalArgumentException("slot bits must be in [1, 20]: " + bits);
             }
-            return new Slots(bits, 1 << bits, toleranceMillis);
+            if (slotOffset < 0) {
+                throw new IllegalArgumentException("the slot offset must not be negative: " + slotOffset);
+            }
+            return new Slots(bits, 1 << bits, toleranceMillis, slotOffset);
+        }
+    }
+
+    /**
+     * The plan of a shared {@code cosid.generator.namespace} (api-freeze.md §2.7): machine records only, migrated once for
+     * every service that shares it.
+     *
+     * @param maxMachineId      M, the largest 4.x machine id ever handed out in it; -1 without records
+     * @param recommendedOffset the default slot offset, {@code 2^nodeBits - 2^bits}: the 5.0 slots at the top of the nodes
+     * @param nodeBits          the node bits of the 5.0 CosIdGenerator (the 4.x {@code cosid.generator.machine-bit}): the
+     *                          slots end at {@code slotOffset + 2^bits <= 2^nodeBits}
+     * @param rolling           a slot offset above M: 4.x keeps running while each service moves to 5.0
+     * @param legacyCap         the hard cap of the 4.x distributor, {@code 2^(cosid.generator.machine-bit)}: 4.x 4.1.0 never
+     *                          hands out a machine id at or above it ({@code MachineIdOverflowException})
+     * @param headroom          {@code slotOffset - (M + 1)}: how many more machine ids 4.x can hand out before its nodes meet
+     *                          5.0's; 0 when migrated at once
+     * @param guaranteed        whether the nodes stay apart by construction, {@code slotOffset >= legacyCap}; false for a
+     *                          rolling migration that keeps the 4.x bits, where only {@code verify} checks it afterwards
+     */
+    public record Shared(int maxMachineId, int recommendedOffset, int nodeBits, boolean rolling, long legacyCap, long headroom,
+                         boolean guaranteed) {
+    }
+
+    /**
+     * A namespace of its own of a service's time-based generators, which {@code config} writes as a named machine: the
+     * shared namespace of the CosIdGenerator ({@code generator}) or a snowflake's.
+     *
+     * @param namespace       the namespace
+     * @param limit           its recorded slot limit; 0 when not prepared yet
+     * @param toleranceMillis its recorded tolerance
+     * @param slotOffset      its recorded slot offset
+     */
+    public record GeneratorNamespace(String namespace, int limit, long toleranceMillis, int slotOffset) {
+        /**
+         * Whether the namespace was migrated (prepared in the target) before.
+         *
+         * @return true if it has metadata
+         */
+        public boolean prepared() {
+            return limit > 0;
+        }
+
+        /**
+         * The slot bits of the recorded limit.
+         *
+         * @return {@code log2(limit)}
+         */
+        public int bits() {
+            return Integer.numberOfTrailingZeros(limit);
         }
     }
 
@@ -92,7 +158,8 @@ public record Plan(String format, String createdAt, String namespace, StoreLocat
      * @param targetNow        the target store clock when planned
      * @param sourceSkewMillis the source skew of the estimate
      * @param estimatedW       {@code max(targetNow, T4 + 1s) + sourceSkew}; apply recomputes it
+     * @param maxMachineId     the largest 4.x machine id handed out in the namespace, -1 without records
      */
-    public record Machines(int records, long maxTimestamp, long targetNow, long sourceSkewMillis, long estimatedW) {
+    public record Machines(int records, long maxTimestamp, long targetNow, long sourceSkewMillis, long estimatedW, int maxMachineId) {
     }
 }

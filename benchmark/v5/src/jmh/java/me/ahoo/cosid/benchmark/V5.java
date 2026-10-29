@@ -14,12 +14,20 @@
 package me.ahoo.cosid.benchmark;
 
 import me.ahoo.cosid.lease.SlotHandle;
+import me.ahoo.cosid.lease.SlotLeaseStore;
 import me.ahoo.cosid.lease.StaticSlot;
 import me.ahoo.cosid.observe.GeneratorListener;
+import me.ahoo.cosid.runtime.CosIdRuntime;
+import me.ahoo.cosid.runtime.GeneratorSpec;
+import me.ahoo.cosid.runtime.RuntimeOptions;
+import me.ahoo.cosid.runtime.RuntimeSpec;
+import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.segment.RangeStore;
-import me.ahoo.cosid.segment.SegmentGenerator;
+import me.ahoo.cosid.store.Store;
+import me.ahoo.cosid.store.StoreConfig;
+import me.ahoo.cosid.store.StoreProvider;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
@@ -27,6 +35,7 @@ import me.ahoo.cosid.time.TimeSource;
 
 import java.time.Duration;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -58,12 +67,63 @@ final class V5 {
      * {@code BatchPolicy.DEFAULT} with another step and that step's default {@code maxBatch}, the rest unchanged.
      */
     static BatchPolicy batch(long step) {
-        BatchPolicy defaults = BatchPolicy.DEFAULT;
-        return new BatchPolicy(step, defaults.initialOffset(), defaults.lookahead(), BatchPolicy.defaultMaxBatch(step), defaults.reserveTimeout(), defaults.rangeTtl());
+        return BatchPolicy.builder().step(step).build();
     }
 
-    static SegmentGenerator segment(String name, BatchPolicy policy) {
-        return new SegmentGenerator(name, "bench/" + name, new MemoryRangeStore(), policy, EXECUTOR, TimeSource.SYSTEM, GeneratorListener.NOOP);
+    /**
+     * A runtime with one segment generator {@code name} on a {@link MemoryRangeStore}, so that a scenario measures the
+     * production path: the generator the runtime hands out (counted), on the store as the runtime wraps it
+     * ({@code ObservedStores}), with the runtime's default listener (R1-core-06).
+     */
+    static CosIdRuntime segmentRuntime(String name, BatchPolicy policy) {
+        StoreProvider memory = new StoreProvider() {
+            @Override
+            public String type() {
+                return "bench-memory";
+            }
+
+            @Override
+            public Store open(StoreConfig config) {
+                MemoryRangeStore ranges = new MemoryRangeStore();
+                return new Store() {
+                    @Override
+                    public RangeStore ranges() {
+                        return ranges;
+                    }
+
+                    @Override
+                    public SlotLeaseStore slots() {
+                        throw new UnsupportedOperationException("bench-memory has no slot leases");
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                };
+            }
+        };
+        RuntimeSpec spec = RuntimeSpec.builder("bench")
+            .store("memory", StoreSpec.builder("bench-memory").timeout(Duration.ofSeconds(1)).build())
+            .generator(name, GeneratorSpec.Segment.builder("memory").batch(policy).codec(List.of()).build())
+            .build();
+        return CosIdRuntime.start(spec, RuntimeOptions.builder().executor(EXECUTOR).storeProvider(memory).build());
+    }
+
+    /**
+     * A runtime with one segment generator {@code name} at {@code step} on the store {@code store}, opened by its
+     * provider from {@code client} (null: from its options): the production path of every P7 (D44; the generator the
+     * runtime hands out, on the store as the runtime wraps it).
+     */
+    static CosIdRuntime storeRuntime(String name, StoreSpec store, Object client, long step) {
+        RuntimeSpec spec = RuntimeSpec.builder("bench")
+            .store("store", store)
+            .generator(name, GeneratorSpec.Segment.builder("store").batch(batch(step)).codec(List.of()).build())
+            .build();
+        RuntimeOptions.Builder options = RuntimeOptions.builder().executor(EXECUTOR);
+        if (client != null) {
+            options.client("store", client);
+        }
+        return CosIdRuntime.start(spec, options.build());
     }
 
     /**

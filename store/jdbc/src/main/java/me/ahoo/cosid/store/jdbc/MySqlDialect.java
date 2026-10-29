@@ -24,16 +24,27 @@ import java.util.OptionalLong;
 /**
  * MySQL 8.4+ and MariaDB 10.11+.
  *
- * <p>{@code reserve} is {@code insert … on duplicate key update} where <em>both</em> branches set
- * {@code last_insert_id}: the insert branch through {@code values (?, last_insert_id(? + ?))}, the update branch
- * through {@code last_insert_id(next_value + ?)}, or {@code last_insert_id(0)} when the key is sealed or full. The
- * store reads it from the statement's own OK packet ({@code getGeneratedKeys()}, as 4.x does), and only when that
- * is empty or 0 asks {@code select last_insert_id()} on the same connection: either way it never reads a value an
- * earlier statement left on a pooled connection. 0 cannot be a new {@code next_value}, so it means "not reserved".
+ * <p>{@code reserve} first runs {@code update … set next_value = last_insert_id(next_value + ?)} on an open key: one
+ * statement of 2 parameters for the usual reserve, as 4.x. When it matches no row, or would pass {@code Long.MAX_VALUE}
+ * (error 1690, never a wrap), it runs
+ * {@code insert … on duplicate key update} where <em>both</em> branches set {@code last_insert_id}: the insert branch
+ * through {@code values (?, last_insert_id(? + ?))}, the update branch through {@code last_insert_id(next_value + ?)},
+ * or {@code last_insert_id(0)} when the key is sealed or full. Either statement's value is read from its own OK
+ * packet ({@code getGeneratedKeys()}, as 4.x does). 0 cannot be a new
+ * {@code next_value}, so an empty or 0 key means "not reserved", but only if the row says so (sealed, or full): the
+ * store never asks the connection for {@code last_insert_id()}, which an SQL proxy may answer from another backend
+ * connection (R1-jdbc-06). A key the statement cannot have set fails the reserve; {@link FetchPlan#TRANSACTION}
+ * avoids generated keys altogether.
  */
 final class MySqlDialect implements JdbcDialect {
     /** Rows of one provisioning insert: 2 parameters each. */
     private static final int PROVISION_CHUNK = 256;
+    /** ER_DATA_OUT_OF_RANGE: a BIGINT expression past its range, on MySQL and MariaDB. */
+    private static final int OUT_OF_RANGE = 1690;
+    private final TableSql addSql = new TableSql(tables -> "update " + tables.range()
+        + " set next_value = last_insert_id(next_value + ?) where range_key = ? and not sealed");
+    private final TableSql reserveSql = new TableSql(tables -> "insert into " + tables.range() + " (range_key, next_value) values (?, last_insert_id(? + ?))"
+        + " on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))");
     private final boolean mariaDb;
 
     MySqlDialect(boolean mariaDb) {
@@ -63,9 +74,26 @@ final class MySqlDialect implements JdbcDialect {
 
     @Override
     public OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
-        try (PreparedStatement upsert = session.prepare("insert into " + session.tables().range() + " (range_key, next_value) values (?, last_insert_id(? + ?))"
-            + " on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))",
-            Statement.RETURN_GENERATED_KEYS)) {
+        // An existing open key, the usual case: one update of 2 parameters, as 4.x (R1-jdbc-04). The upsert below runs
+        // only when it matched no row (a key not created yet, or a sealed one) or would pass Long.MAX_VALUE, which
+        // MySQL and MariaDB refuse with error 1690 in every SQL mode rather than wrap.
+        try (PreparedStatement update = session.prepare(addSql.of(session.tables()), Statement.RETURN_GENERATED_KEYS)) {
+            update.setLong(1, size);
+            update.setString(2, key);
+            if (update.executeUpdate() == 1) {
+                try (ResultSet keys = update.getGeneratedKeys()) {
+                    if (keys.next() && keys.getLong(1) != 0) {
+                        return OptionalLong.of(keys.getLong(1));
+                    }
+                }
+                throw lostKey(key, size);
+            }
+        } catch (SQLException e) {
+            if (e.getErrorCode() != OUT_OF_RANGE) {
+                throw e;
+            }
+        }
+        try (PreparedStatement upsert = session.prepare(reserveSql.of(session.tables()), Statement.RETURN_GENERATED_KEYS)) {
             upsert.setString(1, key);
             upsert.setLong(2, initialOffset);
             upsert.setLong(3, size);
@@ -79,20 +107,27 @@ final class MySqlDialect implements JdbcDialect {
                 }
             }
         }
-        try (PreparedStatement select = session.prepare("select last_insert_id()"); ResultSet rs = select.executeQuery()) {
-            rs.next();
-            long next = rs.getLong(1);
-            return next == 0 ? OptionalLong.empty() : OptionalLong.of(next);
+        // last_insert_id(0): the key is sealed or full, as its row shows. Otherwise the generated key was lost on the way.
+        try (PreparedStatement select = session.prepare("select sealed, next_value from " + session.tables().range() + " where range_key = ?")) {
+            select.setString(1, key);
+            try (ResultSet rs = select.executeQuery()) {
+                if (rs.next() && (rs.getBoolean(1) || rs.getLong(2) > Long.MAX_VALUE - size)) {
+                    return OptionalLong.empty();
+                }
+            }
         }
+        throw lostKey(key, size);
+    }
+
+    private static IllegalStateException lostKey(String key, long size) {
+        return new IllegalStateException("Reserving " + size + " of [" + key + "] returned no generated key, but the key is neither sealed nor full:"
+            + " last_insert_id did not reach the store (an SQL proxy?); set options.fetchPlan=transaction");
     }
 
     @Override
-    public boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
-        try (PreparedStatement insert = session.prepare("insert ignore into " + session.tables().namespace()
-            + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?)")) {
-            insert.setString(1, namespace);
-            insert.setInt(2, limit);
-            insert.setLong(3, toleranceMillis);
+    public boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis, int slotOffset) throws SQLException {
+        try (PreparedStatement insert = session.prepare("insert ignore into " + session.tables().namespace() + " " + JdbcDialects.namespaceInsert(slotOffset))) {
+            JdbcDialects.bindNamespace(insert, namespace, limit, toleranceMillis, slotOffset);
             return insert.executeUpdate() > 0;
         }
     }

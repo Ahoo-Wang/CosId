@@ -1,13 +1,20 @@
 # Configuration Reference: Generators and Codecs
 
 `cosid.generators.<name>`: one entry per generator, bound by `CosIdProperties.Generator`. Which properties apply
-depends on the strategy. The name may not contain `/`, and `default` is the primary `IdGenerator` bean (4.x's share).
+depends on the strategy. `default` is the primary `IdGenerator` bean (4.x's share). Names, like machine names, are
+what every backend stores: no `/`, no whitespace, not `.` or `..`, and no control or private-use characters; a segment's
+key `namespace/name[/period]` is at most 255 characters. Other names fail the start.
+
+A name may contain a dot, such as `eshop-ordering.order` (one generator per aggregate). In Spring configuration it goes
+in brackets, or the dot splits it: YAML `cosid.generators."[eshop-ordering.order]"`, properties
+`cosid.generators[eshop-ordering.order].strategy=segment`. Without the brackets the start fails on the unknown keys,
+and the message shows the bracketed form.
 
 ## All strategies
 
 | Property | Default | Meaning |
 |---|---|---|
-| `strategy` | | `snowflake`, `cosid80`, `segment` or `periodic-segment` |
+| `strategy` | | `snowflake`, `cosid80`, `segment`, `periodic-segment` or `custom` |
 | `disabled` | `false` | declared but not created; its bean throws `GeneratorDisabledException` (D24) |
 | `codec` | `[]` (decimal) | the codec list, applied in order (below) |
 
@@ -15,16 +22,88 @@ depends on the strategy. The name may not contain `/`, and `default` is the prim
 
 | Property | Default | Meaning |
 |---|---|---|
-| `layout` | `SNOWFLAKE_MS` | snowflake: the preset, `SNOWFLAKE_MS`, `SNOWFLAKE_S`, `JS_SAFE_MS` or `JS_SAFE_S` |
-| `epoch` | the preset's | snowflake: overrides the epoch (an `Instant`, `2019-12-24T16:00:00Z`) |
-| `unit` | the preset's | snowflake: `MILLIS` or `SECONDS` |
-| `time-bits`, `node-bits`, `seq-bits` | the preset's | snowflake: override the widths; `node-bits ≥ machine bits` |
-| `seq-reset-threshold` | the preset's; half the sequence range when `seq-bits` is set | snowflake: the highest sequence a new time unit may start from (4.x `sequence-reset-threshold`); `0` to `2^seq-bits − 1` |
+| `layout` | snowflake `SNOWFLAKE_MS`; cosid80 `COSID_80` | the preset: snowflake `SNOWFLAKE_MS`, `SNOWFLAKE_S`, `JS_SAFE_MS` or `JS_SAFE_S`; cosid80 `COSID_80` only |
+| `epoch` | the preset's | snowflake: overrides the epoch (an `Instant`, `2019-12-24T16:00:00Z`); an error on cosid80, which keeps the Unix epoch |
+| `unit` | the preset's | snowflake: `MILLIS` or `SECONDS`; an error on cosid80, which keeps milliseconds |
+| `time-bits`, `node-bits`, `seq-bits` | the preset's | override the widths (4.x `timestamp-bit`, `machine-bit`, `sequence-bit` for cosid80); `node-bits` holds the machine's `slot-offset + 2^bits` |
+| `seq-reset-threshold` | the preset's; half the sequence range when `seq-bits` is set | the highest sequence a new time unit may start from (4.x `sequence-reset-threshold`); `0` to `2^seq-bits − 1` |
+| `machine` | the `cosid.machine` | the named machine (`cosid.machines.<name>`) whose slot the ids carry |
 | `regression.borrow-up-to` | `5ms` | the largest clock regression issued on the last time unit |
 | `regression.wait-up-to` | `1s` | the largest regression waited out; beyond it, `ClockBackwardsException` |
 
-`cosid80` always uses `Layout.COSID_80` (44-bit ms, 20-bit node, 16-bit sequence); its codec is a single `radix` or
-`friendly` item.
+`cosid80` starts from `Layout.COSID_80` (44-bit ms since the Unix epoch, 20-bit node, 16-bit sequence) and must stay
+wider than 63 bits, with `time-bits + seq-bits` at most 63. Its codec is a single item: `radix` with `radix` 62 or 36
+only (the layout gives each part its width, so `width` and `pad-start` are errors), or `friendly`, whose `pad-start`
+applies (4.x `cosid.generator.pad-start`).
+
+```yaml
+cosid:
+  generators:
+    token:
+      strategy: cosid80
+      node-bits: 16              # 4.x cosid.generator.machine-bit
+      seq-reset-threshold: 1023  # 4.x cosid.generator.sequence-reset-threshold
+      codec: [ { friendly: { zone: Asia/Shanghai, pad-start: false } } ]
+```
+
+4.x `cosid.generator.namespace` (machine ids shared by several services) becomes a named machine:
+`machine: <name>` on the generator and `cosid.machines.<name>.namespace` ([basic](basic.md), and
+[ids unique across services](../../guide/concepts/slot-lease.md#ids-unique-across-services)).
+
+## `custom`
+
+A user `IdGenerator` bean (4.x `IdGeneratorProvider.set`); the runtime hands it out (its bean, `IdFiller`, the
+endpoint) but does not close it.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `ref` | | required: the bean name, other than every generator's name; the bean must not depend on `CosIdRuntime` |
+
+Its `codec` follows the rules of `segment` (no `friendly`, no `date-prefix` from the id time).
+
+## `uuidv7`
+
+UUIDv7 ids ([RFC 9562 §5.7](https://www.rfc-editor.org/rfc/rfc9562#section-5.7), D46): a 48-bit Unix millisecond
+timestamp, version 7, a 16-bit counter (the 12 bits of `rand_a` and the top 4 bits of `rand_b`, as §6.2 method 1
+allows), variant `10` and 58 random bits. Their text is the canonical 36-character form,
+such as `019a2c5e-3f40-7123-8c4d-2f1e9a7b6c50`; other text codecs (radix and the like) may come in a later release.
+
+```yaml
+cosid:
+  generators:
+    order:
+      strategy: uuidv7
+```
+
+It needs **no machine, store nor lease**: an application whose generators are all `uuidv7` starts
+without any `cosid.machine.*` or `cosid.stores.*`. It has no properties of its own. `machine` fails the start, as do
+the keys of the other strategies (`layout`, `epoch`, `time-bits`, `store`, `period`, `codec`, …).
+
+- **Unique without coordination**: the ids of one instance never collide (its counter separates them), and two ids of
+  different instances collide only with the same millisecond, the same counter value and the same 58 random bits. Each
+  instance starts its counter at a random value below 2¹⁵ in each millisecond, so for m instances that each issue k ids
+  in one millisecond the expected collisions in that millisecond are about m²k² / 2⁷⁴. For example, 100 instances at
+  1,000 ids per millisecond each (100 million ids per second in all) expect about one collision in 60 years.
+- **Ordered within one generator instance**: each id is greater than the one before, as a `UUID` and as text. The
+  counter counts on within the millisecond, from its random start below 2¹⁵, so one instance issues at least 2¹⁵
+  (32,768) ids per millisecond, about 33 million per second, on the clock's timestamp. The timestamp runs ahead of the
+  clock in two cases only: more ids than that, kept up (a full counter borrows the next millisecond), and a clock that
+  goes back (the last timestamp is kept until the clock catches up). Ids of different instances or processes are ordered by their
+  millisecond only.
+- **Not a secret**: the random bits come from `ThreadLocalRandom` and the timestamp is in the clear. Never use an id as a
+  token or to guard a resource.
+
+The runtime hands out its text with `runtime.text("order")` (and `@CosId` `String` fields) and the generator with
+`runtime.get("order", UuidV7Generator.class)` (`UUID generateUuid()`, `String generate()`); the bean `order` is that
+generator. It issues no `long` ids: `generator("order")` and `stringGenerator("order")` fail, as for `cosid80`.
+
+| | `uuidv7` | `snowflake` | `cosid80` |
+|---|---|---|---|
+| Size | 128 bits (`UUID`, 36 characters) | 63 bits (`long`) | 80 bits (text) |
+| Coordination | none | a machine slot (lease or static) | a machine slot (lease or static) |
+| Uniqueness | probabilistic across instances (random counter start, 58 random bits) | guaranteed by the slot | guaranteed by the slot |
+| Order | within the instance; across instances by millisecond | within the instance; across instances by time unit | within the instance; across instances by millisecond |
+| Fits | systems that already store UUIDs, many writers without a store | `long` keys, compact indexes | text keys that need guaranteed uniqueness, more nodes |
 
 ## `segment`
 

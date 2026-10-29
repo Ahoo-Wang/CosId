@@ -54,11 +54,48 @@ class SegmentModelTest {
     @Test
     void batchPolicyRejectsInvalidValues() {
         Duration second = Duration.ofSeconds(1);
-        assertThrows(IllegalArgumentException.class, () -> new BatchPolicy(0, 0, second, 100, second, Optional.empty()));
-        assertThrows(IllegalArgumentException.class, () -> new BatchPolicy(100, -1, second, 100, second, Optional.empty()));
-        assertThrows(IllegalArgumentException.class, () -> new BatchPolicy(100, 0, second, 150, second, Optional.empty()));
-        assertThrows(IllegalArgumentException.class, () -> new BatchPolicy(100, 0, second, 100, Duration.ZERO, Optional.empty()));
-        assertThrows(IllegalArgumentException.class, () -> new BatchPolicy(100, 0, second, 100, second, Optional.of(Duration.ZERO)));
-        assertThrows(IllegalArgumentException.class, () -> new BatchPolicy(100, 0, second.negated(), 100, second, Optional.empty()));
+        assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder()
+            .step(0)
+            .initialOffset(0)
+            .lookahead(second)
+            .maxBatch(100)
+            .reserveTimeout(second)
+            .build());
+        assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder()
+            .step(100)
+            .initialOffset(-1)
+            .lookahead(second)
+            .maxBatch(100)
+            .reserveTimeout(second)
+            .build());
+        assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder()
+            .step(100)
+            .initialOffset(0)
+            .lookahead(second)
+            .maxBatch(150)
+            .reserveTimeout(second)
+            .build());
+        assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder()
+            .step(100)
+            .initialOffset(0)
+            .lookahead(second)
+            .maxBatch(100)
+            .reserveTimeout(Duration.ZERO)
+            .build());
+        assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder()
+            .step(100)
+            .initialOffset(0)
+            .lookahead(second)
+            .maxBatch(100)
+            .reserveTimeout(second)
+            .rangeTtl(Duration.ZERO)
+            .build());
+        assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder()
+            .step(100)
+            .initialOffset(0)
+            .lookahead(second.negated())
+            .maxBatch(100)
+            .reserveTimeout(second)
+            .build());
     }
 }

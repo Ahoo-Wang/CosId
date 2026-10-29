@@ -35,7 +35,7 @@ import java.util.UUID;
  * Which store backs the server: the one of {@code cosid.stores} that {@code cosid.server.store} names, or the only one.
  */
 class BackingStoreTest {
-    private static final StoreSpec MEMORY = new StoreSpec("memory", Duration.ofSeconds(1), Map.of());
+    private static final StoreSpec MEMORY = StoreSpec.builder("memory").timeout(Duration.ofSeconds(1)).build();
 
     @Test
     void takesTheOnlyStoreAndTheProviderBean() {
@@ -62,7 +62,7 @@ class BackingStoreTest {
 
     @Test
     void unknownTypeFails() {
-        Map<String, StoreSpec> stores = Map.of("x", new StoreSpec("nowhere", Duration.ofSeconds(1), Map.of()));
+        Map<String, StoreSpec> stores = Map.of("x", StoreSpec.builder("nowhere").timeout(Duration.ofSeconds(1)).build());
         assertThat(assertThrows(CosIdException.class, () -> BackingStore.open(stores, null, List.of(), 4)).getMessage(),
             containsString("No StoreProvider of type [nowhere]"));
     }
@@ -70,11 +70,22 @@ class BackingStoreTest {
     @Test
     void jdbcStoreGetsAPoolThatClosesWithIt() {
         String url = "jdbc:h2:mem:backing-" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1";
-        StoreSpec jdbc = new StoreSpec("jdbc", Duration.ofSeconds(3), Map.of("url", url, "username", "sa", "password", "", "initSchema", "true"));
+        StoreSpec jdbc = StoreSpec.builder("jdbc")
+            .timeout(Duration.ofSeconds(3))
+            .option("url", url)
+            .option("username", "sa")
+            .option("password", "")
+            .option("initSchema", "true")
+            .build();
         try (BackingStore store = BackingStore.open(Map.of("main", jdbc), "main", List.of(), 2)) {
             assertEquals(0, store.ranges().reserve("ns/a", 3, 0).start());
         }
-        StoreSpec broken = new StoreSpec("jdbc", Duration.ofSeconds(3), Map.of("url", url, "username", "sa", "dialect", "unknown"));
+        StoreSpec broken = StoreSpec.builder("jdbc")
+            .timeout(Duration.ofSeconds(3))
+            .option("url", url)
+            .option("username", "sa")
+            .option("dialect", "unknown")
+            .build();
         assertThrows(IllegalArgumentException.class, () -> BackingStore.open(Map.of("main", broken), "main", List.of(), 2));
     }
 

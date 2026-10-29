@@ -9,13 +9,13 @@ Produce the smallest configuration for one chosen strategy and store. Do not ena
 
 ## Workflow
 
-1. Confirm compatibility: **CosId 5.x needs Java 21+ and Spring Boot 4.0+.** CosId 4.x (Java 17) is a different
+1. Confirm compatibility: **CosId 5.x needs Java 21+ and Spring Boot 4.1.2+ (not 4.0.x).** CosId 4.x (Java 17) is a different
    configuration model on the `4.x` branch; to move a 4.x application, use the offline `cosid-migration` tool (plan,
    apply, verify, `config`), never a mixed fleet.
 2. Confirm the strategy. Use `$cosid-strategy-guide` only when it is undecided.
 3. Add the starter and the store artifact(s) the configuration uses.
 4. Emit minimal YAML and one consumption pattern.
-5. Verify: the context starts, the generator beans exist, ids are unique, the `cosId` health is `UP`.
+5. Verify: the context starts, the generator beans exist, ids are unique, the `cosid` health is `UP`.
 
 In a CosId checkout, the source of truth is:
 
@@ -171,7 +171,7 @@ empty). `cosid-mybatis` fills before INSERT (`cosid.mybatis.enabled`, default tr
 
 ## Validation
 
-- `GET /actuator/health/cosId` is `UP` (the health component is named `cosId`; switch `management.health.cosid.enabled`).
+- `GET /actuator/health/cosid` is `UP` (the health component is named `cosid`; switch `management.health.cosid.enabled`).
 - `GET /actuator/cosid` describes every generator; `/actuator/cosid/{name}/long` or `/string` issues one (expose `cosid`).
 - Metrics: 19 `cosid.*` meters, for example `cosid.machine.lease.renew.failures`, `cosid.machine.window.remaining`,
   `cosid.segment.refill.failures`.

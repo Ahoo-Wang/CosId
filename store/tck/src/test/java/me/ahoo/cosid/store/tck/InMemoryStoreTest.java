@@ -50,17 +50,17 @@ class InMemoryStoreTest {
         assertThrows(IllegalArgumentException.class, () -> store.reserve("k", 0, 0));
         assertThrows(IllegalArgumentException.class, () -> store.reserve("k", 1, -1));
         Duration ttl = Duration.ofSeconds(1);
-        assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", owner, 0, ttl, ttl, OptionalInt.empty()));
-        assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", owner, 1, Duration.ZERO, ttl, OptionalInt.empty()));
-        assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", owner, 1, ttl, Duration.ofMillis(-1), OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", owner, 0, ttl, ttl, 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", owner, 1, Duration.ZERO, ttl, 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", owner, 1, ttl, Duration.ofMillis(-1), 0, OptionalInt.empty()));
     }
 
     @Test
     void anUnknownNamespaceOrSlotHoldsNoLease() {
-        SlotLease lease = new SlotLease("ns", 5, owner, 1, 0, 0, 0, 0);
+        SlotLease lease = SlotLease.builder().namespace("ns").slot(5).owner(owner).fence(1).expiresAt(0).floor(0).ceiling(0).storeNow(0).build();
         assertThat(store.renew(lease, Duration.ofSeconds(1), Duration.ZERO), is(Optional.empty()));
         assertThat(store.release(lease, 0), is(false));
-        store.acquire("ns", owner, 2, Duration.ofSeconds(1), Duration.ZERO, OptionalInt.of(7));
+        store.acquire("ns", owner, 2, Duration.ofSeconds(1), Duration.ZERO, 0, OptionalInt.of(7));
         assertThat(store.renew(lease, Duration.ofSeconds(1), Duration.ZERO), is(Optional.empty()));
         assertThat(store.release(lease, 0), is(false));
     }

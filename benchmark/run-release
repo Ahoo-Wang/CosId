@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# The release gate (10-performance-and-parity.md §1.3): scenarios of P1..P12 on benchmark/baseline-4x and benchmark/v5
+# The release gate (10-performance-and-parity.md §1.3): scenarios of P1..P13 on benchmark/baseline-4x and benchmark/v5
 # with the release JMH settings, interleaved per scenario (run-smoke --release), on one machine. It runs on CI
 # (.github/workflows/release-gate.yml, one job per scenario group), not on a developer machine.
 #
@@ -21,11 +21,15 @@
 # scenarios use answer: MySQL at COSID_TEST_MYSQL_URL, Redis at COSID_TEST_REDIS_URI, MongoDB at
 # COSID_BENCHMARK_MONGODB_URI (defaults localhost:3306 / 6379 / 27017), ZooKeeper at COSID_BENCH_ZOOKEEPER_CONNECT when
 # set (in process otherwise). Outside CI it aborts (status 3) when the 1-minute load average is above N (default 1.5)
-# before a scenario. On CI (CI=true) or with --rerun, a row that fails runs again on both sides in fresh forks, and
-# passes only if that re-run passes (compare --rerun); the report keeps both. DIR (default build/benchmark-release/report)
+# before a scenario. The store scenarios (P7, P10) run each side twice in ABBA order, 4.x 5.x 5.x 4.x, with half the
+# forks each (run-smoke), so that neither side always runs right after the other on the store. On CI (CI=true) or with
+# --rerun, a row that fails runs again on both sides in fresh forks (a store row ABBA again), and passes only if that
+# re-run passes (compare --rerun); the report keeps both. DIR (default build/benchmark-release/report)
 # receives baseline-4x.json, v5.json (and rerun-*.json), report.md, machine.json and verdict.json; the logs stay in
 # build/benchmark-release. --dry-run proves the pipeline in minutes with smoke JMH settings and tolerates missing
-# stores; it is never a result. Exits with the status of the final compare (0 PASS, 1 FAIL).
+# stores; it is never a result. Exits with the status of the final compare (0 PASS, 1 FAIL, 4 harness error). A
+# harness error (a side without its rows, a JMH <failure> in a log) is no result: nothing re-runs, and the report shows
+# the first lines of each exception.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -41,12 +45,12 @@ while (($#)); do
         --max-load) max_load="$2"; shift ;;
         --rerun) rerun=true ;;
         --dry-run) dry_run=true ;;
-        -h|--help) sed -n '14,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '14,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) scenarios+=("$1") ;;
     esac
     shift
 done
-((${#scenarios[@]})) || scenarios=(P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12)
+((${#scenarios[@]})) || scenarios=(P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13)
 work="$root/build/benchmark-release"
 profile=(--release)
 jmh_args=(-f 3 -wi 5 -w 2s -i 5 -r 2s)
@@ -57,6 +61,11 @@ if $dry_run; then
     jmh_args=(-f 1 -wi 2 -w 1s -i 3 -r 1s)
     compare_args=(--smoke)
 fi
+# Each of the two runs of a side of an ABBA re-run: half the forks, rounded up (as run-smoke).
+abba_args=("${jmh_args[@]}")
+for i in "${!abba_args[@]}"; do
+    [[ ${abba_args[$i]} == -f ]] && abba_args[$((i + 1))]=$(((${abba_args[$((i + 1))]} + 1) / 2))
+done
 [[ -n $out ]] || out="$work/report"
 # The load guard is for a machine of one's own; on a CI runner the load says nothing about its neighbours.
 load_guard=(--max-load "$max_load")
@@ -69,7 +78,7 @@ if ! python3 -I - "${scenarios[@]}" <<'PY'
 import os, re, socket, sys
 need = set()
 for scenario in sys.argv[1:]:
-    need |= {"P7": {"MySQL", "Redis"}, "P10": {"MySQL", "Redis", "MongoDB", "ZooKeeper"}}.get(scenario, set())
+    need |= {"P7": {"MySQL", "Redis", "MongoDB", "ZooKeeper"}, "P10": {"MySQL", "Redis", "MongoDB", "ZooKeeper"}}.get(scenario, set())
     need |= {store for prefix, store in (("MySql", "MySQL"), ("Redis", "Redis"), ("Mongo", "MongoDB"), ("Zookeeper", "ZooKeeper"))
              if scenario.startswith(prefix)}
 zookeeper = os.environ.get("COSID_BENCH_ZOOKEEPER_CONNECT")
@@ -100,7 +109,10 @@ then
 fi
 
 # The machine and the JDK, recorded before the run.
-./gradlew -q :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
+# checkJmhJar builds the jars and checks their services (a jar without a store's provider fails every setup on it).
+# A build that fails is a harness error (4), never a result: on CI a status of 1 would read as FAIL rows.
+./gradlew -q :benchmark:baseline-4x:checkJmhJar :benchmark:v5:checkJmhJar \
+    || { echo "run-release: harness error: the JMH jars did not build or failed checkJmhJar" >&2; exit 4; }
 java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
 JAVA="$java" python3 -I - "$work.machine.json" <<'PY'
 import datetime, json, os, platform, re, subprocess, sys
@@ -165,10 +177,16 @@ if ((status == 3)); then
     exit 3
 fi
 
-# A row that failed runs again, 4.x then 5.x in fresh forks; compare --rerun judges it on that run alone.
-rm -f "$work"/rerun-* "$work"/failed*.json
+# A row that failed runs again, 4.x then 5.x in fresh forks; compare --rerun judges it on that run alone. A harness
+# error is not re-run: it is no result, and running it again would only take the time of another failure.
+rm -f "$work"/rerun-* "$work"/failed*.json "$work"/warned*.json
+first=0
 "$root/benchmark/compare" "$work/baseline-4x.all.json" "$work/v5.all.json" ${compare_args[@]+"${compare_args[@]}"} \
-    --failed "$work/failed.json" >/dev/null || true
+    --logs "$work" --failed "$work/failed.json" >/dev/null 2>&1 || first=$?
+if ((first == 4)); then
+    echo "run-release: harness error (missing rows or a JMH failure), not a result; skipping the re-run" >&2
+    rerun=false
+fi
 # COSID_RELEASE_RERUN_ALL=true re-runs every row (the CI check of this script exercises the re-run path with it); only
 # the rows that failed are judged on their re-run.
 if [[ ${COSID_RELEASE_RERUN_ALL:-} == true ]]; then
@@ -182,27 +200,44 @@ if $rerun && [[ $(python3 -I -c 'import json, sys; print(len(json.load(open(sys.
     while IFS=$'\t' read -r regex mode params; do
         n=$((n + 1))
         read -r -a param_args <<<"$params"
-        for side in baseline-4x v5; do
-            echo "run-release: re-running $regex ($mode${params:+ $params}) on $side" >&2
-            "$java" -jar "$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)" "$regex" "${jmh_args[@]}" -bm "$mode" \
-                ${param_args[@]+"${param_args[@]}"} -prof gc -rf json -rff "$work/rerun-$side-$n.json" \
-                -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" >"$work/rerun-$side-$n.log" 2>&1 \
-                || echo "run-release: the re-run on $side failed, see $work/rerun-$side-$n.log" >&2
+        # A store row re-runs ABBA, as run-smoke runs it: 4.x 5.x 5.x 4.x, half the forks each.
+        order=(baseline-4x v5)
+        args=("${jmh_args[@]}")
+        plain="${regex//\\/}"
+        if [[ $plain =~ \.benchmark\.(MySql|Redis|Mongo|Zookeeper) ]]; then
+            order=(baseline-4x:a v5:a v5:b baseline-4x:b)
+            args=("${abba_args[@]}")
+        fi
+        for entry in "${order[@]}"; do
+            side="${entry%%:*}"
+            part="${entry#"$side"}"
+            name="rerun-$side-$n${part:+.${part#:}}"
+            echo "run-release: re-running $regex ($mode${params:+ $params}) on $side${part:+ (${part#:})}" >&2
+            "$java" -jar "$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)" "$regex" "${args[@]}" -bm "$mode" \
+                ${param_args[@]+"${param_args[@]}"} -prof gc -rf json -rff "$work/$name.json" \
+                -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" >"$work/$name.log" 2>&1 \
+                || echo "run-release: the re-run on $side failed, see $work/$name.log" >&2
         done
     done < <(python3 -I -c '
 import json, re, sys
 for row in json.load(open(sys.argv[1])):
     params = " ".join(f"-p {k}={v}" for k, v in sorted(row["params"].items()))
     print("^" + re.escape(row["benchmark"]) + "$", row["mode"], params, sep="\t")' "$work/rerun-rows.json")
+    # One result per side, the two runs of an ABBA row joined (benchmark/merge-results); none if every re-run failed.
     for side in baseline-4x v5; do
-        python3 -I -c 'import glob, json, sys; print(json.dumps([r for p in sorted(glob.glob(sys.argv[1])) for r in json.load(open(p))]))' \
-            "$work/rerun-$side-*.json" >"$work/rerun-$side.all.json"
+        files=("$work/rerun-$side-"*.json)
+        if [[ -e ${files[0]} ]]; then
+            "$root/benchmark/merge-results" "$work/rerun-$side.all.json" "${files[@]}"
+        else
+            echo "[]" >"$work/rerun-$side.all.json"
+        fi
     done
     compare_args+=(--rerun "$work/rerun-baseline-4x.all.json" "$work/rerun-v5.all.json")
 fi
 status=0
 "$root/benchmark/compare" "$work/baseline-4x.all.json" "$work/v5.all.json" ${compare_args[@]+"${compare_args[@]}"} \
-    --report "$work/report.md" --failed "$work/failed-final.json" >/dev/null || status=$?
+    --logs "$work" --report "$work/report.md" --failed "$work/failed-final.json" --warned "$work/warned-final.json" \
+    >/dev/null || status=$?
 
 # The published files: the results with local paths shortened, the machine, the verdict, and the report.
 python3 -I - "$work" "$out" "$root" "$HOME" "$dry_run" "${scenarios[*]}" "$status" <<'PY'
@@ -237,13 +272,13 @@ with open(os.path.join(out, "machine.json"), "w") as file:
 rows = {(r["benchmark"], r["mode"], r["threads"], json.dumps(r.get("params"), sort_keys=True)) for r in load("baseline-4x.all.json")}
 with open(os.path.join(out, "verdict.json"), "w") as file:
     json.dump({"scenarios": scenarios.split(), "rows": len(rows), "failedFirstRun": load("failed.json"),
-               "failed": load("failed-final.json"), "status": int(status)}, file, indent=2)
+               "failed": load("failed-final.json"), "warned": load("warned-final.json"), "status": int(status)}, file, indent=2)
 with open(os.path.join(work, "load.tsv")) as file:
     loads = [line.rstrip("\n").split("\t") for line in file if line.strip()]
 with open(os.path.join(work, "report.md")) as file:
     comparison = file.read().split("\n", 1)[1]
 lines = ["# CosId 5.0 release gate", "",
-         "4.1.0 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`) on the same machine, interleaved per scenario "
+         "4.1.1 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`) on the same machine, interleaved per scenario "
          "(4.x then 5.x), judged by `benchmark/compare` with the rules of "
          "[10-performance-and-parity.md §1.3](../../architecture/10-performance-and-parity.md).", "",
          "| | |", "|---|---|",

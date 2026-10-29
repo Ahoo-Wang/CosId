@@ -121,15 +121,16 @@ public final class Codecs {
     }
 
     /**
-     * The codec of an 80-bit CosId.
+     * The codec of a cosid80 generator.
      *
-     * @param spec the spec
+     * @param spec   the spec
+     * @param layout the generator's layout
      * @return the parts codec
      */
-    public static PartsCodec parts(PartsCodecSpec spec) {
+    public static PartsCodec parts(PartsCodecSpec spec, Layout layout) {
         return switch (spec) {
-            case PartsCodecSpec.Radix radix -> PartsCodec.radix(Layout.COSID_80, radix.radix());
-            case PartsCodecSpec.Friendly friendly -> PartsCodec.friendly(Layout.COSID_80, friendly.zone());
+            case PartsCodecSpec.Radix radix -> PartsCodec.radix(layout, radix.radix());
+            case PartsCodecSpec.Friendly friendly -> PartsCodec.friendly(layout, friendly.zone(), friendly.padStart());
             case PartsCodecSpec.Instance instance -> instance.codec();
         };
     }

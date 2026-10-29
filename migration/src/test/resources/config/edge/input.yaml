@@ -77,7 +77,7 @@ cosid:
           prefix: "N"
   generator:
     enabled: true
-    # The same as cosid.namespace: converted (one of its own is refused, R1-x-07).
+    # The same as cosid.namespace: no named machine (one of its own becomes cosid.machines.generator, D37).
     namespace: edge
     type: friendly
     machine-bit: 19

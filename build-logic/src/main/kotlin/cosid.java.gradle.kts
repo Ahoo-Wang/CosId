@@ -64,8 +64,9 @@ tasks.withType<Javadoc>().configureEach {
 // competing with it: an enforced platform, so a higher BOM a dependency brings loses (the compatibility matrix).
 // A project with cosid.bootBom=false in its gradle.properties takes none (benchmark/baseline-4x: its 4.x jars keep the
 // versions they bring), and so none of the test dependencies below, whose versions the BOM gives: it has no tests.
+// The JMH plugin's bytecode generator resolves the jmh configuration itself (cosid.benchmark).
 fun Configuration.isBuildClasspath() = isCanBeResolved &&
-    (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor")
+    (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor" || name == "jmh")
 
 val bootBom = findProperty("cosid.bootBom")?.toString() != "false"
 if (bootBom) {

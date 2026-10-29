@@ -78,7 +78,7 @@ key 与命名空间放在 JSON 请求体中，从不放在路径里。错误为 
 | POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | 租约；`409 lease_lost` |
 | POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`；`409 lease_lost` |
 | GET | `/ids[/{generator}]?count=n` | | `{ids: [...]}`（可选） |
-| GET | `/ids[/{generator}]/strings?count=n` | | `{ids: ["..."]}`，经生成器的编解码器编码（可选） |
+| GET | `/ids[/{generator}]/strings?count=n` | | `{ids: ["..."]}`：任意策略的文本 id（可选）：`long` id 经生成器的编解码器编码，cosid80、周期号段与 uuidv7 用各自的文本 |
 | GET | `/ids/{generator}/periodic?count=n` | | `{period, values: [...]}`，全部属于同一周期（可选） |
 
 租约为 `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`。路径中没有生成器时，

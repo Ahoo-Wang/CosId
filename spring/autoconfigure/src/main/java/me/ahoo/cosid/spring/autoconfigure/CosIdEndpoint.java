@@ -101,7 +101,7 @@ public class CosIdEndpoint {
         } catch (GeneratorDisabledException e) {
             throw new InvalidEndpointRequestException(e.getMessage(), "disabled");
         } catch (NoSuchElementException e) {
-            // A strategy without long ids (cosid80, periodic-segment).
+            // A strategy without long ids (cosid80, periodic-segment, uuidv7).
             throw new InvalidEndpointRequestException(e.getMessage(), "no long ids");
         }
     }
@@ -110,7 +110,7 @@ public class CosIdEndpoint {
      * The JSON body of a generator: {@link GeneratorInfo}, which has no bean accessors for Jackson, as a record.
      *
      * @param name     the generator name
-     * @param strategy {@code snowflake}, {@code cosid80}, {@code segment} or {@code periodic-segment}
+     * @param strategy {@code snowflake}, {@code cosid80}, {@code segment}, {@code periodic-segment}, {@code custom} or {@code uuidv7}
      * @param store    the store name, empty for time-based generators
      * @param details  layout, slot, window, ready range headroom, batch size and the like
      */

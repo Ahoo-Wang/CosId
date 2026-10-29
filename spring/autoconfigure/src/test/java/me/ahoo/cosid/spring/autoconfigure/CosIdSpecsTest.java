@@ -364,7 +364,7 @@ class CosIdSpecsTest {
         assertThat(message, containsString("cosid.namespace: must not be blank"));
         assertThat(message, containsString("cosid.stores.s.type: required"));
         assertThat(message, containsString("cosid.machine: set either leased or static, not both"));
-        assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, custom, not [uuid]"));
+        assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, custom, uuidv7, not [uuid]"));
         assertThat(message, containsString("cosid.generators.b.store: required"));
         assertThat(message, containsString("cosid.generators.c.layout: one of [JS_SAFE_MS, JS_SAFE_S, SNOWFLAKE_MS, SNOWFLAKE_S], not [SNOWFLAKE_US]"));
         assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one of radix, friendly, prefix, suffix, date-prefix, custom, period (2 set)"));
@@ -532,6 +532,23 @@ class CosIdSpecsTest {
             "cosid.flowable.enabled=false", "cosid.axon.generator-name=b", "cosid.metrics.generated.enabled=true");
         assertEquals("1", properties.stores().get("db").options().get("anything"));
         assertTrue(properties.metrics().generated().enabled());
+    }
+
+    @Test
+    void aUuidV7GeneratorNeedsNoMachineAndRefusesTheKeysOfOtherStrategies() {
+        // D46.
+        RuntimeSpec spec = spec("cosid.namespace=app", "cosid.generators.order.strategy=uuidv7");
+        assertEquals(GeneratorSpec.UuidV7.builder().build(), spec.generators().get("order"));
+        assertTrue(spec.machine().isEmpty());
+        String message = invalid("cosid.namespace=app", "cosid.machine.static.slot=1", "cosid.generators.order.strategy=uuidv7",
+            "cosid.generators.order.machine=default", "cosid.generators.order.layout=SNOWFLAKE_MS", "cosid.generators.order.store=db",
+            "cosid.generators.order.codec[0].prefix=O").getMessage();
+        assertThat(message, containsString("cosid.generators.order.machine: only a snowflake or cosid80 generator chooses a machine"));
+        assertThat(message, containsString("cosid.generators.order.layout: a uuidv7 generator has no layout"));
+        assertThat(message, containsString("cosid.generators.order.store: a uuidv7 generator has no store"));
+        assertThat(message, containsString("cosid.generators.order.codec: a uuidv7 generator has no codec"));
+        assertThat(invalid("cosid.generators.order.strategy=uuid").getMessage(),
+            containsString("one of snowflake, cosid80, segment, periodic-segment, custom, uuidv7, not [uuid]"));
     }
 
     @Test

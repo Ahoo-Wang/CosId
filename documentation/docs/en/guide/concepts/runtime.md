@@ -18,10 +18,10 @@ RuntimeSpec spec = RuntimeSpec.builder("order-service")       // the namespace
 public final class CosIdRuntime implements AutoCloseable {
     public static CosIdRuntime start(RuntimeSpec spec, RuntimeOptions options);
     public IdGenerator generator(String name);              // snowflake, segment, custom
-    public StringIdGenerator stringGenerator(String name);  // with its codec
-    public Supplier<String> text(String name);              // text ids of any strategy, cosid80 included
+    public StringIdGenerator stringGenerator(String name);  // long ids with their codec only
+    public Supplier<String> text(String name);              // text ids of any strategy, cosid80 and uuidv7 included
     public PeriodicSegmentGenerator periodic(String name);
-    public <T> T get(String name, Class<T> type);           // TimeBasedGenerator, SegmentGenerator, PartsCodec, GroupedCodec, IntIdGenerator, ...
+    public <T> T get(String name, Class<T> type);           // TimeBasedGenerator, SegmentGenerator, UuidV7Generator, PartsCodec, GroupedCodec, IntIdGenerator, ...
     public OptionalLong generated(String name);             // with countGenerated
     public Map<String, GeneratorInfo> describe();
     public Optional<SlotLease> slot();                      // the default machine's
@@ -31,6 +31,12 @@ public final class CosIdRuntime implements AutoCloseable {
     public void close();
 }
 ```
+
+::: tip Text ids: `text(name)`
+`text(name)` gives the text ids of **every** strategy: `long` ids through their codec, the 80-bit CosId, a periodic
+segment, a UUIDv7. `stringGenerator(name)` is only the `long` generator with its codec: on cosid80, periodic-segment or
+uuidv7 it fails with "issues no long ids; use text(name) for its text".
+:::
 
 ## Specs
 

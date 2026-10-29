@@ -240,6 +240,16 @@ class CompareTest(unittest.TestCase):
         self.assertIn("| AtomicLongBenchmark.generate_t16 | 16 | 50.000 | -: 25.000 (50%) | -: 42.000 (84%) |", lines)
         self.assertFalse(any(line.startswith("Only in 5.x") for line in lines))
 
+    def test_a_trend_row_is_reported_and_never_judged(self):
+        base = row("SegmentBenchmark.generate_t1", score=100.0)
+        cand = {**row("SegmentBenchmark.generate_t1", score=100.0), **row("UuidV7Benchmark.generate_t4", threads=4, score=33.5, error=1.25)}
+        harness = []
+        lines, failed, keys = compare.compare(base, cand, harness=harness)
+        self.assertEqual((0, [], []), (failed, keys, harness))
+        self.assertIn("## 5.x trend (not judged)", lines)
+        self.assertIn("| UuidV7Benchmark.generate_t4 | thrpt | 4 | - | 33.500 | 1.250 | ops/ms |", lines)
+        self.assertFalse(any(line.startswith("Only in 5.x") for line in lines))
+
     def test_rows_match_by_threads(self):
         harness = []
         compare.compare(row("P.a", threads=4), row("P.a", threads=1), harness=harness)

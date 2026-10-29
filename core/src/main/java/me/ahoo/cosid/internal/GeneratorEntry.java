@@ -31,6 +31,7 @@ import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.time.IdParts;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
+import me.ahoo.cosid.time.UuidV7Generator;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -55,6 +56,7 @@ public final class GeneratorEntry {
     public static final String SEGMENT = "segment";
     public static final String PERIODIC_SEGMENT = "periodic-segment";
     public static final String CUSTOM = "custom";
+    public static final String UUIDV7 = "uuidv7";
 
     private final String name;
     private final String strategy;
@@ -238,6 +240,23 @@ public final class GeneratorEntry {
     }
 
     /**
+     * A UUIDv7 generator (D46): no {@code long} ids; its text is the canonical form, counted.
+     *
+     * @param generator the generator
+     * @param counter   counts the text ids, or null
+     * @return the entry
+     */
+    public static GeneratorEntry uuidV7(UuidV7Generator generator, LongAdder counter) {
+        Supplier<String> text = counter == null ? generator::generate : () -> {
+            String id = generator.generate();
+            counter.increment();
+            return id;
+        };
+        return new GeneratorEntry(generator.name(), UUIDV7, "", generator, true, null, null, text, List.of(),
+            () -> Map.of("version", 7, "text", "canonical"), counter);
+    }
+
+    /**
      * A disabled generator (D24): every lookup throws {@link GeneratorDisabledException}.
      *
      * @param name     the generator name
@@ -309,7 +328,7 @@ public final class GeneratorEntry {
     public IdGenerator ids() {
         requireEnabled();
         if (ids == null) {
-            throw new NoSuchElementException("Generator [" + name + "] (" + strategy + ") issues no long ids");
+            throw new NoSuchElementException("Generator [" + name + "] (" + strategy + ") issues no long ids; use text(name) for its text");
         }
         return ids;
     }

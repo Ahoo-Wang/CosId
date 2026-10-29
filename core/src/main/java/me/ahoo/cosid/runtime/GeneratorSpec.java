@@ -811,6 +811,58 @@ public sealed interface GeneratorSpec {
     }
 
     /**
+     * UUIDv7 ids (D46, RFC 9562 §5.7, a 16-bit counter): {@link me.ahoo.cosid.time.UuidV7Generator}, ordered within
+     * the instance and unique without coordination. It needs no store, machine slot nor lease. Its text is the canonical 36-character form
+     * (other text codecs may come later); the runtime hands it out by {@code get(name, UuidV7Generator.class)} and its
+     * text by {@code text(name)}, and {@code describe()} names its strategy {@code uuidv7}.
+     */
+    final class UuidV7 implements GeneratorSpec {
+        private UuidV7(Builder builder) {
+        }
+
+        /**
+         * A builder of a UUIDv7 generator.
+         *
+         * @return the builder
+         */
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof UuidV7;
+        }
+
+        @Override
+        public int hashCode() {
+            return UuidV7.class.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return "UuidV7[]";
+        }
+
+        /**
+         * Builds a {@link UuidV7}; it has no settings yet, and may gain some with defaults.
+         */
+        public static final class Builder {
+            private Builder() {
+            }
+
+            /**
+             * Builds the generator.
+             *
+             * @return the generator
+             */
+            public UuidV7 build() {
+                return new UuidV7(this);
+            }
+        }
+    }
+
+    /**
      * A declared generator that is not created (D24, 07-runtime-and-spring.md §4.1): looking it up throws
      * {@link me.ahoo.cosid.GeneratorDisabledException}. It is not validated and needs no store or machine slot.
      *

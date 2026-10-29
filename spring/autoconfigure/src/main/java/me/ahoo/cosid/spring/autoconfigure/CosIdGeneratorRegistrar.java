@@ -20,6 +20,7 @@ import me.ahoo.cosid.GroupedIdGenerator;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.RuntimeSpec;
+import me.ahoo.cosid.time.UuidV7Generator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -139,6 +140,7 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
             case GeneratorSpec.PeriodicSegment periodic -> GroupedIdGenerator.class;
             case GeneratorSpec.Custom custom -> IdGenerator.class;
             case GeneratorSpec.Instance instance -> IdGenerator.class;
+            case GeneratorSpec.UuidV7 uuidV7 -> UuidV7Generator.class;
             case GeneratorSpec.Disabled disabled -> beanType(disabled.generator());
         };
     }

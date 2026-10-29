@@ -55,7 +55,8 @@ timestamp of the 4.x machine records, `sourceSkew` (10s) the clock skew 4.x allo
    Everything it could not convert as is sits as comments at the top of the output: review them. A static slot gets
    `not-before: W`.
 6. **Start 5.0.** The first time-based id waits until the clock passes W, at most about `sourceSkew`.
-7. Later, as an offline maintenance step, physically remove sealed period keys of past periods (D23):
+7. Later, as an offline maintenance step **with every 5.0 instance stopped** (a store must never see a key's node
+   deleted while it uses the key), physically remove sealed period keys of past periods (D23):
    `java -jar cosid-migration.jar purge --to jdbc:... --namespace shop --before 20250101 --dry-run`, then with
    `--confirm-stopped` instead of `--dry-run`.
 

@@ -31,7 +31,7 @@ The failover case always runs on its own in-process 3.9 ensemble, so these rows 
 
 | Node | Data |
 |---|---|
-| `/cosid/range/{key}` | the next value as decimal text, `:sealed` appended once sealed; never deleted (S6) |
+| `/cosid/range/{key}` | the next value as decimal text, `:sealed` appended once sealed; never deleted (S6), and it **must not be deleted while any store uses the key** (the migration tool's `purge` runs only with every instance stopped): a store compare-and-sets on the version it last wrote, and a node recreated to that version is detected by its `czxid` and refused, but the write itself cannot be taken back |
 | `/cosid/slot/{ns}` | the namespace metadata as `name=value` lines: `limit`, `tolerance` and `slotOffset`; a node without `slotOffset` (written by 5.0.0-alpha.1) has offset 0 |
 | `/cosid/slot/{ns}/{slot}` | the slot as `name=value` lines; the fence is in the data, never `Stat.version`; never deleted |
 | `/cosid/slot/{ns}/.clock` | written by every acquire: its `mtime` is the `now` of the expiry check |

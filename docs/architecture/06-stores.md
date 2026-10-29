@@ -163,7 +163,7 @@ public interface RedisScripts {
 | `/cosid/slot/{ns}/.clock` | 每次 acquire 都写入,它的 `mtime` 就是过期判断用的 `now` |
 | `/cosid/owner/{ns}/{ownerKey}` | owner 索引:最近持有者为该 key 的槽位(如 `3,7`),与每次 acquire 在同一个 `multi` 中写入;key 经 URL 编码,`.` 与 `*` 也转义 |
 
-- 区间:用版本化 `setData` 实现 CAS,不存在时 `create`,遇到 `NodeExists` 重试。store 记住自己上次写入的值与版本,下一次 reserve 先直接在该版本上 `setData`(一次往返);版本已变(别的实例 reserve 过或已封存)则失败,改为先读后写,并在其后 8 次 reserve 中先读。版本校验保证这与先读后写同样安全。
+- 区间:用版本化 `setData` 实现 CAS,不存在时 `create`,遇到 `NodeExists` 重试。store 记住自己上次写入的值与版本,下一次 reserve 先直接在该版本上 `setData`(一次往返);版本已变(别的实例 reserve 过或已封存)则失败,改为先读后写,并在其后 8 次 reserve 中先读。版本校验保证这与先读后写同样安全,前提是**不变式:store 使用某个 key 期间,其节点不得被删除**(运行时从不删除区间节点;迁移工具的 `purge` 只能在所有实例停止后运行)。节点删除重建后版本从 0 重新计数,可能恰好回到记住的版本(ABA):store 同时记住节点的 `czxid`,`setData` 成功但返回的 `czxid` 不同时,忘掉该 key 并抛出存储回退(与生成器的 `highWater` 同类),这次写入的区间不发出。这次写入本身无法撤回,所以不变式才是主要防线,`czxid` 校验是为了让违反不变式的情况大声失败,而不是悄悄重号。
 - **fence 存在数据里**,版本化 `setData` 只用来实现 CAS,所以节点被重建也不会让 fence 回退(运行时从不删除槽位节点)。
 - 租约时间取自产生它的那次写入的 `Stat.mtime`:`expiresAt = max(expiresMin, mtime + ttl)`,`ceiling = max(ceilingMin, expiresAt + tolerance)`;
   下界取自被替换的那次写入,任期内二者不回退。`storeNow` 与 `expiresAt` 取自**同一次写入**。安全性不依赖它(05 §3)。

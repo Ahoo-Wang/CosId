@@ -152,7 +152,7 @@ W, at most about `sourceSkew`.
 
 ### Later: purge old periods
 
-At run time periodic keys are sealed, never deleted (D23). Removing past periods physically is an offline step:
+At run time periodic keys are sealed, never deleted (D23). Removing past periods physically is an offline step, **with every 5.0 instance stopped**: a store must never see the node or row of a key it uses deleted.
 
 ```bash
 java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 20250101 --dry-run

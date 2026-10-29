@@ -112,6 +112,28 @@ class ZookeeperStoreEdgeTest {
     }
 
     @Test
+    void aNodeRecreatedAtTheRememberedVersionIsRefusedAndItsRangeNotIssued() throws Exception {
+        ZookeeperRangeStore first = new ZookeeperRangeStore(new Zk(client, ZookeeperTests.TIMEOUT));
+        ZookeeperRangeStore second = new ZookeeperRangeStore(new Zk(client, ZookeeperTests.TIMEOUT));
+        String key = "edge/recreated-" + UUID.randomUUID();
+        String path = ZookeeperRangeStore.path(key);
+        assertEquals(new Range(0, 10), first.reserve(key, 10, 0));
+        // first remembers version 1 and value 20.
+        assertEquals(new Range(10, 20), first.reserve(key, 10, 0));
+        assertEquals(1, client.checkExists().forPath(path).getVersion());
+        // Deleted and recreated (the store's invariant forbids it), then moved by another store to the same version.
+        client.delete().forPath(path);
+        client.create().forPath(path, "5".getBytes(StandardCharsets.US_ASCII));
+        assertEquals(new Range(5, 15), second.reserve(key, 10, 0));
+        assertEquals(1, client.checkExists().forPath(path).getVersion());
+        IllegalStateException refused = assertThrows(IllegalStateException.class, () -> first.reserve(key, 10, 0));
+        assertTrue(refused.getMessage().contains("deleted and recreated"), refused.getMessage());
+        assertTrue(refused.getMessage().contains("[20, 30)"), refused.getMessage());
+        // Forgotten: the next reserve reads the node, and continues after the value the refused write left.
+        assertEquals(new Range(30, 40), first.reserve(key, 10, 0));
+    }
+
+    @Test
     void aParentKeyAndItsPeriodsAreIndependentKeys() {
         String key = "edge/" + UUID.randomUUID();
         assertEquals(new Range(7, 17), store.ranges().reserve(key + "/2026", 10, 7), "creates the parent without data");

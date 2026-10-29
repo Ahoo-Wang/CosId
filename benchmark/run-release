@@ -103,7 +103,9 @@ fi
 
 # The machine and the JDK, recorded before the run.
 # checkJmhJar builds the jars and checks their services (a jar without a store's provider fails every setup on it).
-./gradlew -q :benchmark:baseline-4x:checkJmhJar :benchmark:v5:checkJmhJar
+# A build that fails is a harness error (4), never a result: on CI a status of 1 would read as FAIL rows.
+./gradlew -q :benchmark:baseline-4x:checkJmhJar :benchmark:v5:checkJmhJar \
+    || { echo "run-release: harness error: the JMH jars did not build or failed checkJmhJar" >&2; exit 4; }
 java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
 JAVA="$java" python3 -I - "$work.machine.json" <<'PY'
 import datetime, json, os, platform, re, subprocess, sys

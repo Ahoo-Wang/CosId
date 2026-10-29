@@ -77,7 +77,8 @@ for scenario in "${scenarios[@]}"; do
 done
 
 cd "$root"
-./gradlew -q :benchmark:baseline-4x:checkJmhJar :benchmark:v5:checkJmhJar
+./gradlew -q :benchmark:baseline-4x:checkJmhJar :benchmark:v5:checkJmhJar \
+    || { echo "run-smoke: harness error: the JMH jars did not build or failed checkJmhJar" >&2; exit 4; }
 java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
 mkdir -p "$out"
 rm -f "$out"/*.json "$out"/*.log "$out"/report.md "$out"/load.tsv

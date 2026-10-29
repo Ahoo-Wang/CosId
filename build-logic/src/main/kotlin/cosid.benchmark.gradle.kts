@@ -15,6 +15,8 @@
 //
 // Profiles (-PjmhProfile, see benchmark/scenarios.md): smoke (default; short, for development and PR smoke runs) and
 // release (the release gate of 10-performance-and-parity.md §1.3). -PjmhIncludes=regex,regex narrows the scenarios.
+import java.util.zip.ZipFile
+
 plugins {
     id("cosid.java")
     id("me.champeau.jmh")
@@ -64,7 +66,7 @@ fun servicesOf(files: Iterable<File>): Map<String, Set<String>> {
         if (file.isDirectory) {
             file.resolve("META-INF/services").listFiles()?.filter { it.isFile }?.sortedBy { it.name }?.forEach { add(it.name, it.readText()) }
         } else if (file.name.endsWith(".jar") && file.isFile) {
-            java.util.zip.ZipFile(file).use { zip ->
+            ZipFile(file).use { zip ->
                 zip.entries().asSequence()
                     .filter { !it.isDirectory && it.name.startsWith("META-INF/services/") && it.name.count { c -> c == '/' } == 2 }
                     .forEach { add(it.name.removePrefix("META-INF/services/"), zip.getInputStream(it).bufferedReader().readText()) }

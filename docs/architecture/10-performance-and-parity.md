@@ -18,20 +18,20 @@ benchmark/
 
 ### 1.2 场景
 
-| # | 场景 | 4.x 对照 | 指标 |
-|---|---|---|---|
-| P1 | Snowflake 毫秒 `generate`,1 / 4 / 16 线程 | `MillisecondSnowflakeId` | 吞吐 |
-| P2 | Snowflake 秒级 `generate`,1 / 16 线程 | `SecondSnowflakeId` | 吞吐 |
-| P3 | Snowflake + Radix62 字符串、+ Friendly 字符串 | `StringSnowflakeId` / `SnowflakeFriendlyId` | 吞吐、每次分配字节 |
-| P4 | CosIdGenerator 80 位 Radix62 / Friendly 字符串 | `Radix62CosIdGenerator` / `FriendlyCosIdGenerator` | 吞吐、每次分配字节 |
-| P5 | 号段,内存存储,1 / 4 / 16 / 64 线程 | `SegmentChainId` + 内存分发器 | 吞吐、p99 / p999 延迟 |
-| P6 | 号段,step = 1(无预取) | `DefaultSegmentId` | 吞吐 |
-| P7 | 号段,真实 MySQL / Redis | `MySqlChainIdBenchmark` / `RedisChainIdBenchmark` | 吞吐、p99 / p999 延迟 |
-| P8 | 周期号段(按天)含跨期 | grouped `SegmentChainId` | 吞吐、跨期 p999 延迟 |
-| P9 | 编解码:Radix62/36 encode/decode、Friendly parse | 各 `IdConverter` | 吞吐、每次分配字节 |
-| P10 | 存储原语延迟:reserve、acquire、renew(各后端) | 4.x 对应操作 | 平均与 p99 延迟 |
-| P11 | 启动:Spring 上下文启动到第一个 ID | 4.x starter | 耗时 |
-| P12 | 字段填充 `IdFiller.fill` | `CosIdAccessorRegistry.ensureId` | 吞吐、每次分配字节 |
+| # | 场景 | 4.x 对照 | 指标 | 类型(D44) |
+|---|---|---|---|---|
+| P1 | Snowflake 毫秒 `generate`,1 / 4 / 16 线程 | `MillisecondSnowflakeId` | 吞吐 | 端到端 |
+| P2 | Snowflake 秒级 `generate`,1 / 16 线程 | `SecondSnowflakeId` | 吞吐 | 端到端 |
+| P3 | Snowflake + Radix62 字符串、+ Friendly 字符串 | `StringSnowflakeId` / `SnowflakeFriendlyId` | 吞吐、每次分配字节 | 端到端 |
+| P4 | CosIdGenerator 80 位 Radix62 / Friendly 字符串 | `Radix62CosIdGenerator` / `FriendlyCosIdGenerator` | 吞吐、每次分配字节 | 端到端 |
+| P5 | 号段,内存存储,1 / 4 / 16 / 64 线程 | `SegmentChainId` + 内存分发器 | 吞吐、p99 / p999 延迟 | 端到端 |
+| P6 | 号段,step = 1(无预取) | `DefaultSegmentId` | 吞吐 | 端到端 |
+| P7 | 号段,真实 MySQL / Redis / MongoDB / ZooKeeper | `MySqlChainIdBenchmark` / `RedisChainIdBenchmark` / `MongoChainIdBenchmark` / `ZookeeperChainIdBenchmark` | 吞吐、p99 / p999 延迟 | 端到端 |
+| P8 | 周期号段(按天)含跨期 | grouped `SegmentChainId` | 吞吐、跨期 p999 延迟 | 端到端 |
+| P9 | 编解码:Radix62/36 encode/decode、Friendly parse | 各 `IdConverter` | 吞吐、每次分配字节 | 组件 |
+| P10 | 存储原语延迟:reserve、acquire、renew(各后端) | 4.x 对应操作 | 平均与 p99 延迟 | 组件 |
+| P11 | 启动:Spring 上下文启动到第一个 ID | 4.x starter | 耗时 | 端到端 |
+| P12 | 字段填充 `IdFiller.fill` | `CosIdAccessorRegistry.ensureId` | 吞吐、每次分配字节 | 端到端 |
 
 ### 1.3 判定规则
 
@@ -44,6 +44,12 @@ benchmark/
 - **平均与单次耗时**:不高于 `max(score_4 + error_4, 1.05 × score_4)`。
 - **分配**:每次操作分配字节数(`gc.alloc.rate.norm`)不高于 `max(4.x + 误差, 1.05 × 4.x, 4.x + 64 B)`;5.x 不超过 0.01 B/op 时视为通过(低于该值只是补充等低频记账的摊销,不是热路径分配)。`long` 型生成热路径为 0(< 1 B/op)。
 - **启动**:不慢于 4.x 的 105%。
+
+**端到端与组件(D44)**:门槛以端到端发号为最终指标,单个组件只要求不过度退化。场景按类型判定(`benchmark/compare` 的 `SCENARIOS` 表,按基准类名,不在表中的类按端到端判):
+
+- **端到端行**(P1–P8、P11、P12):按上面的 D34 规则判定,超出即 FAIL。
+- **组件行**(P9 编解码、P10 存储原语 `*StoreBenchmark`):在 D34 以内为 PASS;超出 D34 但吞吐与平均耗时变差不超过 20%、p99/p99.9 不超过 30%、分配不超过 `max(1.25 × 4.x, 4.x + 64 B)`(各自同样允许 4.x 的误差)为 **WARN**;再超出为 FAIL。
+- 只有 FAIL 触发重跑并阻塞门槛;WARN 在报告中单独成节(哪些行、变差多少),不阻塞,组结论显示为 `PASS (n WARN)`。冒烟口径不区分类型,也没有 WARN。
 
 一行首次失败时,两侧在新的 fork 中重跑,**重跑仍失败才算回退**(`benchmark/run-release` 在 CI 上默认如此,`compare --rerun`)。阈值的边界由 `benchmark/compare_test.py` 覆盖。
 

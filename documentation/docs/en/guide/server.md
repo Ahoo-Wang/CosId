@@ -34,6 +34,11 @@ the image carries the MySQL, MariaDB, PostgreSQL and SQL Server drivers.
 [`examples/server/compose.yaml`](https://github.com/Ahoo-Wang/CosId/tree/main/examples/server) runs the server on Redis
 with a client next to it. To build the image from source: `./gradlew :server:dockerImage` (or `:server:bootBuildImage`).
 
+**The image runs on JDK 25** (`eclipse-temurin:25-jre`, D48); the jars stay Java 21 bytecode, and the libraries still
+support Java 21. From JDK 24 on (JEP 491) a virtual thread no longer pins its carrier thread inside `synchronized`, and
+the server runs its requests on virtual threads (below). No JVM option changes with it: `JAVA_OPTS` (default
+`-XX:MaxRAMPercentage=75.0`, the heap follows the container's memory limit) adds options.
+
 ## Clients
 
 ```yaml

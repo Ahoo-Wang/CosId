@@ -30,6 +30,10 @@ docker run -d -p 8688:8688 \
 [`examples/server/compose.yaml`](https://github.com/Ahoo-Wang/CosId/tree/main/examples/server) 在 Redis 上运行服务端，并附带一个客户端。
 从源码构建镜像：`./gradlew :server:dockerImage`（或 `:server:bootBuildImage`）。
 
+**镜像运行在 JDK 25 上**（`eclipse-temurin:25-jre`，D48）；jar 仍是 Java 21 字节码，各个库仍然支持 Java 21。从 JDK 24 起
+（JEP 491），虚拟线程在 `synchronized` 中不再固定在载体线程上，而服务端的请求运行在虚拟线程上（见下文）。JVM 参数无需调整：
+`JAVA_OPTS`（默认 `-XX:MaxRAMPercentage=75.0`，堆大小随容器内存限制）用于追加参数。
+
 ## 客户端
 
 ```yaml

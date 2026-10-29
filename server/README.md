@@ -76,6 +76,9 @@ it off.
 - OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`; they need a token of `auth.tokens` unless `docs.public=true`. The document
   lists the Actuator endpoints too (`springdoc.show-actuator`); set it to `false` to leave them out.
 - Image: `./gradlew :server:dockerImage` (the `Dockerfile` on `build/libs/cosid-server.jar`), or `:server:bootBuildImage`.
+  It runs on **JDK 25** (`eclipse-temurin:25-jre`, D48; the jar stays Java 21 bytecode): from JDK 24 on (JEP 491) a
+  virtual thread no longer pins its carrier inside `synchronized`, and requests run on virtual threads. No JVM option
+  changes: `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75.0`) adds options.
 
 ```bash
 docker run -d -p 8688:8688 \

@@ -16,7 +16,9 @@
 #   docker run -d -p 8688:8688 \
 #     -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
 #     -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token ahoowang/cosid-server:TAG
-FROM eclipse-temurin:21-jre
+# The runtime is JDK 25 (D48), the bytecode stays Java 21: from JDK 24 on (JEP 491) a virtual thread no longer pins its
+# carrier inside synchronized, and the server runs its requests on virtual threads.
+FROM eclipse-temurin:25-jre
 
 LABEL maintainer="ahoowang@qq.com"
 

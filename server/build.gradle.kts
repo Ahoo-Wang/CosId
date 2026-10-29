@@ -52,6 +52,11 @@ tasks.bootJar {
     archiveFileName.set("cosid-server.jar")
 }
 
+// The buildpacks image runs on the JDK of the Dockerfile (D48), not on the Java 21 the jar targets.
+tasks.bootBuildImage {
+    environment.put("BP_JVM_VERSION", "25")
+}
+
 // The image of 08 §4: Dockerfile on the boot jar. CI builds it (job "Server"); bootBuildImage (buildpacks) works too.
 tasks.register<Exec>("dockerImage") {
     description = "Builds the cosid-server Docker image from the boot jar."

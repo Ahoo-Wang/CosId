@@ -1,0 +1,49 @@
+# Temporary (P5): the tail latency of MySqlStoreBenchmark.reserve_t1, 4.x and 5.x in ABBA order, back to back and with
+# a cool-down. Never merged.
+name: P5 MySQL tail
+on:
+  push:
+    branches: [ 'p5/**' ]
+permissions:
+  contents: read
+jobs:
+  tail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          java-version: '21.0.13'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Start MySQL 8.4 (as the release gate)
+        run: |
+          docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=cosid_db -p 3306:3306 mysql:8.4
+          for i in $(seq 1 90); do docker exec mysql mysqladmin ping -h 127.0.0.1 -proot --silent && break; sleep 2; done
+          docker exec mysql mysql -uroot -proot -e "select @@innodb_flush_log_at_trx_commit, @@sync_binlog, @@log_bin, @@innodb_buffer_pool_size, @@innodb_redo_log_capacity, @@innodb_io_capacity" 2>/dev/null
+      - name: Build the JMH jars
+        run: ./gradlew -q :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
+      - name: Run ABBA, back to back, then with a cool-down
+        run: |
+          mkdir -p out
+          status() { docker exec mysql mysql -uroot -proot -N -e "show global status where Variable_name in ('Innodb_buffer_pool_pages_dirty','Innodb_os_log_fsyncs','Innodb_log_waits','Innodb_data_fsyncs','Binlog_cache_use')" 2>/dev/null | tr '\n' ' '; }
+          run() {
+            local tag="$1" side="$2"
+            echo "== $tag $side before: $(status) load: $(cut -d' ' -f1-3 /proc/loadavg)" | tee -a out/status.log
+            java -jar benchmark/$side/build/libs/*-jmh.jar '^me\.ahoo\.cosid\.benchmark\.MySqlStoreBenchmark\.reserve_t1$' \
+              -bm sample -f 3 -wi 5 -w 2s -i 10 -r 2s -rf json -rff "out/$tag-$side.json" \
+              -jvmArgs "-Dlogback.configurationFile=$PWD/config/logback-jmh.xml" > "out/$tag-$side.log" 2>&1 || echo "failed: $tag $side"
+            echo "== $tag $side after:  $(status)" | tee -a out/status.log
+          }
+          n=0
+          for side in baseline-4x v5 v5 baseline-4x baseline-4x v5 v5 baseline-4x; do n=$((n+1)); run "a$n" "$side"; done
+          n=0
+          for side in baseline-4x v5 v5 baseline-4x baseline-4x v5 v5 baseline-4x; do n=$((n+1)); sleep 60; run "c$n" "$side"; done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p5-mysql-tail
+          path: out

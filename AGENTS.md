@@ -100,7 +100,7 @@ Adding a package means deciding whether `module-info.java` exports it.
   platform is published.
 - `cosid.spring` (`spring/*`, `integrations/*`; `server` applies `cosid.java` + the Spring Boot plugin and the BOM itself, since it is not published): `cosid.library` + the Spring Boot BOM on the build's
   classpaths only (never published), published versions of `spring-boot-minimum`,
-  and the compatibility matrix: `-PspringBootVersion=4.0.8` builds and tests on another Boot (02 §5), with
+  and the compatibility matrix: `-PspringBootVersion=4.0.9` builds and tests on another Boot (02 §5), with
   `-PtestJavaVersion=25`; CI job `spring-compatibility`.
 - `cosid.platform`: the BOM. `cosid.benchmark`: `cosid.java` + JMH (`me.champeau.jmh`) — JMH is applied nowhere else.
 - `cosid.root` (root project): `checkDependencyRules` and `checkBom` (the BOM lists exactly the published modules),

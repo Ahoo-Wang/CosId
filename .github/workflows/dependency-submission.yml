@@ -12,7 +12,10 @@
 #
 
 # Submits the Gradle dependency graph of main to GitHub, so that Dependabot alerts cover the Gradle dependencies too
-# (it reads only the lock files of other ecosystems by itself).
+# (it reads only the lock files of other ecosystems by itself). Only what ships is submitted, so that an alert is about
+# a released artifact: the runtime classpaths of the published modules and of the migration fat jar, the
+# minimumVersions their Spring metadata requires (cosid.spring), and the cosid-server image (productionRuntimeClasspath).
+# Tests, the benchmarks (the 4.1.0 baseline among them), the examples and the build itself are left out.
 name: Dependency Submission
 on:
   push:
@@ -43,3 +46,6 @@ jobs:
 
       - name: Submit the dependency graph
         uses: gradle/actions/dependency-submission@v6
+        with:
+          dependency-graph-include-configurations: '^(runtimeClasspath|productionRuntimeClasspath|minimumVersions)$'
+          dependency-graph-exclude-projects: '^:(benchmark|examples|build-logic)(:.*)?$'

@@ -17,7 +17,7 @@
 //   the versions of its own Boot. Dependencies other projects of this build see carry explicit versions instead.
 // - The published metadata requires the versions of the lowest supported Boot (spring-boot-minimum);
 //   checkPublishedMetadata (cosid.library, run by check) fails when a dependency has no version or the BOM leaks into it.
-// - The compatibility matrix: -PspringBootVersion=4.0.8 builds and tests on another Boot (an enforced platform, so a
+// - The compatibility matrix: -PspringBootVersion=4.0.9 builds and tests on another Boot (an enforced platform, so a
 //   higher BOM a dependency brings loses); -PtestJavaVersion (cosid.java) runs the tests on another JDK.
 plugins {
     id("cosid.library")

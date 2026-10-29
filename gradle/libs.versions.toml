@@ -21,17 +21,22 @@ hikari = "7.0.2"
 mongodb = "5.13.0"
 testcontainers = "2.0.5"
 # R2-Redis: the Redis store (testcontainers above)
-lettuce = "7.5.2.RELEASE"
+# 7.9 brings Netty 4.2.17 (the fix of the netty-handler, -resolver-dns and -codec-dns advisories of 4.2.13).
+lettuce = "7.9.0.RELEASE"
 # benchmark/v5 only: one Netty for Lettuce and ZooKeeper, as the Spring Boot BOM gives applications.
 netty = "4.2.13.Final"
 # the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.0 brings, for benchmark/baseline-4x
 lettuce4 = "6.8.2.RELEASE"
 # store/zookeeper (R2-ZK)
 curator = "5.9.0"
+# Curator 5.9.0 brings ZooKeeper 3.9.3 and Guava 32.0.0: store/zookeeper declares the patched ones (3.9.5, 33.7.2) so that
+# Maven and Gradle consumers alike resolve them.
+zookeeper = "3.9.5"
+guava = "33.7.2-jre"
 # R3-S: spring/* builds and tests on this Spring Boot; -PspringBootVersion swaps it (02-modules.md §5). The published
 # metadata requires the versions of spring-boot-minimum, the lowest Boot the compatibility matrix tests.
 spring-boot = "4.1.2"
-spring-boot-minimum = "4.0.8"
+spring-boot-minimum = "4.0.9"
 # compileOnly in spring/autoconfigure: InetUtils for the owner key host (07 §1.1); Spring Cloud 2025.1
 spring-cloud-commons = "5.0.4"
 # R4-A: the OpenAPI document and Swagger UI of server/ (springdoc 3.x is the Spring Boot 4 line)
@@ -89,6 +94,8 @@ cosid4-lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce4" 
 cosid4-zookeeper = { module = "me.ahoo.cosid:cosid-zookeeper", version.ref = "cosid4" }
 curator-framework = { module = "org.apache.curator:curator-framework", version.ref = "curator" }
 curator-test = { module = "org.apache.curator:curator-test", version.ref = "curator" }
+zookeeper = { module = "org.apache.zookeeper:zookeeper", version.ref = "zookeeper" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
 # R3-S: Spring Boot. The BOM manages the versionless Spring dependencies of spring/* (cosid.spring); the explicit ones
 # are what spring/* exposes to the projects of this build.
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }

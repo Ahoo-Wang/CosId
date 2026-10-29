@@ -24,6 +24,12 @@ dependencies {
     api(libs.curator.framework) {
         exclude(group = "io.netty")
     }
+    // The patched ZooKeeper and Guava over Curator's (security advisories): a direct dependency wins in Maven
+    // (nearest) and in Gradle (highest).
+    api(libs.zookeeper) {
+        exclude(group = "io.netty")
+    }
+    runtimeOnly(libs.guava)
     implementation(libs.slf4j.api)
     testImplementation(project(":store:tck"))
     testImplementation(libs.curator.test)

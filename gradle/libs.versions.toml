@@ -92,6 +92,8 @@ guava = { module = "com.google.guava:guava", version.ref = "guava" }
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 spring-cloud-commons = { module = "org.springframework.cloud:spring-cloud-commons", version.ref = "spring-cloud-commons" }
 spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-autoconfigure" }
+# spring/autoconfigure tests: YAML configuration, as an application has it
+snakeyaml = { module = "org.yaml:snakeyaml" }
 # P11 (benchmark/*): the same Spring Boot on both sides.
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter" }
 cosid4-spring-boot-starter = { module = "me.ahoo.cosid:cosid-spring-boot-starter", version.ref = "cosid4" }

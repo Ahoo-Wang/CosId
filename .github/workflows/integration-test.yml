@@ -754,10 +754,9 @@ jobs:
         uses: ./.github/actions/setup-build
 
       - name: Publish to build/repos
-        # Unsigned: a pull request has no signing key, and the local repository needs none (CI requires signing otherwise).
-        run: >-
-          scripts/gradle-retry.sh publishAllPublicationsToProjectBuildRepoRepository
-          -x signMavenLibraryPublication -x signMavenBomPublication
+        # Unsigned, as a local build publishes: a pull request has no signing key, and cosid.publish requires signing when
+        # CI is set (excluding the sign tasks would leave their .asc artifacts missing).
+        run: env -u CI scripts/gradle-retry.sh publishAllPublicationsToProjectBuildRepoRepository
 
       - name: Maven application
         run: |

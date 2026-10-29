@@ -14,8 +14,8 @@
 
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
-> [!WARNING]
-> **`5.0.0-rc.x` 是候选发布版。** 从 RC1 起，Java API、`cosid.*` 配置以及存储格式与协议冻结，之后的 5.x 只做向后兼容的增量。生产环境仍建议等待 GA，在此之前请继续使用 4.x。
+> [!NOTE]
+> **CosId 5.0 已正式发布。** Java API、`cosid.*` 配置以及存储格式与协议保持稳定，之后的 5.x 只做向后兼容的增量。4.x 进入维护期；离线迁移工具 [`cosid-migration`](./migration/README.md) 负责把部署迁移过来。
 
 服务的每个副本都需要生成 ID（主键、订单号、事件 ID），并且不能与其他副本的 ID 冲突。*CosId* 在应用进程内生成这样的 ID，每个 ID 都不需要网络调用，并替你完成保证唯一所需的协调。
 

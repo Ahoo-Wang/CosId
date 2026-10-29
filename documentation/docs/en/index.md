@@ -47,8 +47,8 @@ features:
   details: "19 Micrometer meters, a health indicator for the slot lease, and an Actuator endpoint that describes and exercises every generator."
 ---
 
-::: warning Release candidate
-`5.0.0-rc.x` is a release candidate. From RC1 on, the Java API, the `cosid.*` configuration and the storage formats
-and protocols are frozen: later 5.x releases only add to them. Production use should still wait for GA; until then,
-stay on 4.x there ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
+::: tip 5.0
+CosId 5.0 is generally available. The Java API, the `cosid.*` configuration and the storage formats and protocols are
+stable: later 5.x releases only add to them. Coming from 4.x? See [the migration guide](/guide/migration/from-4x) and the offline
+`cosid-migration` tool; 4.x stays in maintenance ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
 :::

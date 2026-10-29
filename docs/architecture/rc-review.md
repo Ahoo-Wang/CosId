@@ -182,7 +182,12 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
      - Mongo:filter 和 pipeline 直接用 BSON 值构造，renew 的返回只投影 lease 需要的字段;reserve 分配 33.9→28.4 KB(4.x 31.3),renew 分配 43.9→30.7 KB。
      - ZooKeeper:记住上次写入的版本，先按该版本做一次 `setData`,一次往返;未命中则回退为先读后写。reserve 分配 26.8→16.0 KB(4.x 25.7)。
      审查遗留(后续加固,不阻塞门槛):按版本写的 ZK 快路径存在 ABA 前提——节点被删除并重建后,版本号可能回到原值。目前只有迁移工具的 `delete` 会删除已封存的 key,本身已要求实例停止。加固项:记住 czxid,`setData` 返回的 czxid 不一致即报存储回退并清除记忆;把"持有期间节点不得删除"写进 06。
-     → 第四次正式门槛 [run 40797246965](https://github.com/Ahoo-Wang/CosId/actions/runs/40797246965) @ `4eebc74a` 运行中。✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
+     → 第四次正式门槛 [run 40797246965](https://github.com/Ahoo-Wang/CosId/actions/runs/40797246965) @ `4eebc74a` 运行中。
+     **D44(用户 2026-10-28):端到端发号是最终指标，组件只要求不过度退化。** 门槛改为:端到端行(P1–P8、P11、P12)按 D34 硬判;组件行(P9、P10)按 D34 判 PASS,超出 D34 但未超过软上限(吞吐/平均 20%、尾延迟 30%、分配 25%)判 WARN,超过软上限才 FAIL。
+     - 按此口径回看第三次运行:Mongo reserve +8.7%/+5.4%、renew p99.9 +20%,ZK reserve 分配 +12%、尾延迟约 15%,都只是 WARN;MySQL reserve 分配 +64%、renew p99 +33% 仍为 FAIL,已由 P3 修复。
+     - 缺口:Mongo 和 ZooKeeper 只有存储原语基准，没有端到端号段链基准。
+     - 实现交给子会话:WP-perf P4 = `benchmark/compare` 的行分类与 WARN 档 + Mongo/ZK 号段链基准(两侧)+ 10 §1.2/§1.3。
+     - 第四次运行的结论按 D44 口径解读;P4 合入后在 main 上正式重跑。✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
   6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
   7. **依赖与 MINOR**(进行中,2026-10-28 派发):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml` → ✅ [#1384](https://github.com/Ahoo-Wang/CosId/pull/1384) `b2e40694`(pnpm overrides:vite 6.4.5、esbuild 0.25.12、source-map-js 1.2.2、vue 3.5.44;73 页渲染与 main 对比一致);剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
   8. ✅ **WP-ci 重构 CI(工程质量、执行效率)**([#1385](https://github.com/Ahoo-Wang/CosId/pull/1385) `157eb656`;试验 PR #1386–#1390 验证后已关闭)。实测:

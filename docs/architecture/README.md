@@ -74,6 +74,7 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D41 | `GeneratorSpec.Custom`(按名,Spring Bean)与 `Instance`(实例)覆盖 4.x `IdGeneratorProvider.set`(R1-core-02);运行时不拥有其生命周期 | 已定(按推荐) |
 | D42 | `MachineSpec.Leased.acquireTimeout`(默认 ttl,`cosid.machine.leased.acquire-timeout`)(R1-core-03) | 已定(按推荐) |
 | D43 | 其余冻结面 MINOR:R1-core-11/12/17、R1-spring-03/05/06、`cosid.metrics.generated.enabled` 在 RC 前改;R1-x-02(静态入口)只做文档;R1-int-01 随 PR3 | 已定(按推荐) |
+| D44 | 性能门槛以**端到端发号**为最终指标(用户 2026-10-28;修订 D21/D34 的判定口径):**端到端行**=应用视角的 ID 生产,即 P1–P8、P11(启动到第一个 ID)、P12(字段填充),按 D34 容差硬判(FAIL 阻塞)。**组件行**=P9 编解码、P10 存储原语(reserve/acquire/renew),只要求"不过度退化":在 D34 内为 PASS;超出 D34 但吞吐/平均延迟 ≤ 20%、p99/p99.9 ≤ 30%、分配 ≤ max(25%, +64 B) 为 WARN(报告列出,不阻塞);超出即 FAIL。端到端场景须覆盖每个存储后端:P7 补 Mongo、ZooKeeper 的号段链基准(4.x 与 5.x 两侧)。阈值按协调会话推荐 | 已定(用户提出原则,阈值按推荐) |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

@@ -315,6 +315,12 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
     4. 在 Central、Docker Hub 和站点上核对;
     5. main 改回 `5.0.0-SNAPSHOT`。
     RC1 仍需用户确认。
+  - **发布前插入 WP-deps**:WP-ci 加入 Gradle 依赖图提交后,Dependabot 新增 55 条告警(2 critical:netty-handler;high 涉及 netty、jackson 2/3、zookeeper、httpcore5、snappy、guava、mybatis 3.5.6 等)。这些告警全部记在 `settings.gradle.kts` 名下，来源不明。处理:
+    1. 按来源归类：发布模块的 runtime、server 镜像、测试、benchmark(含 4.x 基线)、构建插件;
+    2. 修复发布物和 server 镜像中的告警;
+    3. 依赖图只提交发布物的 runtime classpath,不手动 dismiss 告警;
+    4. 4.x 基线的依赖不动。
+    alpha.2 等 WP-deps 合入后再发，原因是不想发布一个带已知 critical 的 server 镜像。
 - [x] GA 前审查第 1 轮完成,BLOCKER/MAJOR 已修复或经用户裁定(2026-10-29:BLOCKER 1、MAJOR 19 已修;RC 前要修的 25 条 MINOR 已修，#1396/#1397/#1399)(见 §6;涉及 API、配置、存储格式的改动必须在 RC 冻结前完成)
 
 ## 6. GA 前两轮全面审查(D35)

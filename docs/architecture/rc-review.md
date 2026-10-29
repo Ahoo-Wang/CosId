@@ -326,6 +326,8 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
     3. 依赖图只提交发布物的 runtime classpath,不手动 dismiss 告警;
     4. 4.x 基线的依赖不动。
     alpha.2 等 WP-deps 合入后再发，原因是不想发布一个带已知 critical 的 server 镜像。
+    ✅ WP-deps [#1401](https://github.com/Ahoo-Wang/CosId/pull/1401) `3a76f1de`:Lettuce 7.9.0(Netty 4.2.17),store-zookeeper 显式声明 ZooKeeper 3.9.5 和 Guava 33.7.2,支持的 Boot 下限 4.0.9,依赖图只提交发布物。剩余 1 条(MyBatis 3.4.2,来自 Activiti 7.0),写进文档。
+    → 按 D45 先做依赖全面升级 PR,再发布 alpha.2。
 - [x] GA 前审查第 1 轮完成,BLOCKER/MAJOR 已修复或经用户裁定(2026-10-29:BLOCKER 1、MAJOR 19 已修;RC 前要修的 25 条 MINOR 已修，#1396/#1397/#1399)(见 §6;涉及 API、配置、存储格式的改动必须在 RC 冻结前完成)
 
 ## 6. GA 前两轮全面审查(D35)

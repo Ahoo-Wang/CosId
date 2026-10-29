@@ -239,7 +239,7 @@ cosid:
 
 ### 4.3 Starter(D14)
 
-`cosid-spring-boot-starter` 只依赖 `core` 与 `autoconfigure`。用户另加 `cosid-store-jdbc` 等存储依赖,就像 JPA starter 需要另加数据库驱动一样。删除 Gradle feature variants。
+`cosid-spring-boot-starter` 依赖 `core`、`autoconfigure` 与 `spring-boot-starter`(按 Spring Boot 对 starter 的约定,日志与 YAML 配置随它进入应用;R2-build-01 的发布 jar 冒烟测试发现缺了它时 `application.yaml` 无法加载)。用户另加 `cosid-store-jdbc` 等存储依赖,就像 JPA starter 需要另加数据库驱动一样。删除 Gradle feature variants。
 
 ## 5. 集成(`integrations/*`,D29:按依赖拆分,每个模块一个 artifact)
 

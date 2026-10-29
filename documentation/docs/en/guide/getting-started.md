@@ -1,6 +1,6 @@
 # Getting Started
 
-CosId 5 needs **Java 21** or later. With Spring Boot it supports Boot 4.0 and later.
+CosId 5 needs **Java 21** or later. With Spring Boot it needs **Boot 4.1.2** or later (D49); Boot 4.0.x is not supported.
 
 ::: warning Release candidate
 `5.0.0-rc.x` is a release candidate. From RC1 on, the Java API, the `cosid.*` configuration and the storage formats

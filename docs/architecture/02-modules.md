@@ -82,5 +82,6 @@ groupId 不变:`me.ahoo.cosid`。artifactId 由构建约定从目录路径生成
 - Checkstyle + SpotBugs + JaCoCo 保留;许可证头保留。
 - 版本以 Spring Boot BOM 为准(D45):`cosid.java` 让每个工程的构建类路径导入它(不发布),BOM 管理的依赖在 `gradle/libs.versions.toml` 中不写版本;其余依赖取最新稳定版,或因安全修复高于 BOM(注明移除条件)。发布的元数据写入解析出的具体版本。`bom/` 只声明本项目 artifact 与必要的三方对齐。
 - JMH 只在 `benchmark/` 中,不再对每个库模块应用插件。
-- `-PspringBootVersion` / `-PtestJavaVersion` 兼容矩阵机制保留,仅作用于 `spring/*`、`server`、`integrations`。
+- 支持 Spring Boot 4.1.2 及以后版本,不支持 4.0.x(D49):构建用的 Boot(`spring-boot`)即最低支持版本,`spring/*` 与 `integrations` 发布的元数据写入它解析出的版本,不另设"最低版本"。
+- `-PspringBootVersion` / `-PtestJavaVersion` 兼容矩阵机制保留,仅作用于 `spring/*`、`server`、`integrations`;CI 跑 Boot 4.1.2 × Java 21/25,`-PspringBootVersion` 用来探测更高的 Boot(如 4.2)。
 - 集成测试:`store/*` 每个模块一个 CI job,运行 TCK(Testcontainers,环境变量覆盖与 4.x 相同的约定)。

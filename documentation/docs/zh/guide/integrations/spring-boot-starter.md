@@ -1,7 +1,7 @@
 # Spring Boot Starter
 
 `cosid-spring-boot-starter` 是唯一的 starter（D14）。它只引入 `cosid-core` 与 `cosid-spring-boot-autoconfigure`，
-不引入其他依赖；用到哪些存储就自行添加对应的 artifact。支持 Spring Boot 4.0 及以上、Java 21+。
+不引入其他依赖；用到哪些存储就自行添加对应的 artifact。支持 Spring Boot 4.1.2 及以上（D49，不支持 4.0.x）、Java 21+：发布的元数据要求 Boot 4.1.2 的依赖版本。
 
 ```kotlin
 implementation(platform("me.ahoo.cosid:cosid-bom:__COSID_VERSION__"))

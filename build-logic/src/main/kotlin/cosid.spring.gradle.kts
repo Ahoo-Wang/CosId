@@ -15,30 +15,16 @@
 //
 // - The Spring Boot BOM manages this project's build classpaths only (cosid.java): it is never published, so an
 //   application keeps the versions of its own Boot.
-// - The published metadata requires the versions of the lowest supported Boot (spring-boot-minimum);
-//   checkPublishedMetadata (cosid.library, run by check) fails when a dependency has no version or the BOM leaks into it.
-// - The compatibility matrix: -PspringBootVersion=4.0.9 builds and tests on another Boot (an enforced platform, so a
-//   higher BOM a dependency brings loses); -PtestJavaVersion (cosid.java) runs the tests on another JDK.
+// - The published metadata requires the versions the build resolved under its Boot (cosid.library), the lowest Boot
+//   supported (D49: 4.1.2 and later); checkPublishedMetadata (cosid.library, run by check) fails when a dependency has
+//   no version or the BOM leaks into it.
+// - -PspringBootVersion=4.2.0 builds and tests on another Boot (an enforced platform, so a higher BOM a dependency
+//   brings loses), to probe the next one; -PtestJavaVersion (cosid.java) runs the tests on another JDK.
 plugins {
     id("cosid.library")
 }
 
-val libs = the<VersionCatalogsExtension>().named("libs")
-fun version(name: String) = libs.findVersion(name).get().requiredVersion
-
 val springBootVersion = findProperty("springBootVersion")?.toString()
-// What the published metadata requires: what runtimeClasspath declares, at the versions of the lowest supported Boot.
-val minimumVersions = configurations.create("minimumVersions") {
-    isCanBeConsumed = false
-    isCanBeResolved = true
-}
-afterEvaluate {
-    val runtimeClasspath = configurations.getByName("runtimeClasspath")
-    minimumVersions.setExtendsFrom(runtimeClasspath.extendsFrom.filter { it.name != "managedVersions" })
-}
-dependencies {
-    minimumVersions(enforcedPlatform("org.springframework.boot:spring-boot-dependencies:${version("spring-boot-minimum")}"))
-}
 if (springBootVersion != null) {
     tasks.withType<Test>().configureEach {
         // Tests that depend on the Spring Boot version check they really run on it.
@@ -46,12 +32,3 @@ if (springBootVersion != null) {
     }
 }
 
-publishing {
-    publications.named<MavenPublication>("mavenLibrary") {
-        versionMapping {
-            allVariants {
-                fromResolutionOf("minimumVersions")
-            }
-        }
-    }
-}

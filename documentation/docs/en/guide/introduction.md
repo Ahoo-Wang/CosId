@@ -10,7 +10,7 @@ This site describes **CosId 5**. 5.0 is a full rewrite with no backward compatib
 
 | Line | Branch | Java / Spring Boot | Documentation |
 |---|---|---|---|
-| 5.x | `main` (the default branch) | 21+ / 4.0+ | this site |
+| 5.x | `main` (the default branch) | 21+ / 4.1.2+ | this site |
 | 4.x | `4.x` (maintenance: bug fixes only) | 17+ / 4.x | the site of the 4.x release tags |
 
 ## Two ways to be unique

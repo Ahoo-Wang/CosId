@@ -41,7 +41,7 @@ request the jobs its changes reach, and everything on `main` and nightly; its la
 
 ## Branching model
 
-- `main` is the 5.x line (CosId 5.0, Java 21, Spring Boot 4.0+): the default branch, always releasable.
+- `main` is the 5.x line (CosId 5.0, Java 21, Spring Boot 4.1.2+): the default branch, always releasable.
 - `4.x` is the 4.x maintenance branch: bug fixes only, never merged into `main`. Older lines live on `3.x`, `2.x`
   (Spring Boot 3) and `1.x` (Spring Boot 2 / Java 8).
 - The documentation site is built from release tags, so the 4.x site stays buildable from its own tags.

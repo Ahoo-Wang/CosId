@@ -76,7 +76,7 @@ if (bootBom) {
         isCanBeResolved = false
     }
     configurations.configureEach {
-        if (this != managedVersions && name != "minimumVersions" && isBuildClasspath()) {
+        if (this != managedVersions && isBuildClasspath()) {
             extendsFrom(managedVersions)
         }
     }

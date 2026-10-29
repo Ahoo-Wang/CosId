@@ -61,7 +61,7 @@ for (name in listOf("runtimeClasspath", "testRuntimeClasspath")) {
 // The 4.x writers of the tests (09 §5): compiled against the released 4.1.0 jars only, and loaded at test time in a
 // class loader of their own, since 4.x and 5.0 share the package me.ahoo.cosid. The sources live under src/test, so
 // Checkstyle checks their license header only.
-val legacy4x: SourceSet by sourceSets.creating {
+val legacy4x: SourceSet = sourceSets.create("legacy4x") {
     java.setSrcDirs(listOf("src/test/legacy4x"))
     resources.setSrcDirs(emptyList<String>())
 }
@@ -103,7 +103,7 @@ tasks.assemble {
 }
 
 // The fat jar ships no Spring: the :spring:autoconfigure edge is test scope only (DependencyRules.TEST_EDGES).
-val checkNoSpring by tasks.registering {
+val checkNoSpring = tasks.register("checkNoSpring") {
     description = "Checks that the migration fat jar contains no Spring classes."
     group = "verification"
     val jar = tasks.shadowJar.flatMap { it.archiveFile }

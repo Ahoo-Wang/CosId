@@ -25,7 +25,7 @@ dependencies {
 
 // The contracts really ran against the in-memory store (roadmap R2): each backend registers the same task, with its
 // own test results, so a CI job that skipped its backend fails instead of passing empty.
-val checkContractsRan by tasks.registering(JavaExec::class) {
+val checkContractsRan = tasks.register<JavaExec>("checkContractsRan") {
     description = "Checks from the JUnit reports that every store contract case ran."
     group = "verification"
     val reports = layout.buildDirectory.dir("test-results/test")

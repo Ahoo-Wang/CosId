@@ -39,7 +39,7 @@ dependencies {
 // module names every dialect: -Pcosid.store.jdbc.dialects=h2,mysql,mariadb,postgresql,sqlserver.
 val testClassPrefixes = mapOf("h2" to "H2", "mysql" to "MySql", "mariadb" to "MariaDb", "postgresql" to "Postgres", "sqlserver" to "SqlServer")
 val checkedDialects = (findProperty("cosid.store.jdbc.dialects")?.toString() ?: "h2").split(',').map { it.trim() }.filter { it.isNotEmpty() }
-val checkContractsRan by tasks.registering {
+val checkContractsRan = tasks.register("checkContractsRan") {
     description = "Checks from the JUnit reports that every store contract case ran, per dialect."
     group = "verification"
 }

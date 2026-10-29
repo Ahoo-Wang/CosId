@@ -308,6 +308,13 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
   - E-N8 CodeQL 路径与 E-N9 `release: published` 已在 main 上;
   - 发布前的手工步骤(版本号、server README)放进 RC1 准备 PR。
 - [ ] 用户确认发布 RC1
+  - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
+    1. 合入 #1400;
+    2. 在合入提交上创建 pre-release,会触发 package-deploy 和 docker-deploy(不打 `latest`);
+    3. 用 tag 手动触发 `document-deploy`;
+    4. 在 Central、Docker Hub 和站点上核对;
+    5. main 改回 `5.0.0-SNAPSHOT`。
+    RC1 仍需用户确认。
 - [x] GA 前审查第 1 轮完成,BLOCKER/MAJOR 已修复或经用户裁定(2026-10-29:BLOCKER 1、MAJOR 19 已修;RC 前要修的 25 条 MINOR 已修，#1396/#1397/#1399)(见 §6;涉及 API、配置、存储格式的改动必须在 RC 冻结前完成)
 
 ## 6. GA 前两轮全面审查(D35)

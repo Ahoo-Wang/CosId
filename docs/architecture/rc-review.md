@@ -331,6 +331,13 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
   - 发布前的手工步骤(版本号、server README)放进 RC1 准备 PR。
 - [x] D46 UUIDv7 生成器合入([#1406](https://github.com/Ahoo-Wang/CosId/pull/1406) `ac3de73f`:16 位计数器，状态是一个 `AtomicLong`(48 位毫秒 + 16 位计数),58 位随机数，无需 machine,文本经 `text(name)` 获取;smoke 中 t1 生成 UUID 约 28 ops/µs、文本约 21 ops/µs,多线程的 smoke 误差很大，以后看正式门禁 P13 的趋势行)
   - 用户 2026-10-29 决定：先发 **`v5.0.0-alpha.3`**(包含 UUIDv7、带点名字的测试、AtomicLong/ABBA,以及第七次门禁 PASS),RC1 之后再说。发布步骤同 alpha.2。
+  - ✅ **`v5.0.0-alpha.3` 已发布**(2026-10-29,pre-release,目标 `f4f5bece` = #1409):
+    - Packages Deploy、Docker Image Deploy、document-deploy 全部成功;
+    - Central 在 09:37 已可解析(core、bom、starter、各 store);
+    - Docker Hub 有 `5.0.0-alpha.3`,没有打 `latest`;
+    - release 附件中有 `cosid-migration.jar`;
+    - 文档站 generators 页已有 uuidv7 一节;
+    - main 已改回 SNAPSHOT(#1410 `b73c9e0e`)。
 - [ ] 用户确认发布 RC1
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;

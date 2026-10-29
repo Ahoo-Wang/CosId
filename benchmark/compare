@@ -17,7 +17,7 @@
 
 BASELINE is the 4.x run (benchmark/baseline-4x), CANDIDATE the 5.x run (benchmark/v5) of the same scenarios on the same
 machine. Rows are matched by benchmark (class.method), mode, threads and params. Prints a Markdown report and exits 1
-when any row fails, 2 on bad input.
+when any row fails, 2 on bad input, 4 on a harness error.
 
 Release rules (default, D34): a row's limit is the more lenient of 4.x with its JMH error and 4.x with a tolerance.
   throughput (thrpt)        score_5 >= min(score_4 - error_4, score_4 x 0.95)
@@ -34,7 +34,10 @@ rules above, WARN up to throughput 0.80 x / average time 1.20 x / p99 and p99.9 
 of 4.x (each also allowing 4.x's error), and fail beyond. Only failed rows re-run and fail the comparison; WARN rows get
 a section of their own, and the summary reads PASS (n WARN). A class not in the table is judged as end-to-end.
 --smoke (PR smoke runs): throughput >= 0.9 x 4.x, latency and time <= 4.x / 0.9, allocation as above; no WARN.
-A row of the baseline missing from the candidate fails; rows only in the candidate are listed, not judged.
+Harness errors (exit 4) are not results: a row of the baseline missing from the candidate (or from a re-run), and,
+with --logs DIR, a JMH <failure> in any DIR/*.log (a benchmark that threw, such as a setup that found no store). The
+report lists them with the first lines of each exception; such a row is neither judged nor re-run, and the comparison
+fails whatever the other rows did. Rows only in the candidate are listed, not judged.
 
 --failed FILE writes the rows that failed as JSON (benchmark, mode, threads, params), for a re-run. --rerun BASELINE2
 CANDIDATE2 judges those rows again on a re-run of both sides in fresh forks (the release gate on shared CI runners):
@@ -44,6 +47,7 @@ a row that failed passes only if its re-run passes, and the report keeps both.
 import argparse
 import json
 import math
+import os
 import re
 import sys
 
@@ -91,6 +95,24 @@ SCENARIOS = {
     "IdFillerBenchmark": ("P12", END_TO_END),
 }
 PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
+HARNESS = "HARNESS ERROR"
+# The lines of a JMH <failure> shown in the report: the exception and where it was thrown.
+FAILURE_LINES = 8
+
+
+def failures(logs):
+    """[(log file name, the first lines after each JMH <failure>)] of the *.log files in the directory logs."""
+    found = []
+    for name in sorted(os.listdir(logs)):
+        if not name.endswith(".log"):
+            continue
+        with open(os.path.join(logs, name), encoding="utf-8", errors="replace") as file:
+            lines = file.read().splitlines()
+        for at, line in enumerate(lines):
+            if line.strip() == "<failure>":
+                excerpt = [text for text in lines[at + 1:] if text.strip()][:FAILURE_LINES]
+                found.append((name, excerpt))
+    return found
 
 
 def error(metric):
@@ -178,9 +200,10 @@ def judge(base, cand, smoke, zero_alloc, startup=re.compile(DEFAULT_STARTUP)):
 
 
 def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC, startup=DEFAULT_STARTUP, rerun=None,
-            warned=None):
+            warned=None, harness=None, logs=()):
     """Returns (report lines, number of failed rows, their keys); rerun = (baseline, candidate) of the failed rows. The
-    keys of the rows that ended as WARN are appended to warned, a list, when it is given."""
+    keys of the rows that ended as WARN are appended to warned, a list, when it is given; the keys of the missing rows
+    to harness, likewise. logs is failures() of the run logs: any makes the comparison a harness error."""
     pattern = re.compile(zero_alloc)
     startup_pattern = re.compile(startup)
     lines = [
@@ -189,8 +212,8 @@ def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC, sta
         "| Benchmark | Mode | Threads | Params | Metric | 4.x | 5.x | Limit | Result |",
         "|---|---|---|---|---|---|---|---|---|",
     ]
-    warnings = []
-    failed = table(lines, baseline, candidate, sorted(baseline), smoke, pattern, startup_pattern, warnings)
+    warnings, missing = [], []
+    failed = table(lines, baseline, candidate, sorted(baseline), smoke, pattern, startup_pattern, warnings, missing)
     extra = sorted(set(candidate) - set(baseline))
     if extra:
         lines += ["", "Only in 5.x (not judged): " + ", ".join(f"{k[0]} ({k[1]}, {k[2]} threads)" for k in extra)]
@@ -203,7 +226,7 @@ def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC, sta
         # A re-run row is judged on its re-run alone, WARN included.
         rerun_warnings = []
         retried = failed
-        failed = table(lines, rerun[0], rerun[1], failed, smoke, pattern, startup_pattern, rerun_warnings)
+        failed = table(lines, rerun[0], rerun[1], failed, smoke, pattern, startup_pattern, rerun_warnings, missing)
         warnings = [w for w in warnings if w[0] not in retried] + rerun_warnings
     warnings = [w for w in warnings if w[0] not in failed]
     if warnings:
@@ -215,25 +238,38 @@ def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC, sta
             lines.append(f"| {name} | {mode} | {threads} | {params} | {metric} | {fmt(b)} | {fmt(c)} | {change} |")
     if warned is not None:
         warned += list(dict.fromkeys(w[0] for w in warnings))
-    verdict = "FAIL" if failed else "PASS" + (f" ({len(set(w[0] for w in warnings))} WARN)" if warnings else "")
+    if missing or logs:
+        lines += ["", f"## {HARNESS}: not a result", "",
+                  "The benchmark harness broke, so these rows say nothing about performance: fix the harness and run again.", ""]
+        lines += [f"- missing: {name} ({mode}, {threads} threads{', ' + params if params else ''})"
+                  for name, mode, threads, params in missing]
+        for name, excerpt in logs:
+            lines += ["", f"`{name}`:", "", "```", *excerpt, "```"]
+    if harness is not None:
+        harness += missing
+    verdict = (HARNESS if missing or logs else
+               "FAIL" if failed else "PASS" + (f" ({len(set(w[0] for w in warnings))} WARN)" if warnings else ""))
     summary = f"**{verdict}**: {len(failed)} of {len(baseline)} baseline rows failed"
+    if missing or logs:
+        summary += f", {len(missing)} missing, {len(logs)} JMH failures in the logs"
     if rerun is not None and first:
         summary += f" ({first} failed the first run and were re-run)"
     lines += ["", summary + "."]
     return lines, len(failed), failed
 
 
-def table(lines, baseline, candidate, keys, smoke, pattern, startup_pattern, warnings):
-    """Appends the rows of keys to lines; returns the keys of the rows that failed, and appends
-    (key, metric, baseline, candidate) of each WARN check to warnings."""
+def table(lines, baseline, candidate, keys, smoke, pattern, startup_pattern, warnings, missing):
+    """Appends the rows of keys to lines; returns the keys of the rows that failed, appends
+    (key, metric, baseline, candidate) of each WARN check to warnings and the key of each row missing a side to
+    missing."""
     failed = []
     for row_key in keys:
         name, mode, threads, params = row_key
         base, cand = baseline.get(row_key), candidate.get(row_key)
         if base is None or cand is None:
             lines.append(f"| {name} | {mode} | {threads} | {params} | - | {'-' if base else 'missing'} | "
-                         f"{'-' if cand else 'missing'} | - | FAIL |")
-            failed.append(row_key)
+                         f"{'-' if cand else 'missing'} | - | {HARNESS} |")
+            missing.append(row_key)
             continue
         row_failed = False
         for metric, b, c, limit, result in judge(base, cand, smoke, pattern, startup_pattern):
@@ -258,14 +294,16 @@ def main(argv=None):
     parser.add_argument("--report", help="also write the report to this file")
     parser.add_argument("--failed", help="write the failed rows to this JSON file")
     parser.add_argument("--warned", help="write the rows that ended as WARN to this JSON file (D44)")
+    parser.add_argument("--logs", help="a directory of JMH run logs (*.log): a <failure> in one is a harness error")
     parser.add_argument("--rerun", nargs=2, metavar=("BASELINE2", "CANDIDATE2"),
                         help="judge the failed rows again on these re-run results")
     args = parser.parse_args(argv)
     try:
         rerun = (load(args.rerun[0]), load(args.rerun[1])) if args.rerun else None
-        warned = []
+        warned, harness = [], []
+        logs = failures(args.logs) if args.logs else []
         lines, failed, keys = compare(load(args.baseline), load(args.candidate), args.smoke, args.zero_alloc,
-                                      args.startup, rerun, warned)
+                                      args.startup, rerun, warned, harness, logs)
     except (OSError, ValueError, KeyError) as problem:
         print(f"compare: {problem}", file=sys.stderr)
         return 2
@@ -280,6 +318,10 @@ def main(argv=None):
     if args.report:
         with open(args.report, "w", encoding="utf-8") as file:
             file.write(report)
+    if harness or logs:
+        print(f"compare: {HARNESS}: {len(harness)} rows missing, {len(logs)} JMH failures in the logs; not a result",
+              file=sys.stderr)
+        return 4
     return 1 if failed else 0
 
 

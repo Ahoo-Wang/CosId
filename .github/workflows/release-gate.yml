@@ -143,7 +143,8 @@ jobs:
           status=0
           benchmark/run-release "${args[@]}" ${{ matrix.scenarios }} || status=$?
           cat "build/release-gate/${{ matrix.group }}/report.md" >> "$GITHUB_STEP_SUMMARY" || true
-          # The verdict is the report job's: a FAIL row is a result, not a broken job.
+          # The verdict is the report job's: a FAIL row is a result, not a broken job. A harness error (4: a side without
+          # its rows, a JMH <failure>) is a broken job, and fails it.
           [ "$status" -le 1 ]
 
       - name: Upload the results

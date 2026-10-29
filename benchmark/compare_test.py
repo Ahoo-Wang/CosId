@@ -12,9 +12,13 @@
 #
 """Tests of benchmark/compare: python3 -I benchmark/compare_test.py"""
 
+import contextlib
 import importlib.machinery
 import importlib.util
+import io
+import json
 import os
+import tempfile
 import unittest
 
 _path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "compare")
@@ -100,8 +104,35 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(0, self.failed(row(name, alloc=0.0), row(name, alloc=0.001)))
         self.assertEqual(1, self.failed(row(name, alloc=8.0), row(name, alloc=8.0)))
 
-    def test_a_missing_candidate_row_fails(self):
-        self.assertEqual(1, self.failed(row("P.a"), row("P.b")))
+    # A side that produced no row is a broken harness, not a regression: neither judged nor re-run.
+    def test_a_missing_candidate_row_is_a_harness_error_not_a_failed_row(self):
+        harness = []
+        lines, failed, keys = compare.compare(row("P.a"), row("P.b"), harness=harness)
+        self.assertEqual((0, []), (failed, keys))
+        self.assertEqual([("P.a", "thrpt", 1, "")], harness)
+        self.assertIn("**HARNESS ERROR**: 0 of 1 baseline rows failed, 1 missing, 0 JMH failures in the logs.", lines)
+
+    def test_a_jmh_failure_in_a_log_is_a_harness_error_with_its_exception(self):
+        with tempfile.TemporaryDirectory() as logs:
+            with open(os.path.join(logs, "v5-RedisChainIdBenchmark.log"), "w") as file:
+                file.write("# Benchmark: me.ahoo.cosid.benchmark.RedisChainIdBenchmark.generate\n\n<failure>\n\n"
+                           "me.ahoo.cosid.CosIdException: Invalid RuntimeSpec of namespace [bench]:\n"
+                           "  - store [store]: no StoreProvider of type [redis]\n\tat V5.storeRuntime(V5.java:126)\n")
+            with open(os.path.join(logs, "v5-RedisChainIdBenchmark.json"), "w") as file:
+                file.write("[]")
+            found = compare.failures(logs)
+            self.assertEqual(1, len(found))
+            self.assertEqual("v5-RedisChainIdBenchmark.log", found[0][0])
+            self.assertEqual("  - store [store]: no StoreProvider of type [redis]", found[0][1][1])
+            base = row("RedisChainIdBenchmark.generate")
+            lines = compare.compare(base, base, logs=found)[0]
+            self.assertIn("## HARNESS ERROR: not a result", lines)
+            self.assertIn("me.ahoo.cosid.CosIdException: Invalid RuntimeSpec of namespace [bench]:", lines)
+            with open(os.path.join(logs, "base.json"), "w") as file:
+                json.dump(list(base.values()), file)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(4, compare.main([os.path.join(logs, "base.json"), os.path.join(logs, "base.json"), "--logs", logs]))
+                self.assertEqual(0, compare.main([os.path.join(logs, "base.json"), os.path.join(logs, "base.json")]))
 
     def test_a_failed_row_passes_only_if_its_rerun_passes(self):
         base, slow = row("P.a", score=100, error=0), row("P.a", score=80)
@@ -110,8 +141,10 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(0, failed)
         self.assertIn("## Re-run of the failed rows", lines)
         self.assertEqual(1, compare.compare(base, slow, rerun=(base, slow))[1])
-        # A row the re-run did not produce fails.
-        self.assertEqual(1, compare.compare(base, slow, rerun=({}, {}))[1])
+        # A row the re-run did not produce is a harness error.
+        harness = []
+        self.assertEqual(0, compare.compare(base, slow, rerun=({}, {}), harness=harness)[1])
+        self.assertEqual([("P.a", "thrpt", 1, "")], harness)
 
     def test_failed_rows_are_listed_for_a_rerun(self):
         base = row("P.a", score=100, error=0)
@@ -197,7 +230,9 @@ class CompareTest(unittest.TestCase):
                     self.assertIn(name[:-len(".java")], compare.SCENARIOS, f"{side}/{name}")
 
     def test_rows_match_by_threads(self):
-        self.assertEqual(1, self.failed(row("P.a", threads=4), row("P.a", threads=1)))
+        harness = []
+        compare.compare(row("P.a", threads=4), row("P.a", threads=1), harness=harness)
+        self.assertEqual([("P.a", "thrpt", 4, "")], harness)
 
 
 if __name__ == "__main__":

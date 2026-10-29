@@ -21,7 +21,8 @@
 # SegmentBenchmark; the default is the PR smoke set P1 P3 P5 P9. --release uses the release-gate JMH settings and
 # release compare rules instead of the smoke ones. --max-load aborts (status 3) when the 1-minute load average is above
 # N before a scenario. Results land in DIR (default build/benchmark-smoke): the JSON of each side, the run logs,
-# load.tsv and report.md. Exits with the status of compare (0 PASS, 1 FAIL, 2 bad input).
+# load.tsv and report.md. Exits with the status of compare (0 PASS, 1 FAIL, 2 bad input, 4 harness error: a side
+# without its rows or a JMH <failure> in a log, which is no result).
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -76,7 +77,7 @@ for scenario in "${scenarios[@]}"; do
 done
 
 cd "$root"
-./gradlew -q :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
+./gradlew -q :benchmark:baseline-4x:checkJmhJar :benchmark:v5:checkJmhJar
 java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
 mkdir -p "$out"
 rm -f "$out"/*.json "$out"/*.log "$out"/report.md "$out"/load.tsv
@@ -101,7 +102,7 @@ run() {
         echo "run-smoke: another JMH run holds the lock; waiting" >&2
         sleep 30
     done
-    # A failing scenario (such as a 5.x skeleton) leaves its rows out: compare reports them missing.
+    # A failing scenario leaves its rows out: compare reports a harness error, with the exception from this log.
     echo "run-smoke: $side $class failed, see $log" >&2
     [[ -s "$out/$side-$class.json" ]] || echo "[]" >"$out/$side-$class.json"
 }
@@ -127,6 +128,7 @@ merge baseline-4x
 merge v5
 
 status=0
-"$root/benchmark/compare" "$out/baseline-4x.all.json" "$out/v5.all.json" "${compare_args[@]}" --report "$out/report.md" || status=$?
+"$root/benchmark/compare" "$out/baseline-4x.all.json" "$out/v5.all.json" "${compare_args[@]}" --logs "$out" \
+    --report "$out/report.md" || status=$?
 echo "run-smoke: report in $out/report.md" >&2
 exit "$status"

@@ -20,7 +20,8 @@ public class LineItem extends BaseEntity { }
 ```
 
 - Field types: `long` / `Long`, `int` / `Integer` (range checked, `IdOverflowException`), and `String` (through the
-  generator's codec; `cosid80` through its `PartsCodec`, `periodic-segment` through its `GroupedCodec`).
+  generator's codec; `cosid80` through its `PartsCodec`, `periodic-segment` through its `GroupedCodec`, `uuidv7` as the
+  canonical UUID text; a `uuidv7` generator fills `String` fields only).
 - **A field is filled only when unset**: `≤ 0`, `null`, or an empty string.
 - Getters and setters are used when present, the field otherwise. Superclasses are searched, and generic field types are
   resolved. A class has at most one id.

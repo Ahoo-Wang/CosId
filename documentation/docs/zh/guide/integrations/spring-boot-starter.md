@@ -63,7 +63,7 @@ cosid:
 | Bean | 类型 |
 |---|---|
 | `cosIdRuntime` | `CosIdRuntime`，随上下文关闭 |
-| 每个生成器一个，**以生成器名命名** | `IdGenerator`（`snowflake`、`segment`；`default` 为 `@Primary`）、`PartsIdGenerator`（`cosid80`）、`GroupedIdGenerator`（`periodic-segment`） |
+| 每个生成器一个，**以生成器名命名** | `IdGenerator`（`snowflake`、`segment`、`custom`；`default` 为 `@Primary`）、`PartsIdGenerator`（`cosid80`）、`GroupedIdGenerator`（`periodic-segment`）、`UuidV7Generator`（`uuidv7`，具体类） |
 | `IdFiller` | `runtime.filler()` |
 
 ```java

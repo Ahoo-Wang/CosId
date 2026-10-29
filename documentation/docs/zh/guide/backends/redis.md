@@ -17,6 +17,18 @@
 **若对唯一性要求严格，优先选择 [JDBC](jdbc.md) 或 [ZooKeeper](zookeeper.md)。**
 :::
 
+## 驱动版本 {#driver}
+
+`cosid-store-redis` 基于 **Lettuce 7.9.0** 构建与测试，它带来 Netty 4.2.17；Spring Boot 4.1.2 管理的是 Lettuce 7.5.2。应用实际拿到哪个版本取决于构建方式。
+在 Spring Boot 4.1.2 上（CI job `published-jars`，[run 40881059003](https://github.com/Ahoo-Wang/CosId/actions/runs/40881059003)）：
+
+| 构建 | Lettuce | |
+|---|---|---|
+| Maven，`spring-boot-starter-parent` 或导入 BOM | 7.5.2 | BOM 的版本优先；Netty 为 BOM 的 4.2.19 |
+| Gradle，`platform("org.springframework.boot:spring-boot-dependencies")` | 7.9.0 | 取较高的版本 |
+
+两种情况下存储都能运行。Maven 应用要用 Lettuce 7.9.0，请设置 `<lettuce.version>7.9.0.RELEASE</lettuce.version>`。
+
 ## 配置
 
 ```yaml

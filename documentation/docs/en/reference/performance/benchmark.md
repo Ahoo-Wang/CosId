@@ -38,8 +38,9 @@ throughput and average time, 10% for p99 / p99.9, and the larger of 5% and +64 B
 again in fresh forks, and only a failed re-run counts as a regression. The store scenarios (P7, P10) run each side
 twice in ABBA order (4.x, 5.x, 5.x, 4.x), so that neither side always runs right after the other on the store. The gate is end-to-end ID generation (D44): a
 row of a component (P9 codecs, P10 store primitives) that misses these limits only warns, up to 20% for throughput and
-average time, 30% for p99 / p99.9 and the larger of 25% and +64 B for allocation, and fails beyond them. Release numbers come only from a fixed, quiet physical machine. Numbers from a
-shared machine or another time are noise.
+average time, 30% for p99 / p99.9 and the larger of 25% and +64 B for allocation, and fails beyond them. The gate runs
+on GitHub's shared runners (D31): both sides of a scenario run on the same runner, interleaved, and are judged against
+each other with these tolerances, never against numbers from another runner or another run, which are noise.
 
 Run it yourself:
 
@@ -51,13 +52,22 @@ benchmark/compare BASELINE.json CANDIDATE.json
 
 ## 5.0 results
 
-<!-- R5-A fills this section with the 5.0 release-gate report: machine, JDK, the compare table per scenario, and a
-     link to docs/jmh/5.0.0/. -->
+<!-- R2-perf-01: the summary of the gate on the GA commit, committed to docs/jmh/5.0.0/, goes here. -->
 
-::: info Pending
-The 5.0 release-gate report is produced by the release benchmarks (R5-A) on a dedicated machine. Its results will be
-committed to [`docs/jmh/`](https://github.com/Ahoo-Wang/CosId/tree/main/docs/jmh) (`docs/jmh/<version>/`, with the
-machine and the JDK) and summarized here.
+The gate passed on the release candidate: the seventh run against 4.1.1
+([run 40832851823](https://github.com/Ahoo-Wang/CosId/actions/runs/40832851823)), 8 of 8 groups, with 3 component rows
+warning (D44). End to end, the segment chains at one thread, step 10, issue 4.x → 5.0:
+
+| Store | 4.1.1 (ops/µs) | 5.0 (ops/µs) |
+|---|---|---|
+| MongoDB | 1.75 | 392 |
+| MySQL | 0.47 | 209 |
+| Redis | 0.86 | 211 |
+| ZooKeeper | 0.28 | 405 |
+
+::: info GA
+The gate runs again on the GA commit; its summary (`report.md`, and the 4.1.1 side as `baseline-4x.md`) is committed to
+[`docs/jmh/`](https://github.com/Ahoo-Wang/CosId/tree/main/docs/jmh) (`docs/jmh/5.0.0/`) and summarized here.
 :::
 
 ## Historical results

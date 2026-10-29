@@ -146,7 +146,8 @@ CosIdGenerator 的键按下表对应（`config` 会写出）：
 | `pad-start`（true，只作用于 friendly 文本） | `codec[0].friendly.pad-start`（true） |
 | `namespace` | `machine: generator` + `cosid.machines.generator.namespace`（见[下文](#共享的-cosidgenerator-命名空间)） |
 
-其他键：`cosid.metrics.generated.enabled` 沿用 4.x 的名字。健康检查名为 `cosid`（`/actuator/health/cosid`，开关
+其他键：`cosid.metrics.generated.enabled` 沿用 4.x 的名字。4.x 全部指标的总开关 `cosid.metrics.enabled` 没有对应键：
+用 Spring Boot 的指标过滤关闭 `cosid.*` 指标，即 `management.metrics.enable.cosid=false`。健康检查名为 `cosid`（`/actuator/health/cosid`，开关
 `management.health.cosid.enabled`）。5.0 不认识的 `cosid.*` 键会导致启动失败。
 
 ### 6. 启动 5.0
@@ -364,6 +365,10 @@ public class Ids implements SmartInitializingSingleton, DisposableBean {
 | `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>`（`GeneratorSpec.Custom`），或在 `RuntimeSpecCustomizer` 中用 `GeneratorSpec.Instance` |
 | `MachineIdDistributor` 系列、guarder、`~/.cosid-machine-state` | `cosid.machine.leased` / `static`（见[槽位租约](../concepts/slot-lease.md)） |
 | `IntegerIdGenerator`、`UncertaintyIdGenerator`、`LazyIdGenerator` | `IdGenerators.toInt`、`.uncertain`、`.lazy` |
+| `IdGenerator.generateAsString()`、`idConverter()` | `runtime.stringGenerator(name)`、`runtime.text(name)`、`runtime.get(name, IdCodec.class)`。**默认文本变了**：4.x 默认用 radix 62 转换并补零到 11 位；5.0 不写 codec 的 spec 是十进制。Spring 用户经 `config` 会得到显式的 radix 62 codec；在代码里要保持 4.x 的文本，请写 `codec: [ { radix: { radix: 62, width: 11, pad-start: true } } ]` / `CodecSpec.Radix(62, 11, true)` |
+| `me.ahoo.cosid.annotation` 的 `@CosId` | `me.ahoo.cosid.accessor` 的 `@CosId` |
+| `CosIdEventListener` | `GeneratorListener`（`RuntimeOptions.listener`） |
+| `Stat`、`Statistical` | `CosIdRuntime.describe()`（`GeneratorInfo`） |
 | `UuidGenerator`（随机的 UUIDv4） | `IdGenerators.uuid()`；需要按时间有序的 UUID 时用 `strategy: uuidv7`（[生成器](../../reference/config/generators.md#uuidv7)） |
 | `CosIdStoreProvider` | `StoreProvider` |
 | `Customize*Properties` | `RuntimeSpecCustomizer` |

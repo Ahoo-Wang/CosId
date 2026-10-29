@@ -23,11 +23,18 @@ public final class RemoteApi {
     public static final String RESERVE = "/ranges:reserve";
     /** {@code POST {key}} → 204; 501 when the backing store cannot seal. */
     public static final String SEAL = "/ranges:seal";
-    /** {@code POST {namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}} → the lease; exhausted: 409. */
+    /**
+     * {@code POST {namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, slotOffset?, preferredSlot?}} → the lease
+     * and {@code reason}, {@code duplicateOwnerKey}; exhausted: 409. {@code slotOffset} (0 by default) is recorded with
+     * the namespace.
+     */
     public static final String ACQUIRE = "/slots:acquire";
-    /** {@code POST {namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}} → the lease; lost: 409. */
+    /**
+     * {@code POST {namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, ttlMs,
+     * toleranceMs}} → the lease; lost: 409. The window fields are those of the lease, sent back as they were.
+     */
     public static final String RENEW = "/slots:renew";
-    /** {@code POST {namespace, slot, ownerKey, incarnation, fence, lastIssued}} → 204; lost: 409. */
+    /** {@code POST {namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, lastIssued}} → 204; lost: 409. */
     public static final String RELEASE = "/slots:release";
     /** {@code GET ?count=n} → {@code {ids: [...]}}, from the generator named {@code default}; {@code /{generator}} names another. */
     public static final String IDS = "/ids";
@@ -46,7 +53,7 @@ public final class RemoteApi {
     public static final String SLOTS_EXHAUSTED = "slots_exhausted";
     /** 409: the owner or fence of the lease no longer match (renew, release). */
     public static final String LEASE_LOST = "lease_lost";
-    /** 409: the namespace was first used with another limit or tolerance. */
+    /** 409: the namespace was first used with another limit, tolerance or slot offset. */
     public static final String NAMESPACE_MISMATCH = "namespace_mismatch";
     /** 409: the generator is disabled. */
     public static final String GENERATOR_DISABLED = "generator_disabled";

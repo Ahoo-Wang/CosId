@@ -3,8 +3,8 @@
   "plugins": [
     {
       "name": "ahoo-cosid-skills",
-      "version": "0.1.0",
-      "description": "CosId 5 skills for choosing and integrating distributed ID generators: snowflake, cosid80, segment and periodic-segment strategies, the CosIdRuntime, Spring Boot configuration, leased machine slots on JDBC/Redis/MongoDB/ZooKeeper/cosid-server, and sharding.",
+      "version": "0.2.0",
+      "description": "CosId 5 skills for choosing and integrating distributed ID generators: snowflake, cosid80, segment, periodic-segment, uuidv7 and custom strategies, the CosIdRuntime, Spring Boot configuration, leased and named machine slots on JDBC/Redis/MongoDB/ZooKeeper/cosid-server, and sharding.",
       "skills": {
         "include": [
           "*"
@@ -19,6 +19,7 @@
         "snowflake",
         "segment",
         "periodic-segment",
+        "uuidv7",
         "machine-slot",
         "sharding",
         "spring-boot",

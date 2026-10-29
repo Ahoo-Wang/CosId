@@ -37,3 +37,17 @@ The image's own defaults (`application.yaml`): `server.port: 8688`, requests on 
 (`spring.threads.virtual.enabled: true`; `SPRING_THREADS_VIRTUAL_ENABLED=false` turns it off), the health probes on with
 the backing store in the readiness group (the contributor `cosidServerStore`), and Actuator exposing `health`, `info`, `prometheus` and `cosid`. `cosid.namespace` defaults to `${spring.application.name}`
 (`cosid-server`).
+
+## From the 4.x proxy server
+
+`cosid-migration config` reports every `cosid.proxy.server.*` key as dropped; their closest 5.0 settings:
+
+| 4.x `cosid.proxy.server.*` | cosid-server |
+|---|---|
+| `namespaces` (the server serves these namespaces only) | no server-wide list: give every token as a client with its `namespaces` (`auth.clients[i]`); a token of `auth.tokens` reaches every namespace |
+| `auth.*` | `auth.tokens`, `auth.clients[i]`, `auth.public-paths`, `auth.allow-anonymous` |
+| `segment.max-step` | `limits.max-reserve` |
+| `segment.max-distributors` | `limits.max-keys-per-namespace` (per client and namespace) |
+| `min-safe-guard-duration` | `limits.min-ttl`: a lease is a time window, no guard |
+| `max-clock-skew` | `limits.max-tolerance`: skew costs availability within the lease tolerance, never uniqueness (D22) |
+| `blocking.*` | `blocking.threads`, `blocking.queue-capacity` |

@@ -19,5 +19,10 @@ package me.ahoo.cosid;
  */
 @FunctionalInterface
 public interface GroupedIdGenerator {
+    /**
+     * The next id of the current period; thread-safe, never the same id twice.
+     *
+     * @return the id
+     */
     GroupedId generate();
 }

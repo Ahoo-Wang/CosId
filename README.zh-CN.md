@@ -15,7 +15,7 @@
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
 > [!WARNING]
-> **`5.0.0-alpha.x` 是预览版，不做兼容性承诺。** API、配置、存储格式和 cosid-server HTTP 接口在 alpha 之间以及 GA 之前都可能变化，alpha 之间不提供数据迁移。不建议用于生产：生产环境请继续使用 4.x。
+> **`5.0.0-rc.x` 是候选发布版。** 从 RC1 起，Java API、`cosid.*` 配置以及存储格式与协议冻结，之后的 5.x 只做向后兼容的增量。生产环境仍建议等待 GA，在此之前请继续使用 4.x。
 
 服务的每个副本都需要生成 ID（主键、订单号、事件 ID），并且不能与其他副本的 ID 冲突。*CosId* 在应用进程内生成这样的 ID，每个 ID 都不需要网络调用，并替你完成保证唯一所需的协调。
 
@@ -27,6 +27,8 @@
 | `segment` | `long`，稠密，单实例内递增 | 需要较短的数字主键；预留规模按时间预算自适应 |
 | `periodic-segment` | 按年 / 月 / 日分期（`20261027-000042`） | 每期重新计数的业务编号 |
 | `cosid80` | 80 位文本 | 需要超过 64 位 |
+| `uuidv7` | UUIDv7（RFC 9562），按时间有序 | 需要标准 UUID，且不要 machine、存储与租约 |
+| `custom` | 自己的 `long` 生成器 | 已有自己的生成器，希望与其他生成器一样被管理 |
 
 存储：JDBC（MySQL 8.4+、MariaDB 10.11+、PostgreSQL 15+、SQL Server 2019+、H2）、Redis 7.0+、MongoDB 6.0+、ZooKeeper 3.8+ 以及 cosid-server；每个存储声明一次，可自由混用。
 
@@ -34,7 +36,7 @@
 
 | CosId | Spring Boot | Java | 分支 |
 |-------|-------------|------|------|
-| 5.x | 4.0+ | 21+ | `main` |
+| 5.x | 4.1.2+ | 21+ | `main` |
 | 4.x | 4.x | 17+ | `4.x`（维护分支，只接受缺陷修复） |
 | 3.x | 4.x | 17+ | `3.x` |
 | 2.x | 3.x | 17+ | `2.x` |

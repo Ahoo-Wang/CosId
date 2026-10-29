@@ -18,6 +18,19 @@ the keys must never be evicted: keep `maxmemory-policy noeviction` (the default)
 prefer [JDBC](jdbc.md) or [ZooKeeper](zookeeper.md).**
 :::
 
+## Driver version {#driver}
+
+`cosid-store-redis` is built and tested on **Lettuce 7.9.0**, which brings Netty 4.2.17; Spring Boot 4.1.2 manages
+Lettuce 7.5.2. Which one an application gets depends on its build. On Spring Boot 4.1.2 (CI job `published-jars`,
+[run 40881059003](https://github.com/Ahoo-Wang/CosId/actions/runs/40881059003)):
+
+| Build | Lettuce | |
+|---|---|---|
+| Maven, `spring-boot-starter-parent` or the BOM imported | 7.5.2 | the BOM's version wins; Netty is the BOM's 4.2.19 |
+| Gradle, `platform("org.springframework.boot:spring-boot-dependencies")` | 7.9.0 | the higher version wins |
+
+The store runs on both. For Lettuce 7.9.0 with Maven, set `<lettuce.version>7.9.0.RELEASE</lettuce.version>`.
+
 ## Configuration
 
 ```yaml

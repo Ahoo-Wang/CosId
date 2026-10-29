@@ -66,7 +66,7 @@ groupId 不变:`me.ahoo.cosid`。artifactId 由构建约定从目录路径生成
 |---|---|---|
 | `me.ahoo.cosid` | `IdGenerator`、`IntIdGenerator`、`StringIdGenerator`、`PartsIdGenerator`、`GroupedIdGenerator`、`IdGenerators`、`GroupedId`、`CosIdException` 及异常层次 | 是 |
 | `me.ahoo.cosid.codec` | `IdCodec`、`Radix`、`Friendly`、`DatePrefix`、`PartsCodec`、`GroupedCodec` | 是 |
-| `me.ahoo.cosid.time` | `TimeSource`、`Layout`、`IdParts`、`TimeBasedGenerator`、`ClockRegressionPolicy` | 是 |
+| `me.ahoo.cosid.time` | `TimeSource`、`Layout`、`IdParts`、`TimeBasedGenerator`、`ClockRegressionPolicy`、`UuidV7Generator`(D46) | 是 |
 | `me.ahoo.cosid.segment` | `Range`、`RangeStore`、`SegmentGenerator`、`BatchPolicy`、`Period`、`PeriodicPolicy`、`PeriodicSegmentGenerator` | 是 |
 | `me.ahoo.cosid.lease` | `SlotLeaseStore`、`SlotLease`、`Owner`、`AcquireResult`、`AcquireReason`、`SlotHandle`、`SlotBinding`、`LeaseKeeper`、`StaticSlot` | 是 |
 | `me.ahoo.cosid.store` | `StoreProvider`、`StoreConfig`、`Store`、`StoreOptions`、`StoreKeys`、`StoreTimeoutException` | 是 |

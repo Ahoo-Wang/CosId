@@ -78,9 +78,9 @@ key 与命名空间放在 JSON 请求体中，从不放在路径里。错误为 
 |---|---|---|---|
 | POST | `/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`；`410 range_sealed`；`422 range_exhausted` |
 | POST | `/ranges:seal` | `{key}` | `204`；`501 seal_unsupported` |
-| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | 租约 + `{reason, duplicateOwnerKey}`；`409 slots_exhausted {earliestExpiresAt}`；`409 namespace_mismatch` |
-| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | 租约；`409 lease_lost` |
-| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`；`409 lease_lost` |
+| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, slotOffset?, preferredSlot?}` | 租约 + `{reason, duplicateOwnerKey}`；`409 slots_exhausted {earliestExpiresAt}`；`409 namespace_mismatch`（limit、tolerance 或 slotOffset 与首次使用不同） |
+| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, ttlMs, toleranceMs}` | 租约；`409 lease_lost` |
+| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, expiresAt?, floor?, ceiling?, storeNow?, lastIssued}` | `204`；`409 lease_lost` |
 | GET | `/ids[/{generator}]?count=n` | | `{ids: [...]}`（可选） |
 | GET | `/ids[/{generator}]/strings?count=n` | | `{ids: ["..."]}`：任意策略的文本 id（可选）：`long` id 经生成器的编解码器编码，cosid80、周期号段与 uuidv7 用各自的文本 |
 | GET | `/ids/{generator}/periodic?count=n` | | `{period, values: [...]}`，全部属于同一周期（可选） |
@@ -198,6 +198,10 @@ cosid:
 ```bash
 curl -H "Authorization: Bearer $TOKEN" 'http://cosid-server:8688/ids/ticket?count=10'
 ```
+
+**JavaScript 客户端：**`/ids` 返回 JSON 数字，而 `JSON.parse` 会对大于 2^53 的整数做舍入，所以 63 位的 ID（`SNOWFLAKE_MS`
+的 ID 都是：纪元 2019 年之后约 25 天就超过了 2^53）可能变成相邻的另一个 ID：两个 ID 会成为同一个数。非 JVM 客户端请读 `/ids/{generator}/strings`（没有 codec
+时就是十进制文本），或者让该生成器使用 `JS_SAFE_*` 布局。
 
 此时服务端就是一个普通的 `CosIdRuntime`：时间型生成器同样需要 `cosid.machine`，每个服务端实例租用自己的槽位。同一服务端命名空间发出的 ID 对所有调用方都唯一，这是实现跨服务唯一的一种方式；另一种是在各服务里使用[共享的命名 machine](concepts/slot-lease.md#跨服务全局唯一)，每个 ID 不需要一次调用。
 

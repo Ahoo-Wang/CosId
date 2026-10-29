@@ -1,6 +1,6 @@
 ---
 name: cosid-strategy-guide
-description: Choose a CosId 5 ID generation strategy for Java distributed systems. Use when the user compares snowflake, cosid80, segment and periodic-segment, or asks about id representation, layouts, ordering, clock sensitivity, JavaScript safety, which store (JDBC, Redis, MongoDB, ZooKeeper, cosid-server) to coordinate with, gaps, throughput, or production tradeoffs. Do not use for implementation-only requests after the strategy is fixed; use cosid-spring-boot or cosid-manual-integration instead.
+description: Choose a CosId 5 ID generation strategy for Java distributed systems. Use when the user compares snowflake, cosid80, segment, periodic-segment, uuidv7 and custom, or asks about id representation, layouts, ordering, clock sensitivity, JavaScript safety, which store (JDBC, Redis, MongoDB, ZooKeeper, cosid-server) to coordinate with, gaps, throughput, or production tradeoffs. Do not use for implementation-only requests after the strategy is fixed; use cosid-spring-boot or cosid-manual-integration instead.
 ---
 
 # Choose a CosId Strategy
@@ -26,8 +26,14 @@ Recommend one strategy from explicit requirements. Do not default to the largest
 | `cosid80` | 80-bit text (`PartsCodec`) | like snowflake | the same slot | text only, no `long` |
 | `segment` | `long`, text through a codec | strictly increasing per instance; trend-ordered across instances | one atomic `reserve` per range | gaps on restart; callers wait (≤ `reserve-timeout`) when the store is down and the ids at hand run out |
 | `periodic-segment` | `GroupedId(period, value)`, text through `GroupedCodec` | increasing within a period per instance | one key per period | the zone must be explicit; past periods may be sealed |
+| `uuidv7` | UUIDv7 (RFC 9562): `UUID` or canonical text, no `long` | strictly increasing per instance; by millisecond across instances | none: a random counter start and 58 random bits | 128-bit text keys; unique by probability, not by construction; not secret |
+| `custom` | your own `long` generator, served like the others | yours | yours | the runtime neither closes nor renews it |
 
-Every runtime has one slot shared by all its time-based generators (D18). Segments need no slot.
+By default a runtime has one slot, shared by all its time-based generators (D18). A generator may choose a **named
+machine** instead (`cosid.machines.<name>`, `machine: <name>`, D37): a slot in a namespace of its own, such as one
+shared by several services so that their ids stay apart (the 4.x `cosid.generator.namespace`, or a snowflake's own
+`namespace`). `slot-offset` moves its nodes above the 4.x machine ids during a rolling migration. Segments and
+`uuidv7` need no slot.
 
 ## Recommendation Rules
 
@@ -37,6 +43,9 @@ Every runtime has one slot shared by all its time-based generators (D18). Segmen
   budget (`lookahead`, default 1s), so there is no step tuning in most cases.
 - `periodic-segment` for numbers that restart every year, month or day (`20261027-000042`).
 - `cosid80` only when more than 64 bits are needed.
+- `uuidv7` for standard, time-ordered UUIDs with no machine, store nor lease (D46); it is not a `long`, and its ids
+  are no secret.
+- `custom` (`ref: <bean>`) to keep a generator of your own and have the runtime serve it (beans, `@CosId`, `describe()`).
 - JavaScript: return ids as strings by default (Jackson `@AsString` in `cosid-jackson`). Use `layout: JS_SAFE_MS` (53
   bits, 3 node bits: at most 8 slots) only when a numeric JS-safe value is required.
 - Store: reuse what the system already runs. JDBC or ZooKeeper where uniqueness must survive any failover. Redis only

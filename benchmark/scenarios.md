@@ -118,6 +118,24 @@ noise, so it fails only when a group produced no result.
 `benchmark/run-release --dry-run CodecBenchmark` checks the script locally in a minute or two, likewise never a
 result.
 
+### Paths the gate does not measure (R2-perf-02, R2-bench-02)
+
+D21 covers the scenarios above. These published paths are in none of them, and nothing here is evidence of a
+regression on them:
+
+| Path | Why not in the gate |
+|---|---|
+| cosid-server `/ids/**` | the 4.x proxy had no id endpoint to compare with; a 5.x trend row would only report |
+| `cosid-store-remote` with cosid-server (`/ranges:reserve`, `/slots:*`) | it has a 4.x counterpart (the proxy's segment and lease endpoints) but no scenario yet: a P7 / P10 remote group would be one, as a trend first |
+| Jackson `@AsString`, MyBatis and Spring Data JDBC filling | P12 measures `IdFiller.fill` itself; the integrations add the library's own work around it |
+| counting (`cosid.metrics.generated.enabled: true`) | one `LongAdder.increment` per id on the views of the runtime; off in every scenario |
+| a Micrometer listener | P5, P7 run with the runtime's default listener; the Micrometer one records on range switches and lease changes only, never per id |
+| the text of periodic segments | P8 measures `GroupedId`s; the `GroupedCodec` is P9's kind of work |
+| `IdGenerators.uuid()` | `UUID.randomUUID().toString()`, the same code as the 4.x `UuidGenerator` |
+
+P1–P4 build the `TimeBasedGenerator` themselves rather than through `CosIdRuntime`; without counting the runtime hands
+out that same object, so they measure the production path. P8 goes through the runtime (R2-bench-01).
+
 ### P7 / P10 on JDBC (R2-JDBC)
 
 `MySqlChainIdBenchmark` (P7: `generate_t1/t4/t16`, `@Param step` = 10, 100; thrpt, sample) and `MySqlStoreBenchmark`

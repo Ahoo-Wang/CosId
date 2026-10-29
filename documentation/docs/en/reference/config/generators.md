@@ -8,13 +8,15 @@ key `namespace/name[/period]` is at most 255 characters. Other names fail the st
 A name may contain a dot, such as `eshop-ordering.order` (one generator per aggregate). In Spring configuration it goes
 in brackets, or the dot splits it: YAML `cosid.generators."[eshop-ordering.order]"`, properties
 `cosid.generators[eshop-ordering.order].strategy=segment`. Without the brackets the start fails on the unknown keys,
-and the message shows the bracketed form.
+and the message shows the bracketed form. Environment variables and system properties cannot write brackets (and are
+not checked for unknown keys): a dotted name comes from a configuration file or the command line
+(`--cosid.generators[eshop-ordering.order].strategy=segment`), not from `COSID_GENERATORS_...` variables.
 
 ## All strategies
 
 | Property | Default | Meaning |
 |---|---|---|
-| `strategy` | | `snowflake`, `cosid80`, `segment`, `periodic-segment` or `custom` |
+| `strategy` | | `snowflake`, `cosid80`, `segment`, `periodic-segment`, `custom` or `uuidv7` |
 | `disabled` | `false` | declared but not created; its bean throws `GeneratorDisabledException` (D24) |
 | `codec` | `[]` (decimal) | the codec list, applied in order (below) |
 
@@ -80,7 +82,9 @@ cosid:
 
 It needs **no machine, store nor lease**: an application whose generators are all `uuidv7` starts
 without any `cosid.machine.*` or `cosid.stores.*`. It has no properties of its own. `machine` fails the start, as do
-the keys of the other strategies (`layout`, `epoch`, `time-bits`, `store`, `period`, `codec`, …).
+the keys of the other strategies that have no default (`layout`, `epoch`, `time-bits`, `store`, `period`, `codec`, …);
+keys with a default (`step`, `initial-offset`, `lookahead`, `reserve-timeout`, `prewarm`, `regression.*`) cannot be
+told from their default and are ignored.
 
 - **Unique without coordination**: the ids of one instance never collide (its counter separates them), and two ids of
   different instances collide only with the same millisecond, the same counter value and the same 58 random bits. Each

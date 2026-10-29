@@ -375,6 +375,14 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
         - Redis/Mongo 页写明驱动版本(Maven 经 Boot BOM 得到 Lettuce 7.5.2 和 Netty 4.2.19);
         - 新增 GA release notes 草稿 `docs/release/5.0.0.md`;AGENTS.md 中 starter 一行已修正。
       - **第 2 轮修复全部完成(#1415、#1416、#1418、#1419)。**
+      - ✅ **`v5.0.0` GA 已发布**(2026-10-30,正式 release,标记为 latest;目标 `a559b3c6` = #1420):
+        - 发布物代码与门禁所测的 `be35de36` 相同(之后只改了 `server/README.md`);门禁按 D50 判定 8/8,另有 1 个经用户裁定的例外，报告存于 `docs/jmh/5.0.0/`;
+        - Packages Deploy、Docker Image Deploy、Documentation Build and Deploy 全部成功;
+        - Central 在 23:44 UTC 已可解析(core、bom、starter、autoconfigure、jdbc/redis/mongo/zookeeper/remote);starter 的 POM 含 `spring-boot-starter` 依赖;
+        - Docker Hub 有 `5.0.0`、`5.0`、`latest`,`latest` 与 `5.0.0` 是同一 digest(`sha256:7b207c8125bb…`);
+        - release 附件中有 `cosid-migration.jar`;
+        - main 已改为 `5.0.1-SNAPSHOT`(#1423 `f2d97d4d`);
+        - 下游 Wow 由用户自行通知。
       - **用户 2026-10-29 授权发布 GA**("授权你发布 GA")。前提按 D35:GA 候选提交上的正式门禁 PASS。门禁不通过就不发，先向用户汇报。
         - 发布步骤：
           1. 发布 PR(版本号 `5.0.0`、release notes 定稿、门禁报告存入 `docs/jmh/5.0.0/`、站点和 README 去掉 RC 提示);

@@ -579,12 +579,13 @@ jobs:
   # R4-A: store/remote through a real cosid-server, started in process: the store TCK on InMemoryStore, H2 (JDBC) and
   # the Redis service below (08-remote.md); checkContractsRan fails the job when a contract case was skipped. Then the
   # Docker image is built and smoke tested on the same Redis: health public, 401 without the token, a reserve with it.
+  # The image runs on JDK 25 (D48), so the server tests run once more on 25, the Redis contracts included.
   server:
     name: Server (remote TCK, image)
     needs: changes
     if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       redis:
         image: redis:8.10-alpine
@@ -596,8 +597,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up the build
+      - name: Set up the build (JDK 25 and 21)
         uses: ./.github/actions/setup-build
+        with:
+          java-version: |
+            25
+            21
 
       - name: Remote TCK
         run: scripts/gradle-retry.sh :store:remote:check :server:check
@@ -609,11 +614,23 @@ jobs:
             grep -q 'skipped="0"' "$report" || { head -c 2000 "$report"; echo "::error::$report skipped its cases"; exit 1; }
           done
 
+      - name: Server tests on Java 25, the image's runtime
+        run: scripts/gradle-retry.sh -PtestJavaVersion=25 :server:test
+
+      - name: Check the Redis contracts ran on Java 25
+        run: |
+          ls server/build/test-results/test/
+          for report in server/build/test-results/test/TEST-*RemoteRedis*.xml; do
+            grep -q 'skipped="0"' "$report" || { head -c 2000 "$report"; echo "::error::$report skipped its cases"; exit 1; }
+          done
+
       - name: Build the image
         run: ./gradlew :server:dockerImage
 
       - name: Smoke test the image
         run: |
+          docker run --rm --entrypoint java "ahoowang/cosid-server:$(grep '^version=' gradle.properties | cut -d= -f2)" -version 2>&1 \
+            | tee /dev/stderr | grep -q 'version "25'
           docker run -d --name cosid-server --network host \
             -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://localhost:6379 \
             -e COSID_SERVER_AUTH_TOKENS_0=smoke-token-0123456789 "ahoowang/cosid-server:$(grep '^version=' gradle.properties | cut -d= -f2)"

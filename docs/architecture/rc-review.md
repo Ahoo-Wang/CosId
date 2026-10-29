@@ -210,6 +210,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
        - 4 个组件行 WARN:Mongo reserve/renew sample、MySQL renew p99.9 +15%、ZK renew sample。
        - **唯一 FAIL**:组件行 `MySqlStoreBenchmark.reserve_t1` 的 sample p99.9。首次 29.0→79.0 ms,重跑 61.9→83.9 ms(+35.6%,超过 30% 软上限)。同一行的 avgt(784→720 µs)、p99(3.2 ms 持平)和分配(8.7 KB 持平)全部通过。
        - 4.x 自己在两次运行之间的 p99.9 就从 29 ms 变到 62 ms,这个指标的噪声大于容差。第三次运行时同一行 p99.9 还在 4.2/4.4 ms(runner 不同)。
+       - 另有两行端到端链基准 4.x 更高，只因 4.x 误差太大才判 PASS:MySQL t16 step=10 102.0 vs 68.7,ZK t16 step=10 83.2 vs 53.6 ops/µs;同后端 4.x t4 只有 1.3/4.7,呈两极分化。v5 多线程上限约 43–71 ops/µs,与内存 P5 t16 的 42 一致，疑为号段游标的单点 CAS 竞争。并入 P5 调查：判断是否值得在 GA 前优化高并发热路径，以及对单调性和空洞的代价。
        - 处理：交给子会话做 P5,判断这个尾延迟是不是结构性的(P3 改为先 update、1690 回退、连接或提交路径)。若不是结构性的，作为数据完整的例外交用户裁定(RC1 准入允许"每个例外有数据并经用户裁定")。✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
   6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
   7. **依赖与 MINOR**(进行中;MINOR 分诊 ✅ [#1395](https://github.com/Ahoo-Wang/CosId/pull/1395) `feb0edd5`,ga-review §9:75 条中已修 32、本次修 25(stores 9 / core-javadoc+spring-config 8 / docs+migration 8,分 3 个 PR 串行:✅ stores [#1396](https://github.com/Ahoo-Wang/CosId/pull/1396) `520b1426`;✅ core-javadoc+spring-config [#1397](https://github.com/Ahoo-Wang/CosId/pull/1397) `5b0eb1d3`(含 readiness 改名 `cosidServerStore`,修复 Boot 4.0 下 `- friendly: {}` 的绑定问题);✅ docs+migration [#1399](https://github.com/Ahoo-Wang/CosId/pull/1399) `926a4b2b`。**RC 前的 25 条全部完成**)、GA 后 16、不修 2。协调会话对 §9.4 待定 3 项的决定见 §4.3 第 14 项):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml` → ✅ [#1384](https://github.com/Ahoo-Wang/CosId/pull/1384) `b2e40694`(pnpm overrides:vite 6.4.5、esbuild 0.25.12、source-map-js 1.2.2、vue 3.5.44;73 页渲染与 main 对比一致);剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
@@ -327,6 +328,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
     4. 4.x 基线的依赖不动。
     alpha.2 等 WP-deps 合入后再发，原因是不想发布一个带已知 critical 的 server 镜像。
     ✅ WP-deps [#1401](https://github.com/Ahoo-Wang/CosId/pull/1401) `3a76f1de`:Lettuce 7.9.0(Netty 4.2.17),store-zookeeper 显式声明 ZooKeeper 3.9.5 和 Guava 33.7.2,支持的 Boot 下限 4.0.9,依赖图只提交发布物。剩余 1 条(MyBatis 3.4.2,来自 Activiti 7.0),写进文档。
+    → 合入后在 main 上提交依赖图，告警从 55 条降到 **1 条**(mybatis 3.4.2,来自 Activiti 7.0),与预期一致。
     → 按 D45 先做依赖全面升级 PR,再发布 alpha.2。
 - [x] GA 前审查第 1 轮完成,BLOCKER/MAJOR 已修复或经用户裁定(2026-10-29:BLOCKER 1、MAJOR 19 已修;RC 前要修的 25 条 MINOR 已修，#1396/#1397/#1399)(见 §6;涉及 API、配置、存储格式的改动必须在 RC 冻结前完成)
 

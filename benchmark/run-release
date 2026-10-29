@@ -69,7 +69,7 @@ if ! python3 -I - "${scenarios[@]}" <<'PY'
 import os, re, socket, sys
 need = set()
 for scenario in sys.argv[1:]:
-    need |= {"P7": {"MySQL", "Redis"}, "P10": {"MySQL", "Redis", "MongoDB", "ZooKeeper"}}.get(scenario, set())
+    need |= {"P7": {"MySQL", "Redis", "MongoDB", "ZooKeeper"}, "P10": {"MySQL", "Redis", "MongoDB", "ZooKeeper"}}.get(scenario, set())
     need |= {store for prefix, store in (("MySql", "MySQL"), ("Redis", "Redis"), ("Mongo", "MongoDB"), ("Zookeeper", "ZooKeeper"))
              if scenario.startswith(prefix)}
 zookeeper = os.environ.get("COSID_BENCH_ZOOKEEPER_CONNECT")
@@ -166,7 +166,7 @@ if ((status == 3)); then
 fi
 
 # A row that failed runs again, 4.x then 5.x in fresh forks; compare --rerun judges it on that run alone.
-rm -f "$work"/rerun-* "$work"/failed*.json
+rm -f "$work"/rerun-* "$work"/failed*.json "$work"/warned*.json
 "$root/benchmark/compare" "$work/baseline-4x.all.json" "$work/v5.all.json" ${compare_args[@]+"${compare_args[@]}"} \
     --failed "$work/failed.json" >/dev/null || true
 # COSID_RELEASE_RERUN_ALL=true re-runs every row (the CI check of this script exercises the re-run path with it); only
@@ -202,7 +202,7 @@ for row in json.load(open(sys.argv[1])):
 fi
 status=0
 "$root/benchmark/compare" "$work/baseline-4x.all.json" "$work/v5.all.json" ${compare_args[@]+"${compare_args[@]}"} \
-    --report "$work/report.md" --failed "$work/failed-final.json" >/dev/null || status=$?
+    --report "$work/report.md" --failed "$work/failed-final.json" --warned "$work/warned-final.json" >/dev/null || status=$?
 
 # The published files: the results with local paths shortened, the machine, the verdict, and the report.
 python3 -I - "$work" "$out" "$root" "$HOME" "$dry_run" "${scenarios[*]}" "$status" <<'PY'
@@ -237,7 +237,7 @@ with open(os.path.join(out, "machine.json"), "w") as file:
 rows = {(r["benchmark"], r["mode"], r["threads"], json.dumps(r.get("params"), sort_keys=True)) for r in load("baseline-4x.all.json")}
 with open(os.path.join(out, "verdict.json"), "w") as file:
     json.dump({"scenarios": scenarios.split(), "rows": len(rows), "failedFirstRun": load("failed.json"),
-               "failed": load("failed-final.json"), "status": int(status)}, file, indent=2)
+               "failed": load("failed-final.json"), "warned": load("warned-final.json"), "status": int(status)}, file, indent=2)
 with open(os.path.join(work, "load.tsv")) as file:
     loads = [line.rstrip("\n").split("\t") for line in file if line.strip()]
 with open(os.path.join(work, "report.md")) as file:

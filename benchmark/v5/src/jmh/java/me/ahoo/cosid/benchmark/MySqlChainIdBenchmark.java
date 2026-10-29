@@ -13,10 +13,9 @@
 
 package me.ahoo.cosid.benchmark;
 
-import me.ahoo.cosid.observe.GeneratorListener;
-import me.ahoo.cosid.segment.SegmentGenerator;
-import me.ahoo.cosid.store.jdbc.JdbcStore;
-import me.ahoo.cosid.time.TimeSource;
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.runtime.CosIdRuntime;
+import me.ahoo.cosid.runtime.StoreSpec;
 
 import com.zaxxer.hikari.HikariDataSource;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -36,7 +35,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * P7: segments on a real MySQL ({@link MySql}), 1 / 4 / 16 threads, step 10 and 100; throughput and sampled latency.
- * {@code SegmentGenerator} on the JDBC store, {@code BatchPolicy.DEFAULT} with {@code step}, a new range key per trial.
+ * End to end (D44): the generator a {@code CosIdRuntime} hands out, on the {@code jdbc} store opened from the data source
+ * (schema created, store timeout 2s), {@code BatchPolicy.DEFAULT} with {@code step}, a new range key per trial.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode({Mode.Throughput, Mode.SampleTime})
@@ -47,20 +47,21 @@ public class MySqlChainIdBenchmark {
     long step;
 
     HikariDataSource dataSource;
-    SegmentGenerator segment;
+    CosIdRuntime runtime;
+    IdGenerator segment;
 
     @Setup
     public void setup() {
         dataSource = MySql.dataSource();
-        JdbcStore store = JdbcStore.of(dataSource, Duration.ofSeconds(3));
-        store.initSchema();
-        segment = new SegmentGenerator("p7", "bench/p7-" + UUID.randomUUID(), store.ranges(), V5.batch(step), V5.EXECUTOR, TimeSource.SYSTEM,
-            GeneratorListener.NOOP);
+        String name = "p7-" + UUID.randomUUID();
+        runtime = V5.storeRuntime(name, StoreSpec.builder("jdbc").timeout(Duration.ofSeconds(2)).option("initSchema", "true").build(),
+            dataSource, step);
+        segment = runtime.generator(name);
     }
 
     @TearDown
     public void tearDown() {
-        segment.close();
+        runtime.close();
         dataSource.close();
     }
 

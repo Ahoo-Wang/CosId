@@ -77,10 +77,10 @@ jobs:
             scenarios: RedisChainIdBenchmark RedisStoreBenchmark
             store: redis
           - group: mongo
-            scenarios: MongoStoreBenchmark
+            scenarios: MongoChainIdBenchmark MongoStoreBenchmark
             store: mongo
           - group: zookeeper
-            scenarios: ZookeeperStoreBenchmark
+            scenarios: ZookeeperChainIdBenchmark ZookeeperStoreBenchmark
             store: zookeeper
     env:
       COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db

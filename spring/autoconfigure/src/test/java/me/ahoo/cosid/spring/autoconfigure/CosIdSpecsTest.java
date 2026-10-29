@@ -364,7 +364,7 @@ class CosIdSpecsTest {
         assertThat(message, containsString("cosid.namespace: must not be blank"));
         assertThat(message, containsString("cosid.stores.s.type: required"));
         assertThat(message, containsString("cosid.machine: set either leased or static, not both"));
-        assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, custom, not [uuid]"));
+        assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, custom, uuidv7, not [uuid]"));
         assertThat(message, containsString("cosid.generators.b.store: required"));
         assertThat(message, containsString("cosid.generators.c.layout: one of [JS_SAFE_MS, JS_SAFE_S, SNOWFLAKE_MS, SNOWFLAKE_S], not [SNOWFLAKE_US]"));
         assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one of radix, friendly, prefix, suffix, date-prefix, custom, period (2 set)"));

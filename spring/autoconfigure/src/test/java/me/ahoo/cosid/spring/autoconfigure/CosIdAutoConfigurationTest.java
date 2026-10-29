@@ -466,7 +466,7 @@ class CosIdAutoConfigurationTest {
             assertNotNull(failure);
             String message = root(failure).getMessage();
             assertThat(message, containsString("Invalid cosid.* configuration"));
-            assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, custom, not [uuid]"));
+            assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, custom, uuidv7, not [uuid]"));
             assertThat(message, containsString("cosid.generators.b.store: required"));
         });
     }

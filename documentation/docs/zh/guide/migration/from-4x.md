@@ -138,7 +138,7 @@ CosIdGenerator 的键按下表对应（`config` 会写出）：
 
 ### 之后：清理旧周期
 
-运行时周期号段的 key 只封存、不删除（D23）。物理删除过去的周期是一个离线步骤：
+运行时周期号段的 key 只封存、不删除（D23）。物理删除过去的周期是一个离线步骤，**必须先停止所有 5.0 实例**：store 正在使用的 key，其节点或行不得被删除。
 
 ```bash
 java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 20250101 --dry-run

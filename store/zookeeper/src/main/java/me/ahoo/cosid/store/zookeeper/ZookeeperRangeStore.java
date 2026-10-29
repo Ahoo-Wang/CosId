@@ -22,6 +22,7 @@ import me.ahoo.cosid.segment.RangeStore;
 import org.apache.curator.framework.api.CuratorEvent;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.common.PathUtils;
+import org.apache.zookeeper.data.Stat;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -100,10 +101,20 @@ final class ZookeeperRangeStore implements RangeStore {
                 callback -> zk.client().setData().withVersion(version).inBackground(callback).forPath(path, data));
             switch (Zk.code(write)) {
                 case OK -> {
-                    see(path, Zk.stat(RESERVE, path, write).getVersion(), start + size, 0);
+                    Stat stat = Zk.stat(RESERVE, path, write);
+                    if (stat.getCzxid() != last.czxid) {
+                        // ABA: the version counts from 0 again on a recreated node, which may have reached the version
+                        // seen. The write cannot be taken back; the range it wrote is never issued (as the generator's
+                        // highWater refuses a store that went back), and the key is read again next time.
+                        seen.remove(path);
+                        throw new IllegalStateException("Range node " + path + " was deleted and recreated while this store held key [" + key
+                            + "] (czxid " + Long.toHexString(last.czxid) + ", now " + Long.toHexString(stat.getCzxid()) + "): the range ["
+                            + start + ", " + (start + size) + ") written on it is not issued; a range node must not be deleted while a store uses it");
+                    }
+                    see(path, stat.getVersion(), stat.getCzxid(), start + size, 0);
                     return new Range(start, start + size);
                 }
-                case BADVERSION, NONODE -> see(path, -1, 0, CONTENDED_RESERVES);
+                case BADVERSION, NONODE -> see(path, -1, 0, 0, CONTENDED_RESERVES);
                 default -> throw Zk.unexpected(RESERVE, path, write);
             }
         }
@@ -123,8 +134,8 @@ final class ZookeeperRangeStore implements RangeStore {
                     switch (Zk.code(write)) {
                         case OK -> {
                             Seen before = seen.get(path);
-                            see(path, Zk.stat(RESERVE, path, write).getVersion(), start + size,
-                                before == null ? 0 : Math.max(0, before.contended - 1));
+                            Stat stat = Zk.stat(RESERVE, path, write);
+                            see(path, stat.getVersion(), stat.getCzxid(), start + size, before == null ? 0 : Math.max(0, before.contended - 1));
                             return new Range(start, start + size);
                         }
                         case BADVERSION, NONODE -> Zk.backoff(attempt, deadline, RESERVE, path);
@@ -152,11 +163,11 @@ final class ZookeeperRangeStore implements RangeStore {
      * Records the version and value of a key after a write, or only how many reserves read it first ({@code version}
      * -1). At most {@link #MAX_CACHED_PATHS} keys are kept.
      */
-    private void see(String path, int version, long next, int contended) {
+    private void see(String path, int version, long czxid, long next, int contended) {
         if (version < 0 && contended == 0) {
             seen.remove(path);
         } else if (seen.size() < MAX_CACHED_PATHS || seen.containsKey(path)) {
-            seen.put(path, version < 0 ? new Seen(-1, 0, contended) : new Seen(version, next, contended));
+            seen.put(path, version < 0 ? new Seen(-1, 0, 0, contended) : new Seen(version, czxid, next, contended));
         }
     }
 
@@ -164,10 +175,11 @@ final class ZookeeperRangeStore implements RangeStore {
      * The node of a key as this store last wrote it.
      *
      * @param version   its version, -1 when unknown
+     * @param czxid     the transaction that created it: a recreated node has another one, whatever its version
      * @param next      the value then
      * @param contended reserves that read the node first, after a compare-and-set on a stale value
      */
-    private record Seen(int version, long next, int contended) {
+    private record Seen(int version, long czxid, long next, int contended) {
     }
 
     private static long next(String key, long start, long size) {

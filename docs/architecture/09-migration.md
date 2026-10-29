@@ -35,7 +35,7 @@ java -jar cosid-migration.jar plan   --from <4.x 存储> --to <5.0 存储> --nam
 java -jar cosid-migration.jar apply  --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source]
 java -jar cosid-migration.jar verify --plan plan.json --result apply-result.json
 java -jar cosid-migration.jar config --input application.yaml --result apply-result.json --output application-5.yaml
-java -jar cosid-migration.jar purge  --to <5.0 存储> --namespace app --before <period>    # 运维命令:物理清理已封存的周期 key
+java -jar cosid-migration.jar purge  --to <5.0 存储> --namespace app --before <period>    # 运维命令:物理清理已封存的周期 key;必须先停止所有 5.0 实例(--confirm-stopped)
 ```
 
 - `plan`:只读。列出每个 key 的旧值、新 key、新值,每个命名空间的 W 估计值,以及布局校验结果;输出 `plan.json` 与可读报告。未识别的 key 单独列出。

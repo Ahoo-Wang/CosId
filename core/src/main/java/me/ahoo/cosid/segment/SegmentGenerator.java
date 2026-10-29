@@ -49,6 +49,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * it itself (still outside the lock) if the executor has not started it. A reservation that completes after its
  * waiters gave up still delivers its range. After a failed reservation no new one starts for a backoff that doubles
  * from 100ms up to 5s; meanwhile callers with no value left fail at once.
+ *
+ * <p>Its public constructors are the assembly entry {@code CosIdRuntime} uses (R2-core-03): they keep their signatures,
+ * and a new parameter comes only through a builder or a static factory, never as one more positional overload
+ * (api-freeze.md §4.2).
  */
 public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     static final long INITIAL_BACKOFF_MILLIS = 100;
@@ -437,6 +441,8 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
         long chained = 0;
         boolean delivered = false;
         long backoff = 0;
+        long resizedFrom = -1;
+        long resizedTo = 0;
         CompletableFuture<Void> done = null;
         switchLock.lock();
         try {
@@ -468,7 +474,11 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
                         readyValues += end - first;
                     }
                     if (current == empty) {
-                        advanceLocked(current, now);
+                        // A sample of the value a caller took alone may resize the batch (R2-core-01): fired as slowPath does.
+                        resizedFrom = advanceLocked(current, now);
+                        if (resizedFrom >= 0) {
+                            resizedTo = sizer.batch();
+                        }
                     }
                     if (takeFirst) {
                         // The value the caller takes counts for the rate estimate as part of its range.
@@ -492,6 +502,9 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
             switchLock.unlock();
         }
         Throwable outcome = null;
+        if (resizedFrom >= 0) {
+            fireResized(resizedFrom, resizedTo);
+        }
         if (delivered) {
             fireReserved(rangeStart, rangeEnd, latencyNanos);
             if (done != null) {

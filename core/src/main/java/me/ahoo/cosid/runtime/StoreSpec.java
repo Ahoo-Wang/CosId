@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.runtime;
 
+import me.ahoo.cosid.internal.Redacted;
+
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -85,7 +87,7 @@ public final class StoreSpec {
 
     @Override
     public String toString() {
-        return "StoreSpec[type=" + type + ", timeout=" + timeout + ", options=" + options + "]";
+        return "StoreSpec[type=" + type + ", timeout=" + timeout + ", options=" + Redacted.options(options) + "]";
     }
 
     /**

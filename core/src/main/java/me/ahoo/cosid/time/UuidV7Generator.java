@@ -36,6 +36,10 @@ import java.util.function.Supplier;
  *
  * <p>The random bits come from {@link ThreadLocalRandom}: the ids are unique, not unpredictable. An id is no secret:
  * never use one as a token.
+ *
+ * <p>Its public constructors are the assembly entry {@code CosIdRuntime} uses (R2-core-03): they keep their signatures,
+ * and a new parameter comes only through a builder or a static factory, never as one more positional overload
+ * (api-freeze.md §4.2).
  */
 public final class UuidV7Generator implements Supplier<String> {
     /** The bits of the counter: {@code rand_a} and the top {@link #COUNTER_LOW_BITS} bits of {@code rand_b}. */

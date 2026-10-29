@@ -168,6 +168,20 @@ class CosIdAutoConfigurationTest {
     }
 
     @Test
+    void theUuidV7BeanIsCounted() {
+        // R2-uuid-01: cosid.metrics.generated.enabled counts the ids of the bean, the runtime's one generator.
+        RUNNER.withPropertyValues("cosid.namespace=app", "cosid.metrics.generated.enabled=true", "cosid.generators.order.strategy=uuidv7")
+            .run(context -> {
+                CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+                UuidV7Generator order = context.getBean("order", UuidV7Generator.class);
+                order.generateUuid();
+                order.generate();
+                runtime.text("order").get();
+                assertEquals(java.util.OptionalLong.of(3), runtime.generated("order"));
+            });
+    }
+
+    @Test
     void aDottedGeneratorNameInBracketsInYamlIsTheGeneratorOfThatName() {
         // Wow's <context>.<aggregate>: the YAML key "[eshop-ordering.order]" keeps the dot, and the unknown-key check passes.
         String yaml = """
@@ -258,7 +272,9 @@ class CosIdAutoConfigurationTest {
             "cosid.generators.token.strategy=cosid80",
             "cosid.generators.token.disabled=true",
             "cosid.generators.bill.strategy=periodic-segment",
-            "cosid.generators.bill.disabled=true").run(context -> {
+            "cosid.generators.bill.disabled=true",
+            "cosid.generators.trace.strategy=uuidv7",
+            "cosid.generators.trace.disabled=true").run(context -> {
                 assertNull(context.getStartupFailure(), "no machine or store is needed");
                 CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
                 assertTrue(runtime.slot().isEmpty());
@@ -270,6 +286,9 @@ class CosIdAutoConfigurationTest {
                 assertThrows(GeneratorDisabledException.class, context.getBean("bill", GroupedIdGenerator.class)::generate);
                 assertEquals(PartsIdGenerator.class, context.getType("token"));
                 assertEquals(GroupedIdGenerator.class, context.getType("bill"));
+                // R2-uuid-01: the bean of a disabled uuidv7 is its concrete type too, and throws on use.
+                assertThrows(GeneratorDisabledException.class, context.getBean("trace", UuidV7Generator.class)::generateUuid);
+                assertEquals(UuidV7Generator.class, context.getType("trace"));
                 assertTrue(context.getBean(MemoryStores.class).events.isEmpty(), "the store of a disabled generator is not opened");
             });
     }

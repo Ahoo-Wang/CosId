@@ -41,6 +41,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * boundary the old period's generator is closed; its key is sealed only {@link PeriodicPolicy#sealAfter()} after the
  * period ended, on the refill executor. Periods only move forward: a generator never returns to a period it left, and a
  * sealed key fails with {@link me.ahoo.cosid.RangeSealedException} rather than being recreated (S6).
+ *
+ * <p>Its public constructors are the assembly entry {@code CosIdRuntime} uses (R2-core-03): they keep their signatures,
+ * and a new parameter comes only through a builder or a static factory, never as one more positional overload
+ * (api-freeze.md §4.2).
  */
 public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(PeriodicSegmentGenerator.class);

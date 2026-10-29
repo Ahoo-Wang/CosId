@@ -20,6 +20,10 @@ plugins {
 dependencies {
     api(project(":core"))
     api(libs.activiti.engine)
+    // R2-dep-01 (D45): Activiti 7.0.0.SR1, the latest on Maven Central, brings MyBatis 3.4.2 (GHSA-qq48-m4jx-xqh8, fixed in
+    // 3.5.6). A direct dependency, so that Maven's nearest-wins and Gradle alike resolve the patched one; the Activiti
+    // engine test runs on it. Remove once an Activiti after 7.0.0.SR1 brings MyBatis >= 3.5.6.
+    api(libs.mybatis)
     testImplementation(project(":store:tck"))
     testRuntimeOnly(libs.h2)
 }

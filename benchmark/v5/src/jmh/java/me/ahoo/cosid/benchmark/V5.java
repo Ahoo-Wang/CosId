@@ -76,6 +76,14 @@ final class V5 {
      * ({@code ObservedStores}), with the runtime's default listener (R1-core-06).
      */
     static CosIdRuntime segmentRuntime(String name, BatchPolicy policy) {
+        return memoryRuntime(name, GeneratorSpec.Segment.builder("memory").batch(policy).codec(List.of()).build());
+    }
+
+    /**
+     * A runtime with one generator {@code name} on the store {@code memory}, a {@link MemoryRangeStore}: the production
+     * path of a segment or periodic segment scenario (R1-core-06, R2-bench-01).
+     */
+    static CosIdRuntime memoryRuntime(String name, GeneratorSpec generator) {
         StoreProvider memory = new StoreProvider() {
             @Override
             public String type() {
@@ -104,7 +112,7 @@ final class V5 {
         };
         RuntimeSpec spec = RuntimeSpec.builder("bench")
             .store("memory", StoreSpec.builder("bench-memory").timeout(Duration.ofSeconds(1)).build())
-            .generator(name, GeneratorSpec.Segment.builder("memory").batch(policy).codec(List.of()).build())
+            .generator(name, generator)
             .build();
         return CosIdRuntime.start(spec, RuntimeOptions.builder().executor(EXECUTOR).storeProvider(memory).build());
     }

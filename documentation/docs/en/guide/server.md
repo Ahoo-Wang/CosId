@@ -29,7 +29,7 @@ runs as a non-root user on port 8688; `/actuator/health/liveness` answers withou
 container health check. `/actuator/health/readiness` also asks the backing store (a reserve of size 1 on the key
 `cosid-server/readiness`, at most one at a time, its result reused for 1s, `DOWN` after 2s without an answer), so a
 load balancer stops sending calls to a server whose store is down. That check is the health contributor
-`cosidServerStore` (`/actuator/health/cosidServerStore`); a readiness group of your own includes it by that name. A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`, and
+`cosidServerStore` (`/actuator/health/cosidServerStore`); a readiness group of your own includes it by that name. A JDBC backing store with `options.url` gets a HikariCP pool of `blocking.threads` + the generators + 1 connections at most (65 with the defaults and no generator), 2 idle, a connection awaited no longer than the store `timeout`, and
 the image carries the MySQL, MariaDB, PostgreSQL and SQL Server drivers.
 [`examples/server/compose.yaml`](https://github.com/Ahoo-Wang/CosId/tree/main/examples/server) runs the server on Redis
 with a client next to it. To build the image from source: `./gradlew :server:dockerImage` (or `:server:bootBuildImage`).

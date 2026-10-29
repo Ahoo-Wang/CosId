@@ -25,8 +25,8 @@ docker run -d -p 8688:8688 \
 每项设置都可以来自环境变量（`COSID_SERVER_AUTH_TOKENS_0`）或挂载的 `application.yaml`。镜像以非 root 用户在 8688 端口运行；
 `/actuator/health/liveness` 不访问存储即可应答，用作容器健康检查。`/actuator/health/readiness` 还会检查后备存储
 （在 key `cosid-server/readiness` 上预留大小为 1 的区间，同一时间最多一次，结果复用 1 秒，2 秒内无应答即为 `DOWN`），
-存储宕机时负载均衡器就不再向该实例发送调用。这项检查是健康贡献者 `cosidServerStore`（`/actuator/health/cosidServerStore`），自定义 readiness 组时按这个名字包含它。带 `options.url` 的 JDBC 后备存储会得到一个大小为
-`blocking.threads` 的 HikariCP 连接池，镜像内置 MySQL、MariaDB、PostgreSQL 与 SQL Server 驱动。
+存储宕机时负载均衡器就不再向该实例发送调用。这项检查是健康贡献者 `cosidServerStore`（`/actuator/health/cosidServerStore`），自定义 readiness 组时按这个名字包含它。带 `options.url` 的 JDBC 后备存储会得到一个 HikariCP 连接池：
+最多 `blocking.threads` + 生成器数 + 1 个连接（默认且无生成器时为 65），空闲保留 2 个，取连接最多等待存储的 `timeout`；镜像内置 MySQL、MariaDB、PostgreSQL 与 SQL Server 驱动。
 [`examples/server/compose.yaml`](https://github.com/Ahoo-Wang/CosId/tree/main/examples/server) 在 Redis 上运行服务端，并附带一个客户端。
 从源码构建镜像：`./gradlew :server:dockerImage`（或 `:server:bootBuildImage`）。
 

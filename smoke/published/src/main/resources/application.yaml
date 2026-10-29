@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: smoke
+  main:
+    web-application-type: none
+cosid:
+  namespace: smoke
+  stores:
+    redis:
+      type: redis
+      options:
+        uri: ${REDIS_URI:redis://localhost:6379}
+        wait: "off"
+    mongo:
+      type: mongo
+      options:
+        uri: ${MONGO_URI:mongodb://localhost:27017}
+  machine:
+    leased:
+      store: redis
+  generators:
+    default:
+      strategy: snowflake
+    order:
+      strategy: segment
+      store: mongo
+      step: 10

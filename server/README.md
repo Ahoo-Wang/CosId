@@ -54,7 +54,9 @@ Failures of the backing store answer a generic message; their details go to the 
 | `blocking.threads` / `queue-capacity` | `64` / `1024` | the bounded pool of the store calls |
 | `ids.enabled` | `false` | the id endpoints; the server then refuses generators named `strings` or `periodic` (path segments) |
 
-A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`. The runtime's generators on
+A JDBC backing store with `options.url` gets a HikariCP pool of at most `blocking.threads` + the generators + 1
+connections (the blocking calls, each generator's refill, the readiness check), 2 idle, and a connection awaited no
+longer than the store `timeout`. The runtime's generators on
 the backing store (the id endpoints, the `cosid` endpoint) use that same store, not a second client.
 
 A client token may use only the client paths: the store primitives and `/ids/**`, under `spring.mvc.servlet.path`.

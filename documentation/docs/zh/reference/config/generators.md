@@ -16,6 +16,9 @@ YAML 写作 `cosid.generators."[eshop-ordering.order]"`，properties 写作 `cos
 | `disabled` | `false` | 已声明但不创建；其 Bean 抛出 `GeneratorDisabledException`（D24） |
 | `codec` | `[]`（十进制） | 编解码器列表，按顺序应用（见下文） |
 
+写在不适用策略上的键（例如 `segment` 上的 `period`、`snowflake` 上的 `store`）不起作用：会被忽略，并在日志中以 WARN 列出。
+（`cosid80` 与 `uuidv7` 会对这类键报错。）
+
 ## `snowflake` 与 `cosid80`
 
 | 属性 | 默认值 | 含义 |

@@ -24,6 +24,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * for frequently accessed ranges. The cache is bounded: once it holds {@code maximumSize} ranges it is emptied
  * before the next one is added, which keeps lookups lock-free (4.x used a Guava LRU cache).
  *
+ * <p>A collection the range sharding returns is the cached one, shared by every later call for the same range:
+ * <b>treat it as unmodifiable</b> (R1-sharding-02). Changing it changes what the next calls return; a later version may
+ * return an unmodifiable view.
+ *
  * @param <T> the type of comparable sharding value
  * @author ahoo wang
  */
@@ -65,6 +69,12 @@ public class CachedSharding<T extends Comparable<? super T>> implements Sharding
         return actual.sharding(shardingValue);
     }
 
+    /**
+     * The nodes of a range, cached.
+     *
+     * @param shardingValue the range
+     * @return the nodes; shared with every call for the same range, so never to be modified
+     */
     @Override
     public Collection<String> sharding(ShardingRange<T> shardingValue) {
         Collection<String> cached = shardingCache.get(shardingValue);

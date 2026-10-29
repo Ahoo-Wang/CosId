@@ -34,6 +34,6 @@ client token 只能访问存储原语与 `/ids/**`（位于 `spring.mvc.servlet.
 `auth.admin-paths` 已删除：不再需要列出管理路径。
 
 镜像自身的默认值（`application.yaml`）：`server.port: 8688`，请求运行在虚拟线程上（`spring.threads.virtual.enabled: true`；
-设置 `SPRING_THREADS_VIRTUAL_ENABLED=false` 即可关闭），开启健康探针且 readiness 组包含后备存储，Actuator 暴露
+设置 `SPRING_THREADS_VIRTUAL_ENABLED=false` 即可关闭），开启健康探针且 readiness 组包含后备存储（健康贡献者 `cosidServerStore`），Actuator 暴露
 `health`、`info`、`prometheus` 与 `cosid`。`cosid.namespace` 默认为 `${spring.application.name}`
 （`cosid-server`）。

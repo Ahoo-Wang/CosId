@@ -38,6 +38,10 @@ import org.springframework.boot.context.properties.source.ConfigurationProperty;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
 import org.springframework.boot.context.properties.source.IterableConfigurationPropertySource;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+import org.springframework.boot.convert.ApplicationConversionService;
+import org.springframework.core.convert.TypeDescriptor;
+import org.springframework.core.convert.converter.ConditionalGenericConverter;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.env.StandardEnvironment;
 
@@ -93,7 +97,40 @@ public final class CosIdSpecs {
      * @throws org.springframework.boot.context.properties.bind.BindException with the unbound keys
      */
     public static CosIdProperties bind(Iterable<ConfigurationPropertySource> sources, PlaceholdersResolver placeholders) {
-        return new Binder(sources, placeholders).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class), new UnknownKeys(sources));
+        return new Binder(sources, placeholders, EmptyItems.CONVERSION).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class), new UnknownKeys(sources));
+    }
+
+    /**
+     * An empty value of a {@link CosIdProperties} record, as YAML {@code - friendly: {}} gives, is that record with its
+     * defaults (R1-spring-10). Spring Boot 4.1 binds it so by itself; 4.0 tries to convert the empty text and fails.
+     */
+    static final class EmptyItems implements ConditionalGenericConverter {
+        static final ApplicationConversionService CONVERSION = new ApplicationConversionService();
+
+        static {
+            CONVERSION.addConverter(new EmptyItems());
+        }
+
+        @Override
+        public Set<ConvertiblePair> getConvertibleTypes() {
+            return Set.of(new ConvertiblePair(String.class, Record.class));
+        }
+
+        @Override
+        public boolean matches(TypeDescriptor sourceType, TypeDescriptor targetType) {
+            return targetType.getType().getEnclosingClass() == CosIdProperties.class;
+        }
+
+        @Override
+        public Object convert(Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
+            if (source == null) {
+                return null;
+            }
+            if (!source.toString().isBlank()) {
+                throw new IllegalArgumentException("Not a " + targetType.getType().getSimpleName() + ": " + source);
+            }
+            return new Binder(new MapConfigurationPropertySource()).bindOrCreate("empty", Bindable.of(targetType.getType()));
+        }
     }
 
     /**
@@ -521,6 +558,12 @@ public final class CosIdSpecs {
             if (field != null) {
                 set++;
             }
+        }
+        if (set == 0) {
+            // R1-spring-10: an item of its own with nothing in it ("- {}"); "- friendly: {}" is a friendly item with defaults.
+            problems.add(at + ": an empty item: write one of radix, friendly, prefix, suffix, date-prefix, custom, period, such as"
+                + " \"- friendly: {}\" (its defaults) or \"- radix: { radix: 62 }\"");
+            return false;
         }
         if (set != 1) {
             problems.add(at + ": set exactly one of radix, friendly, prefix, suffix, date-prefix, custom, period (" + set + " set)");

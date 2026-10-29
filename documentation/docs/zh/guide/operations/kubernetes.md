@@ -56,7 +56,7 @@ spec:
             - { name: COSID_STORES_MAIN_OPTIONS_PASSWORD, valueFrom: { secretKeyRef: { name: cosid-server-db, key: password } } }
             - { name: COSID_SERVER_AUTH_ALLOW_ANONYMOUS, value: "true" }
             - { name: SERVER_SHUTDOWN, value: graceful }
-          # liveness 不访问存储；readiness 会在存储上预留一次，存储不可用的服务端不再接收调用。
+          # liveness 不访问存储；readiness 会在存储上预留一次（健康贡献者 cosidServerStore），存储不可用的服务端不再接收调用。
           livenessProbe:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 10

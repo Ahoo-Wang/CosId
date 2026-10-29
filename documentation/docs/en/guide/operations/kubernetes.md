@@ -67,7 +67,7 @@ spec:
             - { name: COSID_STORES_MAIN_OPTIONS_PASSWORD, valueFrom: { secretKeyRef: { name: cosid-server-db, key: password } } }
             - { name: COSID_SERVER_AUTH_ALLOW_ANONYMOUS, value: "true" }
             - { name: SERVER_SHUTDOWN, value: graceful }
-          # Liveness never asks the store; readiness reserves on it, so a server whose store is down gets no calls.
+          # Liveness never asks the store; readiness reserves on it (the contributor cosidServerStore), so a server whose store is down gets no calls.
           livenessProbe:
             httpGet: { path: /actuator/health/liveness, port: http }
             periodSeconds: 10

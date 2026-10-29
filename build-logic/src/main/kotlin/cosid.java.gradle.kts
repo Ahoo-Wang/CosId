@@ -63,11 +63,12 @@ tasks.withType<Javadoc>().configureEach {
 // publishes the versions it resolved: cosid.library, cosid.spring). -PspringBootVersion replaces it rather than
 // competing with it: an enforced platform, so a higher BOM a dependency brings loses (the compatibility matrix).
 // A project with cosid.bootBom=false in its gradle.properties takes none (benchmark/baseline-4x: its 4.x jars keep the
-// versions they bring).
+// versions they bring), and so none of the test dependencies below, whose versions the BOM gives: it has no tests.
 fun Configuration.isBuildClasspath() = isCanBeResolved &&
     (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor")
 
-if (findProperty("cosid.bootBom")?.toString() != "false") {
+val bootBom = findProperty("cosid.bootBom")?.toString() != "false"
+if (bootBom) {
     val springBootVersion = findProperty("springBootVersion")?.toString()
     val managedVersions = configurations.create("managedVersions") {
         isCanBeConsumed = false
@@ -85,10 +86,12 @@ if (findProperty("cosid.bootBom")?.toString() != "false") {
 }
 
 dependencies {
-    testImplementation(library("junit-jupiter"))
-    testImplementation(library("hamcrest"))
-    testRuntimeOnly(library("junit-platform-launcher"))
-    testRuntimeOnly(library("logback-classic"))
+    if (bootBom) {
+        testImplementation(library("junit-jupiter"))
+        testImplementation(library("hamcrest"))
+        testRuntimeOnly(library("junit-platform-launcher"))
+        testRuntimeOnly(library("logback-classic"))
+    }
     constraints {
         // Checkstyle 14.3.0 brings Guava 33.7.1 (a security advisory); until a Checkstyle after 14.3.0 brings >= 33.7.2.
         "checkstyle"("com.google.guava:guava:${version("guava")}")

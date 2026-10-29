@@ -142,9 +142,12 @@ public class CosIdServer {
         return runtimeSpec.stores();
     }
 
-    /** The backing store in the readiness group, as {@code cosIdServerStore} (R1-server-02); liveness does not ask it. */
+    /**
+     * The backing store in the readiness group, as {@code cosidServerStore} (R1-server-02; the bean name gives the
+     * contributor name, lower-case {@code cosid} as the health indicator {@code cosid}); liveness does not ask it.
+     */
     @Bean(destroyMethod = "close")
-    StoreHealthIndicator cosIdServerStoreHealthIndicator(BackingStore store) {
+    StoreHealthIndicator cosidServerStoreHealthIndicator(BackingStore store) {
         return new StoreHealthIndicator(store);
     }
 

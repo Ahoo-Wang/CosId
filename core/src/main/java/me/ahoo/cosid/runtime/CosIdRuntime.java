@@ -153,6 +153,10 @@ public final class CosIdRuntime implements AutoCloseable {
      * {@code StringIdGenerator}, an {@code IntIdGenerator} (range checked) or its {@code IdCodec}; for the 80-bit CosId
      * its {@code PartsCodec}; for a periodic segment its {@code GroupedCodec}.
      *
+     * <p>Whatever it returns belongs to the runtime (R1-core-18): never close it, even where its type is
+     * {@code AutoCloseable}; it closes with the runtime ({@link #close()}), and closing it earlier would break every other
+     * user of the generator.
+     *
      * @param name the generator name
      * @param type the wanted type
      * @param <T>  the wanted type

@@ -81,6 +81,18 @@ class CosIdSpecsTest {
     }
 
     @Test
+    void anEmptyCodecMapIsTheItemWithItsDefaultsAndAnEmptyItemIsNamed() {
+        // R1-spring-10: YAML "- friendly: {}" arrives as codec[0].friendly="" and binds the friendly codec's defaults.
+        RuntimeSpec spec = spec("cosid.namespace=app", "cosid.machine.static.slot=1", "cosid.generators.g.strategy=snowflake",
+            "cosid.generators.g.codec[0].friendly=");
+        assertThat(((GeneratorSpec.Snowflake) spec.generators().get("g")).codec().get(0), instanceOf(CodecSpec.Friendly.class));
+        // "- {}" is an item with nothing in it.
+        String message = invalid("cosid.namespace=app", "cosid.machine.static.slot=1", "cosid.generators.g.strategy=snowflake",
+            "cosid.generators.g.codec[0]=").getMessage();
+        assertThat(message, containsString("cosid.generators.g.codec[0]: an empty item: write one of radix, friendly"));
+    }
+
+    @Test
     void mapsHandBuiltRecords() {
         CosIdProperties properties = new CosIdProperties(true, "app",
             Map.of("db", new CosIdProperties.Store("jdbc", Duration.ofSeconds(2), null, Map.of("initSchema", "true"))),

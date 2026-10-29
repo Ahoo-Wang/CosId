@@ -20,6 +20,12 @@ package me.ahoo.cosid.segment;
  * order (S1); the first range of a new key starts at {@code initialOffset}, once (S2); the returned range is
  * authoritative (S3); gaps are allowed, duplicates never (S4); values stay in {@code [0, Long.MAX_VALUE)} (S5); a sealed
  * key is never recreated (S6).
+ *
+ * <p>Failures (R1-spi-03): an operation that fails for another reason than its outcome throws a
+ * {@link RuntimeException} of the backend's choosing (a driver exception, or the store's own wrapper of one). A timeout
+ * is recognised with {@link me.ahoo.cosid.store.StoreTimeoutException#isTimeout(Throwable)}, whether the backend
+ * throws a {@code StoreTimeoutException} or one as the cause; the runtime counts those as store timeouts. No common
+ * base class is promised beyond {@code RuntimeException}.
  */
 public interface RangeStore extends AutoCloseable {
     /**

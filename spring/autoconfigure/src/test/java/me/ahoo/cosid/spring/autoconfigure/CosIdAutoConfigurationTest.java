@@ -218,6 +218,16 @@ class CosIdAutoConfigurationTest {
     }
 
     @Test
+    void anEmptyCodecItemIsItsDefaultsInThePropertiesBeanToo() {
+        // R1-spring-10: YAML "- friendly: {}" on every supported Spring Boot (4.0 converts the empty text).
+        withStores().withPropertyValues("cosid.namespace=app", "cosid.machine.static.slot=1", "cosid.generators.g.strategy=snowflake",
+            "cosid.generators.g.codec[0].friendly=").run(context -> {
+                assertNull(context.getStartupFailure());
+                assertNotNull(context.getBean(CosIdProperties.class).generators().get("g").codec().get(0).friendly());
+            });
+    }
+
+    @Test
     void theMasterSwitchTurnsEverythingOff() {
         withStores().withPropertyValues("cosid.enabled=false", "cosid.generators.default.strategy=snowflake").run(context -> {
             assertNull(context.getStartupFailure());

@@ -23,6 +23,9 @@ import me.ahoo.cosid.mybatis.CosIdInterceptor;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -66,6 +69,7 @@ public class CosIdIntegrationsConfiguration {
     static final String FLOWABLE_ENABLED = "cosid.flowable.enabled";
     static final String FLOWABLE_GENERATOR = "cosid.flowable.generator-name";
     static final String AXON_GENERATOR = "cosid.axon.generator-name";
+    private static final Logger log = LoggerFactory.getLogger(CosIdIntegrationsConfiguration.class);
 
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = {"me.ahoo.cosid.jackson.CosIdJacksonModule", "tools.jackson.databind.JacksonModule"})
@@ -99,6 +103,23 @@ public class CosIdIntegrationsConfiguration {
                                                               Environment environment) {
             return new CosIdBeforeConvertCallback(runtime, mappingContext,
                 environment.getProperty(JDBC_ID_GENERATOR, CosIdBeforeConvertCallback.DEFAULT_ID_GENERATOR));
+        }
+    }
+
+    /**
+     * R1-int-02: cosid-spring-data-jdbc on the classpath does nothing until {@code cosid.jdbc.enabled=true} (it is off by
+     * default, unlike the other integrations, since a callback on every converted entity is not free); say so once,
+     * rather than leave {@code @CosId} fields empty without a word.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = {"me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback",
+        "org.springframework.data.relational.core.mapping.event.BeforeConvertCallback"})
+    @ConditionalOnProperty(name = JDBC_ENABLED, havingValue = "false", matchIfMissing = true)
+    static class DataJdbcOff {
+        @Bean
+        SmartInitializingSingleton cosIdDataJdbcOffNotice() {
+            return () -> log.info("cosid-spring-data-jdbc is on the classpath, but {} is not true: @CosId fields of Spring Data JDBC entities are"
+                + " not filled; set {}=true to fill them", JDBC_ENABLED, JDBC_ENABLED);
         }
     }
 

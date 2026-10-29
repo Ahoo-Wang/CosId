@@ -22,6 +22,12 @@ jobs:
           (cd build-logic && ../gradlew -q --continue -I ../.github/audit/deps.init.gradle auditDeps > ../audit-build-logic.tsv 2>>../audit.err) || true
           ./gradlew -q :server:dependencies --configuration runtimeClasspath > server-runtime.txt 2>>audit.err || true
           wc -l audit*.tsv; tail -20 audit.err
+      - name: Generate the scoped graph (not submitted)
+        uses: gradle/actions/dependency-submission@v6
+        with:
+          dependency-graph: generate-and-upload
+          dependency-graph-include-configurations: '^(runtimeClasspath|productionRuntimeClasspath|minimumVersions)$'
+          dependency-graph-exclude-projects: '^:(benchmark|examples|build-logic)(:.*)?$'
       - uses: actions/upload-artifact@v4
         with:
           name: deps-audit

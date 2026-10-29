@@ -130,9 +130,8 @@ jobs:
           # D28: once below the 7.0 minimum, to document real compatibility (store/redis README); never blocks.
           redis = [dict(redis="7.0", probe=False, coverage=False), dict(redis="8.10", probe=False, coverage=True),
                    dict(redis="6.2", probe=True, coverage=False)]
-          # The lowest supported and the build's Boot on Java 21 and 25; a pull request runs the two diagonals.
-          spring = [dict(boot="4.0.9", java="21", coverage=False), dict(boot="4.1.2", java="25", coverage=True),
-                    dict(boot="4.0.9", java="25", coverage=False, full=True), dict(boot="4.1.2", java="21", coverage=False, full=True)]
+          # The build's Boot, also the lowest supported (D49), on Java 21 and 25, pull requests included.
+          spring = [dict(boot="4.1.2", java="21", coverage=False), dict(boot="4.1.2", java="25", coverage=True)]
           out["jdbc-matrix"] = [e for e in jdbc if full or not e["probe"]]
           out["redis-matrix"] = [e for e in redis if full or not e["probe"]]
           out["spring-matrix"] = [{k: v for k, v in e.items() if k != "full"} for e in spring if full or not e.get("full")]
@@ -659,8 +658,9 @@ jobs:
         with:
           name: server-test-reports
 
-  # R3-S: the Spring Boot compatibility matrix of spring/* and integrations (02-modules.md §5): the lowest supported and the build's Boot,
-  # on Java 21 and 25. Java 21 compiles, the matrix Java runs the tests; a test run with skipped tests fails the job.
+  # R3-S: the Spring Boot compatibility matrix of spring/* and integrations (02-modules.md §5): the build's Boot, the lowest
+  # supported (D49), on Java 21 and 25. Java 21 compiles, the matrix Java runs the tests; a test run with skipped tests fails
+  # the job. -PspringBootVersion probes another Boot (a 4.2) by adding a row.
   spring-compatibility:
     name: Spring Boot ${{ matrix.boot }}, Java ${{ matrix.java }}
     needs: changes
@@ -669,7 +669,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
-      # A pull request runs the diagonals (4.0.9 on 21, 4.1.2 on 25); full runs all four. See the changes job.
+      # Every run, pull requests included, runs both rows. See the changes job.
       matrix:
         include: ${{ fromJSON(needs.changes.outputs.spring-matrix) }}
     services:

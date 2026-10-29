@@ -35,8 +35,8 @@ publishing {
     publications {
         create<MavenPublication>("mavenLibrary") {
             from(components["java"])
-            // The versions this build resolved, under the BOM of cosid.java: the BOM itself is never published
-            // (cosid.spring maps from its minimumVersions instead).
+            // The versions this build resolved, under the BOM of cosid.java: the BOM itself is never published. For
+            // spring/* they are the versions of the lowest Boot supported, the build's (D49).
             versionMapping {
                 allVariants {
                     fromResolutionResult()

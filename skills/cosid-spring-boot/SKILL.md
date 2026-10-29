@@ -9,7 +9,7 @@ Produce the smallest configuration for one chosen strategy and store. Do not ena
 
 ## Workflow
 
-1. Confirm compatibility: **CosId 5.x needs Java 21+ and Spring Boot 4.0+.** CosId 4.x (Java 17) is a different
+1. Confirm compatibility: **CosId 5.x needs Java 21+ and Spring Boot 4.1.2+ (not 4.0.x).** CosId 4.x (Java 17) is a different
    configuration model on the `4.x` branch; to move a 4.x application, use the offline `cosid-migration` tool (plan,
    apply, verify, `config`), never a mixed fleet.
 2. Confirm the strategy. Use `$cosid-strategy-guide` only when it is undecided.

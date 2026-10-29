@@ -102,9 +102,10 @@ Adding a package means deciding whether `module-info.java` exports it.
   versions the build resolved, + `checkPublishedMetadata` (in `check`): every dependency has a version (or a published
   platform manages it), and no enforced platform or build platform is published.
 - `cosid.spring` (`spring/*`, `integrations/*`; `server` applies `cosid.java` + the Spring Boot plugin, since it is not
-  published): `cosid.library` + published versions of `spring-boot-minimum`,
-  and the compatibility matrix: `-PspringBootVersion=4.0.9` builds and tests on another Boot (02 §5), with
-  `-PtestJavaVersion=25`; CI job `spring-compatibility`.
+  published): `cosid.library`, whose published versions are those of the build's Boot (`spring-boot`, 4.1.2), also
+  the lowest supported (D49: Spring Boot 4.1.2 and later, not 4.0.x); `-PspringBootVersion=<4.x>` builds and tests
+  on another Boot to probe the next one (02 §5), with `-PtestJavaVersion=25`; CI job `spring-compatibility` runs Boot
+  4.1.2 on Java 21 and 25.
 - `cosid.platform`: the BOM. `cosid.benchmark`: `cosid.java` + JMH (`me.champeau.jmh`) — JMH is applied nowhere else.
 - `cosid.root` (root project): `checkDependencyRules` and `checkBom` (the BOM lists exactly the published modules),
   wired into `check` with build-logic's own tests; `javadocSite` collects each published module's Javadoc into

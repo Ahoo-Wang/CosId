@@ -1,6 +1,6 @@
 # 快速开始
 
-CosId 5 需要 **Java 21** 或更高版本。在 Spring Boot 下支持 Boot 4.0 及更高版本。
+CosId 5 需要 **Java 21** 或更高版本。在 Spring Boot 下需要 **Boot 4.1.2** 或更高版本（D49），不支持 Boot 4.0.x。
 
 ::: warning 候选发布版
 `5.0.0-rc.x` 是候选发布版。从 RC1 起,Java API、`cosid.*` 配置以及存储格式与协议冻结，之后的 5.x 只做向后兼容的增量。生产环境仍建议等待 GA,在此之前请继续使用 4.x（[4.x 文档](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/zh)）。

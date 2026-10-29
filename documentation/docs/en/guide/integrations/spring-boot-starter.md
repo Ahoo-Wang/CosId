@@ -1,7 +1,7 @@
 # Spring Boot Starter
 
 `cosid-spring-boot-starter` is the only starter (D14). It brings `cosid-core` and `cosid-spring-boot-autoconfigure`
-and nothing else; add the store artifacts you use. It supports Spring Boot 4.0 and later on Java 21+.
+and nothing else; add the store artifacts you use. It supports Spring Boot 4.1.2 and later (D49; not 4.0.x) on Java 21+: its published metadata requires the versions of Boot 4.1.2.
 
 ```kotlin
 implementation(platform("me.ahoo.cosid:cosid-bom:__COSID_VERSION__"))

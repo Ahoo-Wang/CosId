@@ -395,7 +395,7 @@ public class Ids implements SmartInitializingSingleton, DisposableBean {
 | `cosid-test` | `cosid-store-tck` |
 | `cosid-dependencies` | `cosid-bom` |
 | `cosid-sharding` | `cosid-sharding` (`ShardingRange` instead of Guava's `Range`) |
-| Java 17 | **Java 21**, Spring Boot 4.0+ |
+| Java 17 | **Java 21**, Spring Boot 4.1.2+ |
 
 | 4.x API | 5.0 |
 |---|---|

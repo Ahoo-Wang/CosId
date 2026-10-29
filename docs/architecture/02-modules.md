@@ -80,7 +80,7 @@ groupId 不变:`me.ahoo.cosid`。artifactId 由构建约定从目录路径生成
 - Java 21 toolchain;`-parameters` 保留(Spring 端点参数名)。
 - 不使用 Lombok(D13):值类型用 `record`,日志用 `LoggerFactory.getLogger`。
 - Checkstyle + SpotBugs + JaCoCo 保留;许可证头保留。
-- 版本统一在 `gradle/libs.versions.toml`;`bom/` 只声明本项目 artifact 与必要的三方对齐。
+- 版本以 Spring Boot BOM 为准(D45):`cosid.java` 让每个工程的构建类路径导入它(不发布),BOM 管理的依赖在 `gradle/libs.versions.toml` 中不写版本;其余依赖取最新稳定版,或因安全修复高于 BOM(注明移除条件)。发布的元数据写入解析出的具体版本。`bom/` 只声明本项目 artifact 与必要的三方对齐。
 - JMH 只在 `benchmark/` 中,不再对每个库模块应用插件。
 - `-PspringBootVersion` / `-PtestJavaVersion` 兼容矩阵机制保留,仅作用于 `spring/*`、`server`、`integrations`。
 - 集成测试:`store/*` 每个模块一个 CI job,运行 TCK(Testcontainers,环境变量覆盖与 4.x 相同的约定)。

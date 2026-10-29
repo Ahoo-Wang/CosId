@@ -24,6 +24,12 @@ dependencies {
     api(libs.curator.framework) {
         exclude(group = "io.netty")
     }
+    // Patched ZooKeeper and Guava over Curator 5.9.0's 3.9.3 and 32.0.0 (security advisories): a direct dependency wins
+    // in Maven (nearest) and in Gradle (highest). Until a Curator after 5.9.0 brings ZooKeeper >= 3.9.5 and Guava >= 33.7.2.
+    api(libs.zookeeper) {
+        exclude(group = "io.netty")
+    }
+    runtimeOnly(libs.guava)
     implementation(libs.slf4j.api)
     testImplementation(project(":store:tck"))
     testImplementation(libs.curator.test)

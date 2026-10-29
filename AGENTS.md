@@ -36,7 +36,7 @@ compatible with 4.x (D1); the offline migration tool (`migration/`, 09-migration
 
 benchmark/run-smoke [P5 P12 ...]                   # 4.x and 5.x back to back per scenario, then compare --smoke:
                                                    # how a PR reports performance (paste build/benchmark-smoke/report.md)
-./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars alone (smoke profile)
+./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.1 jars alone (smoke profile)
 ./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=A,B narrows
 benchmark/run-release --dry-run CodecBenchmark   # check the release-gate script; the gate itself runs only on CI:
                                                    # the Release Gate workflow (benchmark/scenarios.md), never locally
@@ -72,7 +72,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `integrations/*` | `cosid-jackson`, `cosid-mybatis`, `cosid-spring-data-jdbc`, `cosid-activiti`, `cosid-flowable`, `cosid-axon` | R4-B, split by dependency (D29): one module per library, each on `core` and that library only (no integration depends on another). `@AsString`, `CosIdInterceptor`, `CosIdBeforeConvertCallback`, `ActivitiIdGenerator` / `FlowableIdGenerator`, `CosIdIdentifierFactory`; see `integrations/README.md` (the Axon static binding) |
 | `spring/starter/` | `cosid-spring-boot-starter` | R3-S: dependencies only (core + autoconfigure, D14); applications add the store artifacts |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
-| `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
+| `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.1`; see `benchmark/scenarios.md` |
 | `benchmark/` | not published | the same scenarios on 5.x |
 | `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
 | `extras/sharding/` | `cosid-sharding` | R5-B: the 4.x sharding algorithms (`ModCycle`, `IntervalTimeline`, `CachedSharding`, the convertors) on `core` alone: `ShardingRange` replaces Guava's `Range`, the Snowflake convertor reads `Layout` |
@@ -94,13 +94,16 @@ Adding a package means deciding whether `module-info.java` exports it.
 ## Build logic (`build-logic/`)
 
 - `cosid.java`: Java 21, `-parameters`, Checkstyle, SpotBugs, JaCoCo (XML reports for Codecov), JUnit 5 + Hamcrest,
-  Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK.
-- `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`) + `checkPublishedMetadata`
-  (in `check`): every dependency has a version (or a published platform manages it), and no enforced platform or build
-  platform is published.
-- `cosid.spring` (`spring/*`, `integrations/*`; `server` applies `cosid.java` + the Spring Boot plugin and the BOM itself, since it is not published): `cosid.library` + the Spring Boot BOM on the build's
-  classpaths only (never published), published versions of `spring-boot-minimum`,
-  and the compatibility matrix: `-PspringBootVersion=4.0.8` builds and tests on another Boot (02 §5), with
+  Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK. The Spring Boot BOM manages every build
+  classpath (D45; `-PspringBootVersion` swaps it), never the published metadata; `cosid.bootBom=false` in a project's
+  `gradle.properties` opts out (only `benchmark/baseline-4x`). A dependency the BOM manages has no version in
+  `gradle/libs.versions.toml`.
+- `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`), which publishes the
+  versions the build resolved, + `checkPublishedMetadata` (in `check`): every dependency has a version (or a published
+  platform manages it), and no enforced platform or build platform is published.
+- `cosid.spring` (`spring/*`, `integrations/*`; `server` applies `cosid.java` + the Spring Boot plugin, since it is not
+  published): `cosid.library` + published versions of `spring-boot-minimum`,
+  and the compatibility matrix: `-PspringBootVersion=4.0.9` builds and tests on another Boot (02 §5), with
   `-PtestJavaVersion=25`; CI job `spring-compatibility`.
 - `cosid.platform`: the BOM. `cosid.benchmark`: `cosid.java` + JMH (`me.champeau.jmh`) — JMH is applied nowhere else.
 - `cosid.root` (root project): `checkDependencyRules` and `checkBom` (the BOM lists exactly the published modules),
@@ -171,7 +174,7 @@ Adding a package means deciding whether `module-info.java` exports it.
   old path to `documentation/docs/.vitepress/theme/redirects.ts` (targets are current pages: no chains) and update both
   sidebars in `.vitepress/configs/`. When a store README's compatibility table changes, update `guide/backends/index`.
   Build with `pnpm install && pnpm docs:build` in `documentation/`; the site deploys from release tags.
-- **migration tests** write real 4.x data with the 4.1.0 jars: the `legacy4x` source set (`migration/src/test/legacy4x`) is
+- **migration tests** write real 4.x data with the 4.1.1 jars: the `legacy4x` source set (`migration/src/test/legacy4x`) is
   compiled against them alone and loaded in its own class loader (path in `-Dcosid.migration.legacy4x`), so run them
   through Gradle. H2 (TCP) and ZooKeeper always run, Redis and MongoDB only with Docker. The admin path writes the 5.0
   store formats directly (`migration/src/main/.../target`): a change of a store's schema or node format must change it too.

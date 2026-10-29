@@ -40,6 +40,7 @@ checkstyle {
 }
 
 spotbugs {
+    toolVersion.set(version("spotbugs-tool"))
     excludeFilter.set(rootProject.layout.projectDirectory.file("config/spotbugs/exclude.xml"))
 }
 
@@ -58,12 +59,44 @@ tasks.withType<Javadoc>().configureEach {
     }
 }
 
+// D45: the Spring Boot BOM manages the versions of every build classpath, never the published metadata (a library
+// publishes the versions it resolved: cosid.library, cosid.spring). -PspringBootVersion replaces it rather than
+// competing with it: an enforced platform, so a higher BOM a dependency brings loses (the compatibility matrix).
+// A project with cosid.bootBom=false in its gradle.properties takes none (benchmark/baseline-4x: its 4.x jars keep the
+// versions they bring), and so none of the test dependencies below, whose versions the BOM gives: it has no tests.
+// The JMH plugin's bytecode generator resolves the jmh configuration itself (cosid.benchmark).
+fun Configuration.isBuildClasspath() = isCanBeResolved &&
+    (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor" || name == "jmh")
+
+val bootBom = findProperty("cosid.bootBom")?.toString() != "false"
+if (bootBom) {
+    val springBootVersion = findProperty("springBootVersion")?.toString()
+    val managedVersions = configurations.create("managedVersions") {
+        isCanBeConsumed = false
+        isCanBeResolved = false
+    }
+    configurations.configureEach {
+        if (this != managedVersions && name != "minimumVersions" && isBuildClasspath()) {
+            extendsFrom(managedVersions)
+        }
+    }
+    dependencies {
+        val bom = "org.springframework.boot:spring-boot-dependencies"
+        managedVersions(if (springBootVersion == null) platform("$bom:${version("spring-boot")}") else enforcedPlatform("$bom:$springBootVersion"))
+    }
+}
+
 dependencies {
-    testImplementation(platform(library("junit-bom")))
-    testImplementation(library("junit-jupiter"))
-    testImplementation(library("hamcrest"))
-    testRuntimeOnly(library("junit-platform-launcher"))
-    testRuntimeOnly(library("logback-classic"))
+    if (bootBom) {
+        testImplementation(library("junit-jupiter"))
+        testImplementation(library("hamcrest"))
+        testRuntimeOnly(library("junit-platform-launcher"))
+        testRuntimeOnly(library("logback-classic"))
+    }
+    constraints {
+        // Checkstyle 14.3.0 brings Guava 33.7.1 (a security advisory); until a Checkstyle after 14.3.0 brings >= 33.7.2.
+        "checkstyle"("com.google.guava:guava:${version("guava")}")
+    }
 }
 
 // -PtestJavaVersion=25 runs the tests on another JDK than the one that compiles them (02-modules.md §5).

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-// The 4.1.0 baseline (D21, 10-performance-and-parity.md §1.1): the scenarios of benchmark/scenarios.md on the released
+// The 4.1.1 baseline (D21, 10-performance-and-parity.md §1.1): the scenarios of benchmark/scenarios.md on the released
 // 4.x jars. It shares the package me.ahoo.cosid with 5.x, so it must never depend on a project of this build.
 plugins {
     id("cosid.benchmark")
@@ -22,11 +22,11 @@ dependencies {
     jmh(libs.cosid4.accessor)
     // P7 / P10 (R2-JDBC): a real MySQL, COSID_TEST_MYSQL_URL (benchmark/scenarios.md).
     jmh(libs.cosid4.jdbc)
-    jmh(libs.mysql.connector)
-    jmh(libs.hikari)
+    jmh(libs.baseline4x.mysql.connector)
+    jmh(libs.baseline4x.hikari)
     // P10 (MongoDB): the 4.x Mongo distributor and lease store, on the same driver as 5.x.
     jmh(libs.cosid4.mongo)
-    jmh(libs.mongodb.driver.sync)
+    jmh(libs.baseline4x.mongodb.driver.sync)
     // R2-Redis: P7 / P10 on the 4.x Redis distributors
     jmh(libs.cosid4.spring.redis)
     jmh(libs.cosid4.lettuce)
@@ -36,5 +36,5 @@ dependencies {
     // P11: Spring context start to first id, both sides on the Spring Boot of spring/* (spring-boot-starter brings the
     // same logging to both).
     jmh(libs.cosid4.spring.boot.starter)
-    jmh(libs.spring.boot.starter)
+    jmh(libs.baseline4x.spring.boot.starter)
 }

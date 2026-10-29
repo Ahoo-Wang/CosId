@@ -28,7 +28,7 @@ dependencies {
 }
 
 // The contracts ran against MongoDB (roadmap R2), as in store/tck: a run that skipped them fails.
-val checkContractsRan by tasks.registering(JavaExec::class) {
+val checkContractsRan = tasks.register<JavaExec>("checkContractsRan") {
     description = "Checks from the JUnit reports that every store contract case ran."
     group = "verification"
     val reports = layout.buildDirectory.dir("test-results/test")

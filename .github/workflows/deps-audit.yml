@@ -1,0 +1,31 @@
+# Temporary: lists where each module of the open dependency alerts comes from. Removed before the PR is ready.
+name: Deps Audit
+on:
+  push:
+    branches: [ 'deps-audit/**' ]
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Audit
+        run: |
+          ./gradlew -q --continue -I .github/audit/deps.init.gradle auditDeps > audit.tsv 2>audit.err || true
+          (cd build-logic && ../gradlew -q --continue -I ../.github/audit/deps.init.gradle auditDeps > ../audit-build-logic.tsv 2>>../audit.err) || true
+          ./gradlew -q :server:dependencies --configuration runtimeClasspath > server-runtime.txt 2>>audit.err || true
+          wc -l audit*.tsv; tail -20 audit.err
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deps-audit
+          path: |
+            audit*.tsv
+            audit.err
+            server-runtime.txt

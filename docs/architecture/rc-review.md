@@ -198,7 +198,14 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
        - **原因**:5.x 侧的 Redis、MySQL、Mongo 号段链基准在 setup 阶段就失败了(`no StoreProvider of type [redis]`),所以报告显示 "missing"。`benchmark/v5` 的 jmhJar 没有合并 `META-INF/services`,只剩 ZooKeeper 一个 provider。
        - **有效数据**:存储原语行全部 PASS(Redis 5.x 约为 4.x 的一半耗时、四成分配),只有 ZK renew sample 一行 WARN;ZK 端到端链 PASS;segment、snowflake、codec-filler、spring-start 全部 PASS。
        - **修复**(交给子会话):jmhJar 合并 service 文件;`run-release` 把某一侧数据缺失或 JMH `<failure>` 当作装配错误直接失败，不记成回退行;CI 加基准装配自检;基准改动交回前必须先跑 `release-gate-check/**` dry-run。修复后由协调会话重跑正式门槛。
-       - **教训**:P4 只用 javac 加类路径做了本地 smoke,没有跑 dry-run,所以 jar 装配问题没有暴露。✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
+       - **教训**:P4 只用 javac 加类路径做了本地 smoke,没有跑 dry-run,所以 jar 装配问题没有暴露。
+     - ✅ [#1398](https://github.com/Ahoo-Wang/CosId/pull/1398) `632fdfdf`:
+       - 基准约定插件合并各模块的 `META-INF/services`;
+       - `checkJmhJar` 核对 jar 内的 provider,CI Check 与 run-smoke/run-release 都先过这一步;
+       - 某一侧数据缺失视为装配错误(`compare` exit 4),不计入回退行;
+       - AGENTS.md 增加 gotcha。
+       dry-run [run 40808254473](https://github.com/Ahoo-Wang/CosId/actions/runs/40808254473) 已证实四个后端的 5.x 链基准都有数据(dry-run 不作为结果)。
+     - → 第六次正式门槛 [run 40810418780](https://github.com/Ahoo-Wang/CosId/actions/runs/40810418780) @ `632fdfdf` 运行中。✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
   6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
   7. **依赖与 MINOR**(进行中;MINOR 分诊 ✅ [#1395](https://github.com/Ahoo-Wang/CosId/pull/1395) `feb0edd5`,ga-review §9:75 条中已修 32、本次修 25(stores 9 / core-javadoc+spring-config 8 / docs+migration 8,分 3 个 PR 串行:✅ stores [#1396](https://github.com/Ahoo-Wang/CosId/pull/1396) `520b1426`;core-javadoc+spring-config #1397 进行中;docs+migration 待开)、GA 后 16、不修 2。协调会话对 §9.4 待定 3 项的决定见 §4.3 第 14 项):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml` → ✅ [#1384](https://github.com/Ahoo-Wang/CosId/pull/1384) `b2e40694`(pnpm overrides:vite 6.4.5、esbuild 0.25.12、source-map-js 1.2.2、vue 3.5.44;73 页渲染与 main 对比一致);剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
   8. ✅ **WP-ci 重构 CI(工程质量、执行效率)**([#1385](https://github.com/Ahoo-Wang/CosId/pull/1385) `157eb656`;试验 PR #1386–#1390 验证后已关闭)。实测:

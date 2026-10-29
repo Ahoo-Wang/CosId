@@ -45,6 +45,10 @@ import java.util.function.Supplier;
 @ConditionalOnProperty(prefix = ServerProperties.PREFIX + ".ids", name = "enabled", havingValue = "true")
 @Tag(name = "ids", description = "Ids from the generators of the server's runtime (optional)")
 class IdController {
+    /** R2-server-02: what a JavaScript client of the {@code long} id endpoints must know. */
+    private static final String JSON_NUMBERS = "JSON numbers: a JavaScript client's JSON.parse rounds integers above 2^53, so a 63-bit id may "
+        + "arrive as another one; such clients read /strings, or the generator uses a JS_SAFE layout";
+
     private final CosIdRuntime runtime;
     private final Requests requests;
     private final BlockingCalls calls;
@@ -64,7 +68,7 @@ class IdController {
     }
 
     @GetMapping(RemoteApi.IDS)
-    @Operation(summary = "Ids of the default generator", description = "JSON numbers: a JavaScript client's JSON.parse rounds integers above 2^53, so a 63-bit id may arrive as another one; such clients read /strings, or the generator uses a JS_SAFE layout")
+    @Operation(summary = "Ids of the default generator", description = JSON_NUMBERS)
     CompletableFuture<Bodies.IdsBody> defaultIds(@RequestParam(defaultValue = "1") int count, @RequestAttribute(Grant.ATTRIBUTE) Grant grant) {
         return ids(RuntimeSpec.DEFAULT_GENERATOR, count, grant);
     }
@@ -76,7 +80,7 @@ class IdController {
     }
 
     @GetMapping(RemoteApi.IDS + "/{generator}")
-    @Operation(summary = "Ids of a generator", description = "JSON numbers: a JavaScript client's JSON.parse rounds integers above 2^53, so a 63-bit id may arrive as another one; such clients read /strings, or the generator uses a JS_SAFE layout")
+    @Operation(summary = "Ids of a generator", description = JSON_NUMBERS)
     CompletableFuture<Bodies.IdsBody> ids(@PathVariable String generator, @RequestParam(defaultValue = "1") int count,
                                           @RequestAttribute(Grant.ATTRIBUTE) Grant grant) {
         int n = admit(count, grant);

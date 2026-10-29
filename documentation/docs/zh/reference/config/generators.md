@@ -56,6 +56,39 @@ cosid:
 
 其 `codec` 规则同 `segment`（不能用 `friendly`，也不能用取自 ID 时间的 `date-prefix`）。
 
+## `uuidv7`
+
+UUIDv7 id（[RFC 9562 §5.7](https://www.rfc-editor.org/rfc/rfc9562#section-5.7)，D46）：48 位 Unix 毫秒时间戳、版本 7、12 位计数器、
+variant `10` 与 62 位随机数。文本为 36 个字符的规范形式，例如 `019a2c5e-3f40-7123-8c4d-2f1e9a7b6c50`；radix 等其他文本编解码器可能在以后的版本中加入。
+
+```yaml
+cosid:
+  generators:
+    order:
+      strategy: uuidv7
+```
+
+它**不需要 machine、存储或租约**：生成器全部为 `uuidv7` 的应用，不配置任何 `cosid.machine.*` 或 `cosid.stores.*` 也能启动。它没有自己的属性；
+配置 `machine` 会让启动失败，其他策略的键（`layout`、`epoch`、`time-bits`、`store`、`period`、`codec` 等）也一样。
+
+- **无需协调即可唯一**，依靠 62 位随机数。只有毫秒、计数器取值和这 62 位都相同的两个 id 才会碰撞：n 个这样的 id 碰撞概率至多约为
+  n² / 2⁶³，即使同一毫秒、同一计数器取值上有一百万个 id，碰撞概率也只有约九百万分之一。
+- **单个生成器实例内有序**：每个 id 都大于前一个，`UUID` 与文本都是如此。计数器在每毫秒以小于 2048 的随机值起步，之后递增；计数器用尽时借用下一毫秒，
+  时钟回拨时沿用上次的时间戳。不同实例或进程的 id 只按毫秒有序。
+- **不是秘密**：随机数取自 `ThreadLocalRandom`，时间戳明文可见。不要把 id 用作令牌或访问凭据。
+
+运行时以 `runtime.text("order")`（以及 `@CosId` 的 `String` 字段）提供文本，以 `runtime.get("order", UuidV7Generator.class)` 提供生成器
+（`UUID generateUuid()`、`String generate()`）；Bean `order` 就是这个生成器。它不发 `long` id：`generator("order")` 和
+`stringGenerator("order")` 会失败，与 `cosid80` 相同。
+
+| | `uuidv7` | `snowflake` | `cosid80` |
+|---|---|---|---|
+| 长度 | 128 位（`UUID`，36 个字符） | 63 位（`long`） | 80 位（文本） |
+| 协调 | 无 | 机器槽位（租约或静态） | 机器槽位（租约或静态） |
+| 唯一性 | 概率性（62 位随机数） | 由槽位保证 | 由槽位保证 |
+| 有序性 | 实例内有序；跨实例按毫秒有序 | 实例内有序；跨实例按时间单位有序 | 实例内有序；跨实例按毫秒有序 |
+| 适合 | 已经以 UUID 为键的系统、无存储的大量写入方 | `long` 主键、紧凑索引 | 需要保证唯一的文本主键、更多节点 |
+
 ## `segment`
 
 | 属性 | 默认值 | 含义 |

@@ -61,6 +61,45 @@ endpoint) but does not close it.
 
 Its `codec` follows the rules of `segment` (no `friendly`, no `date-prefix` from the id time).
 
+## `uuidv7`
+
+UUIDv7 ids ([RFC 9562 §5.7](https://www.rfc-editor.org/rfc/rfc9562#section-5.7), D46): a 48-bit Unix millisecond
+timestamp, version 7, a 12-bit counter, variant `10` and 62 random bits. Their text is the canonical 36-character form,
+such as `019a2c5e-3f40-7123-8c4d-2f1e9a7b6c50`; other text codecs (radix and the like) may come in a later release.
+
+```yaml
+cosid:
+  generators:
+    order:
+      strategy: uuidv7
+```
+
+It needs **no machine, store nor lease**: an application whose generators are all `uuidv7` starts
+without any `cosid.machine.*` or `cosid.stores.*`. It has no properties of its own. `machine` fails the start, as do
+the keys of the other strategies (`layout`, `epoch`, `time-bits`, `store`, `period`, `codec`, …).
+
+- **Unique without coordination**, through its 62 random bits. Two ids collide only with the same millisecond, the same
+  counter value and the same 62 bits: for n such ids that is at most about n² / 2⁶³, so even a million ids in one
+  millisecond of one counter value collide with a chance of about 1 in 9 million.
+- **Ordered within one generator instance**: each id is greater than the one before, as a `UUID` and as text. The
+  counter starts at a random value below 2048 in each millisecond and counts on; a full counter borrows the next
+  millisecond, and a clock that goes back keeps the last timestamp. Ids of different instances or processes are ordered
+  by their millisecond only.
+- **Not a secret**: the random bits come from `ThreadLocalRandom` and the timestamp is in the clear. Never use an id as a
+  token or to guard a resource.
+
+The runtime hands out its text with `runtime.text("order")` (and `@CosId` `String` fields) and the generator with
+`runtime.get("order", UuidV7Generator.class)` (`UUID generateUuid()`, `String generate()`); the bean `order` is that
+generator. It issues no `long` ids: `generator("order")` and `stringGenerator("order")` fail, as for `cosid80`.
+
+| | `uuidv7` | `snowflake` | `cosid80` |
+|---|---|---|---|
+| Size | 128 bits (`UUID`, 36 characters) | 63 bits (`long`) | 80 bits (text) |
+| Coordination | none | a machine slot (lease or static) | a machine slot (lease or static) |
+| Uniqueness | probabilistic (62 random bits) | guaranteed by the slot | guaranteed by the slot |
+| Order | within the instance; across instances by millisecond | within the instance; across instances by time unit | within the instance; across instances by millisecond |
+| Fits | systems that already store UUIDs, many writers without a store | `long` keys, compact indexes | text keys that need guaranteed uniqueness, more nodes |
+
 ## `segment`
 
 | Property | Default | Meaning |

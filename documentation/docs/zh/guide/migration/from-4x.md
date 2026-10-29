@@ -344,6 +344,7 @@ public class Ids implements SmartInitializingSingleton, DisposableBean {
 | `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>`（`GeneratorSpec.Custom`），或在 `RuntimeSpecCustomizer` 中用 `GeneratorSpec.Instance` |
 | `MachineIdDistributor` 系列、guarder、`~/.cosid-machine-state` | `cosid.machine.leased` / `static`（见[槽位租约](../concepts/slot-lease.md)） |
 | `IntegerIdGenerator`、`UncertaintyIdGenerator`、`LazyIdGenerator` | `IdGenerators.toInt`、`.uncertain`、`.lazy` |
+| `UuidGenerator`（随机的 UUIDv4） | `IdGenerators.uuid()`；需要按时间有序的 UUID 时用 `strategy: uuidv7`（[生成器](../../reference/config/generators.md#uuidv7)） |
 | `CosIdStoreProvider` | `StoreProvider` |
 | `Customize*Properties` | `RuntimeSpecCustomizer` |
 | Actuator 对生成器的 DELETE | `cosid.generators.<name>.disabled: true` |

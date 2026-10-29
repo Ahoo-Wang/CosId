@@ -19,9 +19,9 @@ public final class CosIdRuntime implements AutoCloseable {
     public static CosIdRuntime start(RuntimeSpec spec, RuntimeOptions options);
     public IdGenerator generator(String name);              // snowflake, segment, custom
     public StringIdGenerator stringGenerator(String name);  // with its codec
-    public Supplier<String> text(String name);              // text ids of any strategy, cosid80 included
+    public Supplier<String> text(String name);              // text ids of any strategy, cosid80 and uuidv7 included
     public PeriodicSegmentGenerator periodic(String name);
-    public <T> T get(String name, Class<T> type);           // TimeBasedGenerator, SegmentGenerator, PartsCodec, GroupedCodec, IntIdGenerator, ...
+    public <T> T get(String name, Class<T> type);           // TimeBasedGenerator, SegmentGenerator, UuidV7Generator, PartsCodec, GroupedCodec, IntIdGenerator, ...
     public OptionalLong generated(String name);             // with countGenerated
     public Map<String, GeneratorInfo> describe();
     public Optional<SlotLease> slot();                      // the default machine's

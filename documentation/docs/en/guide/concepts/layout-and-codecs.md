@@ -134,6 +134,6 @@ Every codec decodes as well: `codec.decode(text)` returns the id, and `layout.un
 |---|---|
 | `IntegerIdGenerator` | `IdGenerators.toInt(ids)`: an `IntIdGenerator`, `IdOverflowException` past `Integer.MAX_VALUE` |
 | `UncertaintyIdGenerator` | `IdGenerators.uncertain(ids, bits, random)` |
-| `AtomicLongGenerator`, `UuidGenerator` | `IdGenerators.local()`, `IdGenerators.uuid()` |
+| `AtomicLongGenerator`, `UuidGenerator` | `IdGenerators.local()`, `IdGenerators.uuid()` (random v4 text); for ordered UUIDs, the [`uuidv7`](../../reference/config/generators.md#uuidv7) strategy |
 | `LazyIdGenerator` | `IdGenerators.lazy(() -> runtime.generator("order"))` |
 | `SafeJavaScriptSnowflakeId` | `Layout.JS_SAFE_MS` / `JS_SAFE_S` |

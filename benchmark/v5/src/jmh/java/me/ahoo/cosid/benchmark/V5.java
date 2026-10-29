@@ -110,6 +110,19 @@ final class V5 {
     }
 
     /**
+     * A runtime with one segment generator {@code name} at {@code step} on the store {@code store}, opened by its
+     * provider from {@code client}: the production path of P7 (the generator the runtime hands out, on the store as
+     * the runtime wraps it).
+     */
+    static CosIdRuntime storeRuntime(String name, StoreSpec store, Object client, long step) {
+        RuntimeSpec spec = RuntimeSpec.builder("bench")
+            .store("store", store)
+            .generator(name, GeneratorSpec.Segment.builder("store").batch(batch(step)).codec(List.of()).build())
+            .build();
+        return CosIdRuntime.start(spec, RuntimeOptions.builder().executor(EXECUTOR).client("store", client).build());
+    }
+
+    /**
      * An in-memory range store with no simulated latency, like the 4.x {@code Baseline4x.MemoryDistributor}: one
      * atomic add per reservation. It stays rather than {@code store.tck.InMemoryStore}, so the scenarios measure the
      * generator alone, as the 4.x side does.

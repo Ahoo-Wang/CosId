@@ -51,7 +51,7 @@ class_of() {
         P6) echo SegmentNoPrefetchBenchmark ;;
         P8) echo PeriodicSegmentBenchmark ;;
         P9) echo CodecBenchmark ;;
-        P7) echo MySqlChainIdBenchmark RedisChainIdBenchmark ;;
+        P7) echo MySqlChainIdBenchmark RedisChainIdBenchmark MongoChainIdBenchmark ZookeeperChainIdBenchmark ;;
         P10) echo MySqlStoreBenchmark RedisStoreBenchmark MongoStoreBenchmark ZookeeperStoreBenchmark ;;
         P11) echo SpringStartBenchmark ;;
         P12) echo IdFillerBenchmark ;;

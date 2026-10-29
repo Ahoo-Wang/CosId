@@ -7,7 +7,10 @@ twice with the same JMH class and method names so that [`compare`](compare) can 
   this build (the dependency rules forbid it: both use the package `me.ahoo.cosid`).
 - [`v5/`](v5): on the 5.x modules.
 
-Every class is `me.ahoo.cosid.benchmark.<Class>`; a method name ends with `_t<threads>` and carries a `@Threads`.
+Every class is `me.ahoo.cosid.benchmark.<Class>`; a method name ends with `_t<threads>` and carries a `@Threads`. P9 and
+P10 measure one component; every other scenario measures ID generation end to end. The gate judges them differently
+(D44, [10 §1.3](../docs/architecture/10-performance-and-parity.md)), by the `SCENARIOS` table of [`compare`](compare),
+which every class here must be in (`compare_test.py` checks it).
 
 | # | Class | Methods | Modes | 4.x configuration | 5.x configuration |
 |---|---|---|---|---|---|
@@ -19,6 +22,8 @@ Every class is `me.ahoo.cosid.benchmark.<Class>`; a method name ends with `_t<th
 | P6 | `SegmentNoPrefetchBenchmark` | `generate_t1` | thrpt | `DefaultSegmentId`, in-memory distributor, step 1, no ttl | the same runtime path as P5, step 1, `lookahead = 0`, `maxBatch = 1`, no `rangeTtl` |
 | P7 (MySQL) | `MySqlChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | see [P7 / P10 on JDBC](#p7--p10-on-jdbc-r2-jdbc) | |
 | P7 (Redis) | `RedisChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(SpringRedisIdSegmentDistributor)`, offset 0, on a `StringRedisTemplate` (Lettuce) at `COSID_TEST_REDIS_URI` (default `redis://localhost:6379`) | `SegmentGenerator` on the `redis` store opened from the same URI (`wait=auto`), `V5.batch(step)` |
+| P7 (MongoDB) | `MongoChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(MongoIdSegmentDistributor)`, offset 0, on the replica set at `COSID_BENCHMARK_MONGODB_URI` | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `mongo` store opened from the same client (timeout 2s), `V5.batch(step)` |
+| P7 (ZooKeeper) | `ZookeeperChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(ZookeeperIdSegmentDistributor)` (no call timeout), on one in-process ZooKeeper 3.9 (curator-test) per trial | the `long` generator a `CosIdRuntime` hands out (`V5.storeRuntime`), on the `zookeeper` store opened from the same Curator client (timeout 2s), `V5.batch(step)` |
 | P8 | `PeriodicSegmentBenchmark` | `generate_t1/t4` | thrpt, sample (p99, p99.9) | grouped `SegmentChainId` (`DefaultGroupedIdSegmentDistributor`, in-memory distributor), step 100; a `GroupBySupplier` keyed `yyyyMMdd` whose day lasts 2s of real time | `PeriodicSegmentGenerator` on the same accelerated `yyyyMMdd` day, `BatchPolicy.DEFAULT` with step 100, prewarm 1/1440 of the day (the default minute, scaled) |
 | P9 | `CodecBenchmark` | `radix62Encode/Decode_t1`, `radix36Encode/Decode_t1`, `friendlyEncode/Decode_t1` | thrpt | `Radix62IdConverter.PAD_START`, `Radix36IdConverter.PAD_START`, `SnowflakeFriendlyIdConverter` (Asia/Shanghai, padded) | `Radix.of(62, 11, true)`, `Radix.of(36, 13, true)`, `Friendly.of(SNOWFLAKE_MS, Asia/Shanghai, true)` |
 | P10 (MySQL) | `MySqlStoreBenchmark` | `reserve_t1`, `acquire_t1`, `renew_t1` | avgt, sample | see [P7 / P10 on JDBC](#p7--p10-on-jdbc-r2-jdbc) | |

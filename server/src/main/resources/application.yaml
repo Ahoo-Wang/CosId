@@ -20,7 +20,7 @@ management:
         enabled: true
       group:
         readiness:
-          include: readinessState, cosIdServerStore
+          include: readinessState, cosidServerStore
   endpoints:
     web:
       exposure:

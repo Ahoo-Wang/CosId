@@ -73,6 +73,8 @@ class StoreHealthTest {
         SwitchedStore store = new SwitchedStore();
         try (TestServer server = TestServer.memory(store)) {
             assertEquals(200, server.get("/actuator/health/readiness", null).statusCode());
+            // The contributor of the readiness group, by the name a readiness group of one's own includes.
+            assertEquals(200, server.get("/actuator/health/cosidServerStore", null).statusCode());
             store.down.set(true);
             Thread.sleep(StoreHealthIndicator.REUSE.toMillis() + 100);
             assertEquals(503, server.get("/actuator/health/readiness", null).statusCode(), "the store is down");

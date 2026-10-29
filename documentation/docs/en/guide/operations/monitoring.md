@@ -7,7 +7,8 @@ and an endpoint. Without Spring, implement `GeneratorListener` (passed in `Runti
 ## Meters
 
 Every meter is named `cosid.*` (19 in all). They come from listener events, so the hot path never calls them; only
-`cosid.generator.generated` counts ids, and only when `cosid.metrics.generated.enabled: true`.
+`cosid.generator.generated` counts ids, and only when `cosid.metrics.generated.enabled: true`. To turn every `cosid.*`
+meter off (4.x `cosid.metrics.enabled: false`), use Spring Boot's meter filter: `management.metrics.enable.cosid: false`.
 
 | Meter | Type | Tags | 4.x name |
 |---|---|---|---|

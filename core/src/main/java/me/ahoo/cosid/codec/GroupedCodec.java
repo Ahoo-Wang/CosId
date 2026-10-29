@@ -26,8 +26,23 @@ import java.util.function.UnaryOperator;
  * (04-segment.md §3).
  */
 public interface GroupedCodec {
+    /**
+     * Encodes a grouped id. An implementation is thread-safe: the generators of a runtime call it concurrently.
+     *
+     * @param id the id
+     * @return the text, never null
+     * @throws IllegalArgumentException if the codec cannot encode {@code id}, such as a value outside its range
+     */
     String encode(GroupedId id);
 
+    /**
+     * Decodes text produced by {@link #encode(GroupedId)}.
+     *
+     * @param text the text
+     * @return the id
+     * @throws IllegalArgumentException if the text is not an encoded grouped id
+     * @throws UnsupportedOperationException if the codec cannot decode at all, such as a date prefix without a delimiter
+     */
     GroupedId decode(String text);
 
     /**

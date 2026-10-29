@@ -35,6 +35,7 @@ public sealed interface GeneratorSpec {        // 次版本可加变体(D40)
                                                            GroupedCodecSpec codec; }
     final class Custom implements GeneratorSpec { String reference; List<CodecSpec> codec; }      // 按名引用用户的 IdGenerator(D41)
     final class Instance implements GeneratorSpec { IdGenerator ids; List<CodecSpec> codec; }     // 代码里直接给实例(D41)
+    final class UuidV7 implements GeneratorSpec { }       // UUIDv7(D46):无 machine、存储与 codec;文本经 text(name)
     record Disabled(GeneratorSpec generator) implements GeneratorSpec {}
 }
 

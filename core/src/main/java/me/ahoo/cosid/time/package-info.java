@@ -12,7 +12,8 @@
  */
 
 /**
- * Time-based generators (03-core-model.md): layouts, the time source, the clock regression policy and
- * {@link me.ahoo.cosid.time.TimeBasedGenerator}.
+ * Time-based generators (03-core-model.md): layouts, the time source, the clock regression policy,
+ * {@link me.ahoo.cosid.time.TimeBasedGenerator}, and {@link me.ahoo.cosid.time.UuidV7Generator} (D46), whose ids carry
+ * a timestamp but need no slot.
  */
 package me.ahoo.cosid.time;

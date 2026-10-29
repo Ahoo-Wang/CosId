@@ -64,7 +64,7 @@ class IdController {
     }
 
     @GetMapping(RemoteApi.IDS)
-    @Operation(summary = "Ids of the default generator")
+    @Operation(summary = "Ids of the default generator", description = "JSON numbers: a JavaScript client's JSON.parse rounds integers above 2^53, so a 63-bit id may arrive as another one; such clients read /strings, or the generator uses a JS_SAFE layout")
     CompletableFuture<Bodies.IdsBody> defaultIds(@RequestParam(defaultValue = "1") int count, @RequestAttribute(Grant.ATTRIBUTE) Grant grant) {
         return ids(RuntimeSpec.DEFAULT_GENERATOR, count, grant);
     }
@@ -76,7 +76,7 @@ class IdController {
     }
 
     @GetMapping(RemoteApi.IDS + "/{generator}")
-    @Operation(summary = "Ids of a generator")
+    @Operation(summary = "Ids of a generator", description = "JSON numbers: a JavaScript client's JSON.parse rounds integers above 2^53, so a 63-bit id may arrive as another one; such clients read /strings, or the generator uses a JS_SAFE layout")
     CompletableFuture<Bodies.IdsBody> ids(@PathVariable String generator, @RequestParam(defaultValue = "1") int count,
                                           @RequestAttribute(Grant.ATTRIBUTE) Grant grant) {
         int n = admit(count, grant);

@@ -37,3 +37,17 @@ client token 只能访问存储原语与 `/ids/**`（位于 `spring.mvc.servlet.
 设置 `SPRING_THREADS_VIRTUAL_ENABLED=false` 即可关闭），开启健康探针且 readiness 组包含后备存储（健康贡献者 `cosidServerStore`），Actuator 暴露
 `health`、`info`、`prometheus` 与 `cosid`。`cosid.namespace` 默认为 `${spring.application.name}`
 （`cosid-server`）。
+
+## 从 4.x proxy server 迁移
+
+`cosid-migration config` 会把所有 `cosid.proxy.server.*` 键报为丢弃；它们在 5.0 最接近的设置：
+
+| 4.x `cosid.proxy.server.*` | cosid-server |
+|---|---|
+| `namespaces`（整台服务只服务这些命名空间） | 没有整台服务的列表：把每个 token 都写成带 `namespaces` 的 client（`auth.clients[i]`）；`auth.tokens` 中的 token 可访问所有命名空间 |
+| `auth.*` | `auth.tokens`、`auth.clients[i]`、`auth.public-paths`、`auth.allow-anonymous` |
+| `segment.max-step` | `limits.max-reserve` |
+| `segment.max-distributors` | `limits.max-keys-per-namespace`（按 client 与命名空间） |
+| `min-safe-guard-duration` | `limits.min-ttl`：租约是时间窗口，没有 guard |
+| `max-clock-skew` | `limits.max-tolerance`：时钟偏差只在租约 tolerance 内影响可用性，从不影响唯一性（D22） |
+| `blocking.*` | `blocking.threads`、`blocking.queue-capacity` |

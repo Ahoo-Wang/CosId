@@ -165,8 +165,9 @@ The CosIdGenerator keys map as follows (`config` writes them):
 | `pad-start` (true, friendly text only) | `codec[0].friendly.pad-start` (true) |
 | `namespace` | `machine: generator` + `cosid.machines.generator.namespace` ([below](#a-shared-cosidgenerator-namespace)) |
 
-Other keys: `cosid.metrics.generated.enabled` keeps its 4.x name. The health indicator is `cosid`
-(`/actuator/health/cosid`, `management.health.cosid.enabled`). A `cosid.*` key 5.0 does not know fails the start.
+Other keys: `cosid.metrics.generated.enabled` keeps its 4.x name. The 4.x switch of every meter, `cosid.metrics.enabled`,
+has no counterpart: turn the `cosid.*` meters off with Spring Boot's meter filter, `management.metrics.enable.cosid=false`.
+The health indicator is `cosid` (`/actuator/health/cosid`, `management.health.cosid.enabled`). A `cosid.*` key 5.0 does not know fails the start.
 
 ### 6. Start 5.0
 
@@ -409,6 +410,10 @@ public class Ids implements SmartInitializingSingleton, DisposableBean {
 | `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>` (`GeneratorSpec.Custom`), or `GeneratorSpec.Instance` in a `RuntimeSpecCustomizer` |
 | `MachineIdDistributor`s, the guarder, `~/.cosid-machine-state` | `cosid.machine.leased` / `static` (see [the slot lease](../concepts/slot-lease.md)) |
 | `IntegerIdGenerator`, `UncertaintyIdGenerator`, `LazyIdGenerator` | `IdGenerators.toInt`, `.uncertain`, `.lazy` |
+| `IdGenerator.generateAsString()`, `idConverter()` | `runtime.stringGenerator(name)`, `runtime.text(name)`, `runtime.get(name, IdCodec.class)`. **The default text changed**: 4.x converted with radix 62, padded to 11 characters; a 5.0 spec without a codec is decimal. `config` writes the radix 62 codec for Spring users; in code, keep the 4.x text with `codec: [ { radix: { radix: 62, width: 11, pad-start: true } } ]` / `CodecSpec.Radix(62, 11, true)` |
+| `@CosId` of `me.ahoo.cosid.annotation` | `@CosId` of `me.ahoo.cosid.accessor` |
+| `CosIdEventListener` | `GeneratorListener` (`RuntimeOptions.listener`) |
+| `Stat`, `Statistical` | `CosIdRuntime.describe()` (`GeneratorInfo`) |
 | `UuidGenerator` (random UUIDv4) | `IdGenerators.uuid()`; for UUIDs ordered by time, `strategy: uuidv7` ([generators](../../reference/config/generators.md#uuidv7)) |
 | `CosIdStoreProvider` | `StoreProvider` |
 | `Customize*Properties` | `RuntimeSpecCustomizer` |

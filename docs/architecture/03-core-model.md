@@ -156,7 +156,9 @@ public final class IdGenerators {
 **值类型的演进(D39,R1-core-01,详见 [api-freeze.md](api-freeze.md) §4)**:
 
 - 封闭的值保留 `record`,规范构造器与记录模式都属于兼容承诺:`Range`、`IdParts`、`GroupedId`、`Owner`、`Layout`、`ClockRegressionPolicy`、
-  `CodecSpec.*`、`PartsCodecSpec.*`、`GroupedCodecSpec.*`、`GeneratorSpec.Disabled`、`AcquireResult.Exhausted`。
+  `CodecSpec.*`、`PartsCodecSpec.*`、`GroupedCodecSpec.*`、`GeneratorSpec.Disabled`、`AcquireResult.Exhausted`,以及 `StringIdGenerator(ids, codec)`(一个 `long` 生成器与它的 codec)。
+- 具体的生成器与租约类(`TimeBasedGenerator`、`SegmentGenerator`、`PeriodicSegmentGenerator`、`UuidV7Generator`、`LeaseKeeper`、`StaticSlot`)
+  是 final class,公开构造器是 `CosIdRuntime` 的装配入口,签名不变;新参数只走 builder 或静态工厂(R2-core-03,api-freeze §4.2)。
 - 配置与 SPI 值类型是 **final class + builder**(无 public 构造器,访问器沿用 record 风格,值等价,`toString` 同 record 格式):
   `RuntimeSpec`、`StoreSpec`、`RuntimeOptions`、`MachineSpec.Leased/Static`、`GeneratorSpec` 的策略变体、`BatchPolicy`、`PeriodicPolicy`、
   `StoreConfig`、`SlotLease`、`AcquireResult.Acquired`、`GeneratorInfo`。GA 后只往 builder 加有默认值的可选字段。

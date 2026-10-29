@@ -137,8 +137,8 @@ public final class CosIdRuntime implements AutoCloseable {
 
     /**
      * The ids the generator of that name issued through the views of this runtime: its {@code generator},
-     * {@code stringGenerator}, {@code get} by an interface type, {@code periodic(name)} excluded, and the
-     * {@link #filler()}.
+     * {@code stringGenerator}, {@code text(name)}, {@code get} by an interface type, {@code periodic(name)} excluded,
+     * and the {@link #filler()}; a uuidv7 generator counts every id it issues, by its concrete type too.
      *
      * @param name the generator name
      * @return the count; empty unless {@link RuntimeOptions#countGenerated()} is on, or when it is disabled

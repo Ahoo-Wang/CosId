@@ -8,6 +8,11 @@
 不分片时它们位于 primary shard 上，每个操作都路由到那里，与副本集相同，存储时钟取该 shard 的时钟。不支持对 `cosid_slot`
 分片：它的 `findOneAndUpdate` 过滤条件不含分片键，MongoDB 7.1 之前会拒绝。
 
+## 驱动版本 {#driver}
+
+`cosid-store-mongo` 基于 **mongodb-driver-sync 5.8.1** 构建与测试，这正是 Spring Boot 4.1.2 管理的版本：Boot 4.1.2 上的应用无论用 Maven 还是
+Gradle 都拿到 5.8.1（CI job `published-jars`，[run 40881059003](https://github.com/Ahoo-Wang/CosId/actions/runs/40881059003)）。
+
 ## 配置
 
 ```yaml

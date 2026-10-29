@@ -23,6 +23,11 @@
         </repository>
     </repositories>
     <dependencies>
+        <!-- As an application has it (logging, YAML); the CosId starter brings Spring Boot's autoconfiguration only. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
         <dependency>
             <groupId>me.ahoo.cosid</groupId>
             <artifactId>cosid-spring-boot-starter</artifactId>

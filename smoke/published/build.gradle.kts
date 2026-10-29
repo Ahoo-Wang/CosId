@@ -22,6 +22,8 @@ repositories {
 
 dependencies {
     implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.2"))
+    // As an application has it (logging, YAML); the CosId starter brings Spring Boot's autoconfiguration only.
+    implementation("org.springframework.boot:spring-boot-starter")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:$cosidVersion")
     implementation("me.ahoo.cosid:cosid-store-redis:$cosidVersion")
     implementation("me.ahoo.cosid:cosid-store-mongo:$cosidVersion")

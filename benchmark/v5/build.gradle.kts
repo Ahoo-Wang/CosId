@@ -27,9 +27,6 @@ dependencies {
     jmh(project(":store:mongo"))
     // R2-Redis: P7 / P10
     jmh(project(":store:redis"))
-    // ZooKeeper brings Netty 4.1 epoll, Lettuce 7 needs 4.2: on Linux Lettuce picks epoll and fails on the 4.1 classes.
-    // Align every Netty artifact, as the Spring Boot BOM does for applications.
-    jmh(platform(libs.netty.bom))
     // P10 (ZooKeeper): the store and an in-process server.
     jmh(project(":store:zookeeper"))
     jmh(libs.curator.test)

@@ -19,14 +19,7 @@ plugins {
     alias(libs.plugins.spring.boot)
 }
 
-// The Spring Boot BOM on this project's classpaths; -PspringBootVersion swaps it, as cosid.spring does for spring/*.
-val springBootVersion = findProperty("springBootVersion")?.toString()
-val springBootBom = if (springBootVersion == null) dependencies.platform(libs.spring.boot.dependencies)
-else dependencies.enforcedPlatform("org.springframework.boot:spring-boot-dependencies:$springBootVersion")
-
 dependencies {
-    implementation(springBootBom)
-    annotationProcessor(springBootBom)
     implementation(project(":core"))
     implementation(project(":spring:autoconfigure"))
     // RemoteApi: the paths and error codes the client and the server share.

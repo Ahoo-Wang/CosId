@@ -1,7 +1,7 @@
 # Benchmarks
 
 **5.0 must not be slower than 4.x** (D21). This is a release gate, not a goal. Every scenario runs on the released
-4.1.0 jars and on 5.0, and the comparison decides.
+4.1.1 jars and on 5.0, and the comparison decides.
 
 ## How it is measured
 
@@ -10,7 +10,7 @@ with the same scenarios and the same class and method names (`<Scenario>Benchmar
 
 ```
 benchmark/
-  baseline-4x/   me.ahoo.cosid:*:4.1.0
+  baseline-4x/   me.ahoo.cosid:*:4.1.1
   v5/            the 5.0 modules
   scenarios.md   the scenarios: parameters, threads, warm-up, iterations
   compare        reads both JMH JSON results and prints PASS / FAIL per row

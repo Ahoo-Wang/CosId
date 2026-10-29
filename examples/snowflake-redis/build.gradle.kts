@@ -19,7 +19,6 @@ plugins {
 }
 
 dependencies {
-    implementation(platform(libs.spring.boot.dependencies))
     implementation(project(":spring:starter"))
     implementation(project(":store:redis"))
     implementation("org.springframework.boot:spring-boot-starter-webmvc")

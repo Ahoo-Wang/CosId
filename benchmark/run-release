@@ -255,7 +255,7 @@ with open(os.path.join(work, "load.tsv")) as file:
 with open(os.path.join(work, "report.md")) as file:
     comparison = file.read().split("\n", 1)[1]
 lines = ["# CosId 5.0 release gate", "",
-         "4.1.0 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`) on the same machine, interleaved per scenario "
+         "4.1.1 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`) on the same machine, interleaved per scenario "
          "(4.x then 5.x), judged by `benchmark/compare` with the rules of "
          "[10-performance-and-parity.md §1.3](../../architecture/10-performance-and-parity.md).", "",
          "| | |", "|---|---|",

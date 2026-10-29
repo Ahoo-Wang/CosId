@@ -3,7 +3,7 @@
 The scenarios of [10-performance-and-parity.md §1.2](../docs/architecture/10-performance-and-parity.md), implemented
 twice with the same JMH class and method names so that [`compare`](compare) can match them row by row:
 
-- [`baseline-4x/`](baseline-4x): on the released `me.ahoo.cosid:*:4.1.0` jars (Maven Central), never on a project of
+- [`baseline-4x/`](baseline-4x): on the released `me.ahoo.cosid:*:4.1.1` jars (Maven Central), never on a project of
   this build (the dependency rules forbid it: both use the package `me.ahoo.cosid`).
 - [`v5/`](v5): on the 5.x modules.
 
@@ -31,7 +31,7 @@ generator a `CosIdRuntime` hands out, on the store as the runtime opens and wrap
 | P10 (MongoDB) | `MongoStoreBenchmark` | `reserve_t1`, `acquire_t1`, `renew_t1` | avgt, sample | `MongoIdSegmentDistributor.nextMaxId(100)`; `LeaseStoreMachineIdDistributor` on `MongoMachineLeaseStore` (timeout 10s): `distribute` + `revert` of a machine id (10 bits), `guard` of a held one | `MongoStore` (timeout 10s): `reserve(key, 100, 0)`; `acquire` + `release` (limit 1024), `renew` of a held lease; both on the replica set at `COSID_BENCHMARK_MONGODB_URI` (default `mongodb://localhost:27017`) |
 | P10 (Redis) | `RedisStoreBenchmark` | `reserve_t1`, `acquireRelease_t1`, `renew_t1` | avgt, sample | `nextMaxId(100)`; `MachineLeaseManager.acquire` (a new instance, 10 machine bits) then `release`; `renew` of a held lease (`SpringRedisMachineLeaseStore`, command timeout 10s, as the 5.x store timeout) | `reserve(key, 100, 0)`; `acquire` (a new owner, limit 1024) then `release`; `renew` of a held lease |
 | P10 (ZooKeeper) | `ZookeeperStoreBenchmark` | `reserve_t1`, `renew_t1`, `acquire_t1`, `acquire1024_t1` | avgt, sample | `ZookeeperIdSegmentDistributor.nextMaxId(100)` (no call timeout); `MachineLeaseManager` on `ZookeeperMachineLeaseStore` (call timeout 5s): `renew`, `acquire` + `release` at machine bit 10, empty or with 1023 ids held | `ZookeeperStore` (timeout 5s): `reserve(key, 100, 0)`; `renew`, `acquire` + `release` at limit 1024, empty or with 1023 slots held; both on one in-process ZooKeeper 3.9 (curator-test) per trial |
-| P11 | `SpringStartBenchmark` | `startToFirstId_t1` | avgt | a Spring Boot context (`@EnableAutoConfiguration`, no web) started with `cosid-spring-boot-starter:4.1.0`, manual machine id 1 and the share snowflake generator, the first id, the context closed | the same with the 5.x starter: `cosid.machine.static.slot=1` and a `default` snowflake generator; both sides on the Spring Boot of `spring/*` (`spring-boot-starter`, so the same logging); `avgt` over repeated starts rather than `ss`, so one smoke run gives a stable mean |
+| P11 | `SpringStartBenchmark` | `startToFirstId_t1` | avgt | a Spring Boot context (`@EnableAutoConfiguration`, no web) started with `cosid-spring-boot-starter:4.1.1`, manual machine id 1 and the share snowflake generator, the first id, the context closed | the same with the 5.x starter: `cosid.machine.static.slot=1` and a `default` snowflake generator; both sides on the Spring Boot of `spring/*` (`spring-boot-starter`, so the same logging); `avgt` over repeated starts rather than `ss`, so one smoke run gives a stable mean |
 | P12 | `IdFillerBenchmark` | `fill_t1` | thrpt | `DefaultAccessorRegistry.ensureId` on a new entity; `SegmentChainId` share, in-memory distributor, step 100 | `CosIdRuntime.filler().fill`; `default` segment generator on `InMemoryStore`, step 100 |
 
 Choices that keep the comparison fair:
@@ -82,7 +82,7 @@ eight jobs, one per scenario group: `snowflake` (P1–P4), `segment` (P5, P6, P8
 `spring-start` (P11), and one per store for P7 / P10 — `mysql` (MySQL 8.4), `redis` (Redis 7), `mongo` (a MongoDB 7.0
 single-node replica set) and `zookeeper` (ZooKeeper 3.9), each starting only its own store, so no other container
 shares the runner. Every job uses the same pinned JDK 21 patch release (Temurin, `JAVA_VERSION` in the workflow; the
-Gradle toolchain may use no other) and runs `benchmark/run-release` on its group, so 4.1.0 and 5.x of a scenario run
+Gradle toolchain may use no other) and runs `benchmark/run-release` on its group, so 4.1.1 and 5.x of a scenario run
 one after the other on the same runner.
 
 `run-release` is `run-smoke --release` (3 forks, 5 x 2 s warmup, 5 x 2 s measurement, `-prof gc`) with these steps:
@@ -97,11 +97,11 @@ one after the other on the same runner.
 
 The `Report` job joins the groups with `benchmark/aggregate-release` into one `report.md` (a table of the groups and
 their runners, then each group's comparison), `baseline-4x.json`, `v5.json`, the re-run JSON, and `baseline-4x.md`
-(the 4.1.0 side alone), uploaded as the `release-gate-report` artifact. The verdict and every group's comparison are
+(the 4.1.1 side alone), uploaded as the `release-gate-report` artifact. The verdict and every group's comparison are
 written to the job summary of the run, and the markdown alone (`report.md`, `baseline-4x.md`, without the raw JSON) is
 the `release-gate-summary` artifact. The report is evidence, kept with the run: the workflow commits nothing and opens
 no PR. To keep a result in the repository, commit the summary by hand (`report.md` to `docs/jmh/5.0/`,
-`baseline-4x.md` to `docs/jmh/4.1.0/release-ci.md`, the clean 4.1.0 baseline, L1) and link the run. A FAIL row is
+`baseline-4x.md` to `docs/jmh/4.1.1/release-ci.md`, the clean 4.1.1 baseline, L1) and link the run. A FAIL row is
 reported the same way: investigate it, fix a real regression, and run the gate again.
 
 A push to a `release-gate-check/**` branch runs the same pipeline with smoke settings and re-runs every row

@@ -20,7 +20,7 @@ import java.time.ZoneId;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * What the 4.1.0 starter builds by default, shared by the scenarios (benchmark/scenarios.md).
+ * What the 4.1.1 starter builds by default, shared by the scenarios (benchmark/scenarios.md).
  */
 final class Baseline4x {
     static final int MACHINE_ID = 1;

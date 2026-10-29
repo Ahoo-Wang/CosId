@@ -182,7 +182,7 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
 
 ## Tests
 
-The tests write real 4.x data with the released 4.1.0 jars: `src/test/legacy4x` is a source set compiled against them
+The tests write real 4.x data with the released 4.1.1 jars: `src/test/legacy4x` is a source set compiled against them
 alone and loaded in a class loader of its own (4.x and 5.0 share the package `me.ahoo.cosid`). Each scenario
 (`MigrationScenarioTest`) migrates segments, grouped segments of the current and past periods and machine ids, issues
 ids with a 5.0 `CosIdRuntime` and asserts M1–M3; leaves a 4.x instance running (the quiet period aborts `apply`; with

@@ -383,7 +383,13 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
           4. 核对 Central、Docker Hub(含 `latest`)和文档站;
           5. main 改为下一个 SNAPSHOT;
           6. 通知 Wow。
-      - → 第八次正式门禁 [run 40887469149](https://github.com/Ahoo-Wang/CosId/actions/runs/40887469149) @ `be35de36`(GA 候选提交，基线 4.1.1,首次纳入 P13 uuidv7 趋势行)运行中。完成后在 GA 提交上重跑门禁(R2-perf-01)。
+      - 第八次正式门禁 [run 40887469149](https://github.com/Ahoo-Wang/CosId/actions/runs/40887469149) @ `be35de36`:**FAIL 3/8,每组只有 1 行，全是尾延迟;所有吞吐、平均和分配行 PASS。按约定 GA 暂不发布，交用户决定。**
+        - `SegmentBenchmark.generate_t1` step=100,p99.9(端到端):4.x 50/71 ns,5.x 90/110 ns(两次运行)。
+        - `RedisChainIdBenchmark.generate_t1` step=100,p99.9(端到端):4.x 91/151 ns,5.x 110/170 ns。
+        - `MySqlStoreBenchmark.acquire_t1` p99.9(组件，只在启动时调用):4.x 2.7/2.4 ms,5.x 4.0/3.4 ms(超出 D44 的 30% 软上限);同一行的平均延迟(1239 vs 1326 µs)、p99(1595 vs 1642 µs)和分配都是 5.x 更好。
+        - **runner 因素**:这次跑在 EPYC 9V45 上，那里 AtomicLong 本身只有 214 ops/µs(第七次在 7763 上是 420)。5.x 号段仍是 AtomicLong 的 101–102%,4.x 则从 33% 升到 73%,所以 5.x 没有回退，是 4.x 在这颗 CPU 上相对变快了。
+        - **测量因素**:失败的两行端到端数据都在 50–170 ns,采样值以约 10–20 ns 为一档跳变;10% 容差只有 5–9 ns,低于一档，判定实际上由量化噪声决定。5.x 自身在各次门禁中的这项数据很稳定(70–120 ns),4.x 则在 50 到 1282 ns 之间波动。
+        - 建议(待用户决定):① 给 D34 补一条：采样分位延迟的容差另加 +100 ns 的绝对下限，与分配的 +64 B 下限同理;② MySQL acquire p99.9 作为有数据的例外，由用户裁定;③ 不靠"换个 runner 重跑"来求通过。完成后在 GA 提交上重跑门禁(R2-perf-01)。
       - 协调会话按推荐做的两项决定(§4.3 第 18 项):R2-spring-02 对不适用策略的键只打 WARN,不改为启动失败;R2-core-03 的公开构造器保留，约定今后新增参数只通过 builder 或静态工厂。
   - 用户 2026-10-29 决定：在 RC1 之前先发 **`v5.0.0-alpha.2`**。alpha 发布已获授权(D33);发布准备 PR #1400 由 rc.1 改为 alpha.2。发布步骤同 alpha.1:
     1. 合入 #1400;

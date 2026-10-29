@@ -327,6 +327,12 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
     4. 在 Central、Docker Hub 和站点上核对;
     5. main 改回 `5.0.0-SNAPSHOT`。
     RC1 仍需用户确认。
+  - **下游 Wow V10**(2026-10-29,跨会话沟通):
+    - wow-cosid 正从 CosId 3.4.1 升级到 5.0.0-alpha.2。它按名字从运行时解析生成器，命名约定是聚合的限定名 `<context>.<aggregate>`(带点),全局默认生成器为 `default`。
+    - 我们已确认带点的名字受支持，并属于冻结面。会补一个回归测试 PR,覆盖 Spring 中的 `"[a.b]"` 写法、未知键检查、运行时查找和 TCK,PR 号出来后告知 Wow。
+    - Wow 的 rc/GA 跟随 CosId RC1,由用户决定。
+    - 已提醒 Wow:跨服务唯一的 ID 要用共享命名空间的命名 machine(D37)。
+    - CoSec 与 CosId 5 不能共存于同一类路径(CoSec 依赖 4.x API)。CosId **不提供兼容层**(D1),建议 CoSec 改为依赖 `LongSupplier`/`Supplier<String>` 这类函数式接口来解耦。
   - ✅ **`v5.0.0-alpha.2` 已发布**(2026-10-29,pre-release,目标 `f3c80934` = #1400):
     - Packages Deploy、Docker Image Deploy、document-deploy 全部成功;
     - Central 在 06:13 可以解析(core、bom、starter、各 store);`cosid-store-zookeeper` 的 POM 中是具体版本(Curator 5.9.0、ZooKeeper 3.9.6、Guava 33.7.2),没有 BOM import;

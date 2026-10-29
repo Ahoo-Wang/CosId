@@ -90,8 +90,14 @@ one after the other on the same runner.
 
 - It records the runner (CPU model, cores, memory, OS, image), the JDK, JMH and the commit.
 - It refuses to start when a store the group needs does not answer.
+- **The store scenarios run ABBA** (P7, P10: the `mysql`, `redis`, `mongo` and `zookeeper` groups): each side runs twice,
+  4.x 5.x 5.x 4.x, with half the forks each (2 + 2 in release settings), and `benchmark/merge-results` joins the two
+  runs of a side into one row: forks pooled, score, JMH's 99.9 % error and percentiles computed again from the raw
+  data. Neither side then always runs right after the other on the store, which changes its tail latency (the P5
+  investigation). Tolerances and judging are unchanged.
 - **Runners are shared virtual machines**, so on CI (`CI=true`, or `--rerun`) a row that fails runs once more, both
-  sides again in fresh forks (`compare --failed` lists the rows, `compare --rerun` judges them on that re-run alone).
+  sides again in fresh forks, a store row ABBA again (`compare --failed` lists the rows, `compare --rerun` judges them on
+  that re-run alone).
   A row that failed passes only if its re-run passes; the report shows both runs.
 - Outside CI it still aborts (status 3) when the 1-minute load average is above 1.5 before a scenario; on CI the load
   of a runner says nothing about its neighbours, so that check is off.

@@ -19,10 +19,13 @@
 #
 # SCENARIO is P1..P12 (P7 and P10 stand for their store classes, see benchmark/scenarios.md) or a class name such as
 # SegmentBenchmark; the default is the PR smoke set P1 P3 P5 P9. --release uses the release-gate JMH settings and
-# release compare rules instead of the smoke ones. --max-load aborts (status 3) when the 1-minute load average is above
-# N before a scenario. Results land in DIR (default build/benchmark-smoke): the JSON of each side, the run logs,
-# load.tsv and report.md. Exits with the status of compare (0 PASS, 1 FAIL, 2 bad input, 4 harness error: a side
-# without its rows or a JMH <failure> in a log, which is no result).
+# release compare rules instead of the smoke ones. A store scenario (P7, P10: the MySql*, Redis*, Mongo* and Zookeeper*
+# classes) runs each side twice in ABBA order, 4.x 5.x 5.x 4.x, with half the forks each (rounded up), so that neither
+# side always runs right after the other on the store (benchmark/merge-results joins the two runs of a side).
+# --max-load aborts (status 3) when the 1-minute load average is above N before a scenario. Results land in DIR
+# (default build/benchmark-smoke): the JSON of each side, the run logs, load.tsv and report.md. Exits with the status
+# of compare (0 PASS, 1 FAIL, 2 bad input, 4 harness error: a side without its rows or a JMH <failure> in a log, which
+# is no result).
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -35,7 +38,7 @@ while (($#)); do
         --release) profile=release ;;
         --out) out="$2"; shift ;;
         --max-load) max_load="$2"; shift ;;
-        -h|--help) sed -n '14,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '14,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) scenarios+=("$1") ;;
     esac
     shift
@@ -68,6 +71,16 @@ else
     jmh_args=(-f 3 -wi 5 -w 2s -i 5 -r 2s)
     compare_args=()
 fi
+# Each of the two runs of a side in ABBA order: half the forks, rounded up.
+abba_args=("${jmh_args[@]}")
+for i in "${!abba_args[@]}"; do
+    [[ ${abba_args[$i]} == -f ]] && abba_args[$((i + 1))]=$(((${abba_args[$((i + 1))]} + 1) / 2))
+done
+
+# The store scenarios, which run ABBA.
+is_store() {
+    [[ $1 =~ ^(MySql|Redis|Mongo|Zookeeper) ]]
+}
 
 # Reference classes exist on 5.x only: run there, right after their scenario, never compared (compare, REFERENCE).
 references=(AtomicLongBenchmark)
@@ -99,13 +112,17 @@ load1() {
 }
 
 # Runs one side; waits for another JMH run on the machine (JMH's machine-wide lock) rather than overlapping it.
+# run SIDE CLASS [PART]: PART (a, b) is one of the two runs of an ABBA scenario, on half the forks.
 run() {
-    local side="$1" class="$2" jar log
+    local side="$1" class="$2" part="${3:-}" jar log name args
     jar="$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)"
-    log="$out/$side-$class.log"
+    name="$side-$class${part:+.$part}"
+    log="$out/$name.log"
+    args=("${jmh_args[@]}")
+    [[ -n $part ]] && args=("${abba_args[@]}")
     for _ in $(seq 1 40); do
-        if "$java" -jar "$jar" "^me\.ahoo\.cosid\.benchmark\.$class\." "${jmh_args[@]}" -prof gc \
-            -rf json -rff "$out/$side-$class.json" -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" \
+        if "$java" -jar "$jar" "^me\.ahoo\.cosid\.benchmark\.$class\." "${args[@]}" -prof gc \
+            -rf json -rff "$out/$name.json" -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" \
             >"$log" 2>&1; then
             return 0
         fi
@@ -114,8 +131,8 @@ run() {
         sleep 30
     done
     # A failing scenario leaves its rows out: compare reports a harness error, with the exception from this log.
-    echo "run-smoke: $side $class failed, see $log" >&2
-    [[ -s "$out/$side-$class.json" ]] || echo "[]" >"$out/$side-$class.json"
+    echo "run-smoke: $side $class${part:+ ($part)} failed, see $log" >&2
+    [[ -s "$out/$name.json" ]] || echo "[]" >"$out/$name.json"
 }
 
 for class in "${classes[@]}"; do
@@ -130,14 +147,22 @@ for class in "${classes[@]}"; do
         run v5 "$class"
         continue
     fi
+    if is_store "$class"; then
+        echo "run-smoke: $class on 4.x, 5.x, 5.x, 4.x (ABBA, load $load)" >&2
+        run baseline-4x "$class" a
+        run v5 "$class" a
+        run v5 "$class" b
+        run baseline-4x "$class" b
+        continue
+    fi
     echo "run-smoke: $class on 4.x, then 5.x (load $load)" >&2
     run baseline-4x "$class"
     run v5 "$class"
 done
 
+# One result per side; the two runs of an ABBA scenario become one row each (benchmark/merge-results).
 merge() {
-    python3 -I -c 'import json, sys; print(json.dumps([row for path in sys.argv[1:] for row in json.load(open(path))], indent=2))' \
-        "$out/$1"-*.json >"$out/$1.json.tmp"
+    "$root/benchmark/merge-results" "$out/$1.json.tmp" "$out/$1"-*.json
     mv "$out/$1.json.tmp" "$out/$1.all.json"
 }
 merge baseline-4x

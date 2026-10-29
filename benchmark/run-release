@@ -21,8 +21,10 @@
 # scenarios use answer: MySQL at COSID_TEST_MYSQL_URL, Redis at COSID_TEST_REDIS_URI, MongoDB at
 # COSID_BENCHMARK_MONGODB_URI (defaults localhost:3306 / 6379 / 27017), ZooKeeper at COSID_BENCH_ZOOKEEPER_CONNECT when
 # set (in process otherwise). Outside CI it aborts (status 3) when the 1-minute load average is above N (default 1.5)
-# before a scenario. On CI (CI=true) or with --rerun, a row that fails runs again on both sides in fresh forks, and
-# passes only if that re-run passes (compare --rerun); the report keeps both. DIR (default build/benchmark-release/report)
+# before a scenario. The store scenarios (P7, P10) run each side twice in ABBA order, 4.x 5.x 5.x 4.x, with half the
+# forks each (run-smoke), so that neither side always runs right after the other on the store. On CI (CI=true) or with
+# --rerun, a row that fails runs again on both sides in fresh forks (a store row ABBA again), and passes only if that
+# re-run passes (compare --rerun); the report keeps both. DIR (default build/benchmark-release/report)
 # receives baseline-4x.json, v5.json (and rerun-*.json), report.md, machine.json and verdict.json; the logs stay in
 # build/benchmark-release. --dry-run proves the pipeline in minutes with smoke JMH settings and tolerates missing
 # stores; it is never a result. Exits with the status of the final compare (0 PASS, 1 FAIL, 4 harness error). A
@@ -43,7 +45,7 @@ while (($#)); do
         --max-load) max_load="$2"; shift ;;
         --rerun) rerun=true ;;
         --dry-run) dry_run=true ;;
-        -h|--help) sed -n '14,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '14,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) scenarios+=("$1") ;;
     esac
     shift
@@ -59,6 +61,11 @@ if $dry_run; then
     jmh_args=(-f 1 -wi 2 -w 1s -i 3 -r 1s)
     compare_args=(--smoke)
 fi
+# Each of the two runs of a side of an ABBA re-run: half the forks, rounded up (as run-smoke).
+abba_args=("${jmh_args[@]}")
+for i in "${!abba_args[@]}"; do
+    [[ ${abba_args[$i]} == -f ]] && abba_args[$((i + 1))]=$(((${abba_args[$((i + 1))]} + 1) / 2))
+done
 [[ -n $out ]] || out="$work/report"
 # The load guard is for a machine of one's own; on a CI runner the load says nothing about its neighbours.
 load_guard=(--max-load "$max_load")
@@ -193,21 +200,37 @@ if $rerun && [[ $(python3 -I -c 'import json, sys; print(len(json.load(open(sys.
     while IFS=$'\t' read -r regex mode params; do
         n=$((n + 1))
         read -r -a param_args <<<"$params"
-        for side in baseline-4x v5; do
-            echo "run-release: re-running $regex ($mode${params:+ $params}) on $side" >&2
-            "$java" -jar "$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)" "$regex" "${jmh_args[@]}" -bm "$mode" \
-                ${param_args[@]+"${param_args[@]}"} -prof gc -rf json -rff "$work/rerun-$side-$n.json" \
-                -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" >"$work/rerun-$side-$n.log" 2>&1 \
-                || echo "run-release: the re-run on $side failed, see $work/rerun-$side-$n.log" >&2
+        # A store row re-runs ABBA, as run-smoke runs it: 4.x 5.x 5.x 4.x, half the forks each.
+        order=(baseline-4x v5)
+        args=("${jmh_args[@]}")
+        plain="${regex//\\/}"
+        if [[ $plain =~ \.benchmark\.(MySql|Redis|Mongo|Zookeeper) ]]; then
+            order=(baseline-4x:a v5:a v5:b baseline-4x:b)
+            args=("${abba_args[@]}")
+        fi
+        for entry in "${order[@]}"; do
+            side="${entry%%:*}"
+            part="${entry#"$side"}"
+            name="rerun-$side-$n${part:+.${part#:}}"
+            echo "run-release: re-running $regex ($mode${params:+ $params}) on $side${part:+ (${part#:})}" >&2
+            "$java" -jar "$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)" "$regex" "${args[@]}" -bm "$mode" \
+                ${param_args[@]+"${param_args[@]}"} -prof gc -rf json -rff "$work/$name.json" \
+                -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" >"$work/$name.log" 2>&1 \
+                || echo "run-release: the re-run on $side failed, see $work/$name.log" >&2
         done
     done < <(python3 -I -c '
 import json, re, sys
 for row in json.load(open(sys.argv[1])):
     params = " ".join(f"-p {k}={v}" for k, v in sorted(row["params"].items()))
     print("^" + re.escape(row["benchmark"]) + "$", row["mode"], params, sep="\t")' "$work/rerun-rows.json")
+    # One result per side, the two runs of an ABBA row joined (benchmark/merge-results); none if every re-run failed.
     for side in baseline-4x v5; do
-        python3 -I -c 'import glob, json, sys; print(json.dumps([r for p in sorted(glob.glob(sys.argv[1])) for r in json.load(open(p))]))' \
-            "$work/rerun-$side-*.json" >"$work/rerun-$side.all.json"
+        files=("$work/rerun-$side-"*.json)
+        if [[ -e ${files[0]} ]]; then
+            "$root/benchmark/merge-results" "$work/rerun-$side.all.json" "${files[@]}"
+        else
+            echo "[]" >"$work/rerun-$side.all.json"
+        fi
     done
     compare_args+=(--rerun "$work/rerun-baseline-4x.all.json" "$work/rerun-v5.all.json")
 fi

@@ -1,6 +1,6 @@
 # CosId 5.0 架构设计
 
-> 状态:**`v5.0.0-rc.1` 已发布(2026-10-29),兼容承诺从此开始;RC 期间进行 GA 前审查第 2 轮(D35)的修复**。进度见 [roadmap.md](roadmap.md) §5,审查与修复跟踪见 [rc-review.md](rc-review.md)。
+> 状态:**`v5.0.0` GA 已发布(2026-10-30)**;兼容承诺自 rc.1 起生效。main 现为 `5.0.1-SNAPSHOT`(补丁线;5.1 功能开发开始时改为 `5.1.0-SNAPSHOT`)。进度见 [roadmap.md](roadmap.md) §5,审查与修复跟踪见 [rc-review.md](rc-review.md)。
 
 CosId 5.0 是一次完全重构:**不考虑兼容性,以理想架构为目标,不保留任何兼容代码**。
 4.x 存储中的数据由离线迁移工具一次性迁入([09-migration.md](09-migration.md));这是 5.0 与 4.x 之间唯一的连接点。

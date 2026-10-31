@@ -25,7 +25,7 @@ lettuce = "7.9.0.RELEASE"
 curator = "5.9.0"
 # Curator 5.9.0 (the latest) brings ZooKeeper 3.9.3 and Guava 32.0.0: store/zookeeper declares patched ones so that
 # Maven and Gradle consumers alike resolve them, until a Curator after 5.9.0 brings ZooKeeper >= 3.9.5 and Guava >= 33.7.2.
-zookeeper = "3.9.6"
+zookeeper = "3.9.7"
 guava = "33.7.2-jre"
 # R3-S: every project builds and tests on this Spring Boot; -PspringBootVersion swaps it (02-modules.md §5). It is
 # also the lowest Boot supported (D49): the published metadata of spring/* requires the versions it resolves.

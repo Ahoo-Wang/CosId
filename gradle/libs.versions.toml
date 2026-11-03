@@ -14,7 +14,7 @@ cosid4 = "4.1.1"
 # benchmark/baseline-4x takes no BOM, so that its 4.x jars keep the versions they bring; its own direct dependencies
 # are pinned at the versions the BOM gives benchmark/v5, so both sides of a scenario run on the same drivers.
 baseline4x-mysql-connector = "9.7.0"
-baseline4x-hikari = "7.0.2"
+baseline4x-hikari = "7.1.0"
 baseline4x-mongodb = "5.8.1"
 # the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.1 brings, for benchmark/baseline-4x
 lettuce4 = "6.8.2.RELEASE"

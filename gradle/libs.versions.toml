@@ -17,7 +17,7 @@ baseline4x-mysql-connector = "9.7.0"
 baseline4x-hikari = "7.1.0"
 baseline4x-mongodb = "5.8.1"
 # the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.1 brings, for benchmark/baseline-4x
-lettuce4 = "6.8.2.RELEASE"
+lettuce4 = "6.9.0.RELEASE"
 # Above the BOM's 7.5.2 for a security fix: 7.5.2 brings Netty 4.2.13 (netty-handler, -resolver-dns, -codec-dns
 # advisories) to an application that does not manage Netty itself; 7.9 brings 4.2.17. Until the BOM manages Lettuce >= 7.9.
 lettuce = "7.9.0.RELEASE"

@@ -1001,7 +1001,7 @@ public final class ConfigConverter {
     public static Map<String, Layout> layoutsOf5(FlatConfig config) {
         Map<String, Layout> layouts = new LinkedHashMap<>();
         for (String name : config.names("cosid.generators")) {
-            String prefix = "cosid.generators." + name;
+            String prefix = FlatConfig.childKey("cosid.generators", name);
             String strategy = config.get(prefix + ".strategy", "");
             if ("cosid80".equals(strategy)) {
                 Layout base = Layout.COSID_80;

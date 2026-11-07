@@ -169,7 +169,7 @@ public final class Legacy4x {
         }
         if (snowflakeEnabled()) {
             for (String name : config.names("cosid.snowflake.provider")) {
-                generators.put(name, "cosid.snowflake.provider." + name);
+                generators.put(name, FlatConfig.childKey("cosid.snowflake.provider", name));
             }
         }
         return generators;
@@ -187,7 +187,7 @@ public final class Legacy4x {
         }
         if (segmentEnabled()) {
             for (String name : config.names("cosid.segment.provider")) {
-                generators.put(name, "cosid.segment.provider." + name);
+                generators.put(name, FlatConfig.childKey("cosid.segment.provider", name));
             }
         }
         return generators;

@@ -258,6 +258,45 @@ class RemoteStoreTest {
         assertTrue(StoreTimeoutException.isTimeout(timeout), "the runtime reports it as a store timeout");
     }
 
+    // #1438: the request timeout also bounds the response body, which the JDK's own timeout does not.
+    @Test
+    void aBodyThatStopsComingTimesOut() throws IOException {
+        HttpServer stalling = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        CountDownLatch rest = new CountDownLatch(1);
+        stalling.createContext("/", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            byte[] body = "{\"start\":1,\"end\":2}".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, body.length);
+            OutputStream out = exchange.getResponseBody();
+            out.write(body, 0, 1);
+            out.flush();
+            try {
+                rest.await();
+                out.write(body, 1, body.length - 1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (IOException aborted) {
+                // The client gave up.
+            } finally {
+                exchange.close();
+            }
+        });
+        stalling.setExecutor(handlers);
+        stalling.start();
+        try (RemoteStore impatient = new RemoteStore(URI.create("http://127.0.0.1:" + stalling.getAddress().getPort()), Optional.empty(),
+            Duration.ofSeconds(2), Duration.ofMillis(200))) {
+            long started = System.nanoTime();
+            RemoteStoreException timeout = assertThrows(RemoteStoreException.class, () -> impatient.ranges().reserve("ns/a", 1, 0));
+            long tookMillis = Duration.ofNanos(System.nanoTime() - started).toMillis();
+            assertTrue(tookMillis < 2_000, "the call ended at its deadline, not when the body came: " + tookMillis + "ms");
+            assertThat(timeout.getMessage(), containsString("timed out after PT0.2S"));
+            assertTrue(StoreTimeoutException.isTimeout(timeout), "the runtime reports it as a store timeout");
+        } finally {
+            rest.countDown();
+            stalling.stop(0);
+        }
+    }
+
     @Test
     void unreachableServerIsTransient() throws IOException {
         int port;

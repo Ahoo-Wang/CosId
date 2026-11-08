@@ -13,7 +13,11 @@
 
 package me.ahoo.cosid.sharding;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * Modulo-based cyclical sharding algorithm.
@@ -72,56 +76,101 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
         return effectiveNodes.get(nodeIdx);
     }
 
+    /**
+     * The nodes of every value in a range: the nodes {@link #sharding(Number)} routes the range's values to, or a few
+     * more, never fewer.
+     *
+     * <p>A range is taken in the domain of {@link Number#longValue()}, which routes a value: an integral type
+     * ({@code Long}, {@code Integer}, {@code Short}, {@code Byte}, {@code BigInteger}) by its exact values, so an open
+     * bound excludes its endpoint; a missing bound reaches to the end of the domain ({@code Long.MIN_VALUE} or
+     * {@code Long.MAX_VALUE}, a {@code BigInteger} without end), negative values included. A fractional type
+     * ({@code BigDecimal}, {@code Double}, {@code Float}) routes by its integer part, which the values beside an open
+     * endpoint share with it, so its bounds are taken as closed. A {@code BigInteger} or {@code BigDecimal} beyond a long
+     * routes by the low 64 bits of its integer part, as {@code longValue()} does.
+     *
+     * @param shardingValue the range
+     * @return the nodes of the range's values
+     */
     @Override
     public Collection<String> sharding(ShardingRange<T> shardingValue) {
-
         if (ShardingRange.all().equals(shardingValue)) {
             return effectiveNodes;
         }
-
-        if (!shardingValue.hasUpperBound()) {
-            return effectiveNodes;
-        }
-
         if (shardingValue.isEmpty()) {
             return ExactCollection.empty();
         }
-
-        long lower = 0;
-        if (shardingValue.hasLowerBound()) {
-            long lowerEndpoint = shardingValue.lowerEndpoint().longValue();
-            lower = BoundType.OPEN.equals(shardingValue.lowerBoundType()) ? (lowerEndpoint + 1) : lowerEndpoint;
+        T endpoint = shardingValue.hasLowerBound() ? shardingValue.lowerEndpoint() : shardingValue.upperEndpoint();
+        if (endpoint instanceof BigInteger || endpoint instanceof BigDecimal) {
+            return bigSharding(shardingValue);
         }
-
-        long upperEndpoint = shardingValue.upperEndpoint().longValue();
-
-        long upper = BoundType.OPEN.equals(shardingValue.upperBoundType()) ? (upperEndpoint - 1) : upperEndpoint;
-
+        boolean exact = endpoint instanceof Long || endpoint instanceof Integer || endpoint instanceof Short || endpoint instanceof Byte;
+        long lower = Long.MIN_VALUE;
+        if (shardingValue.hasLowerBound()) {
+            lower = shardingValue.lowerEndpoint().longValue();
+            if (exact && BoundType.OPEN.equals(shardingValue.lowerBoundType())) {
+                if (lower == Long.MAX_VALUE) {
+                    return ExactCollection.empty();
+                }
+                lower++;
+            }
+        }
+        long upper = Long.MAX_VALUE;
+        if (shardingValue.hasUpperBound()) {
+            upper = shardingValue.upperEndpoint().longValue();
+            if (exact && BoundType.OPEN.equals(shardingValue.upperBoundType())) {
+                if (upper == Long.MIN_VALUE) {
+                    return ExactCollection.empty();
+                }
+                upper--;
+            }
+        }
         if (upper < lower) {
             return ExactCollection.empty();
         }
-
-        if (lower < 0 && upper >= 0 && (upper - lower) < 0) {
-            // the mathematical span (>= 2^63) overflowed the subtraction and covers every node
+        // upper - lower + 1 values, the difference read unsigned (it reaches 2^64 - 1): divisor of them cover every node.
+        long span = upper - lower;
+        if (Long.compareUnsigned(span, divisor - 1L) >= 0) {
             return effectiveNodes;
         }
-
-        if (upper - lower >= divisor - 1) {
-            return effectiveNodes;
-        }
-
-        final int nodeSize = (int) (upper - lower + 1);
-
+        // Counted, not compared to upper: lower + i never passes upper, so it never overflows past Long.MAX_VALUE.
+        int nodeSize = (int) span + 1;
         ExactCollection<String> nodes = new ExactCollection<>(nodeSize);
-        int idx = 0;
-        while (lower <= upper) {
-            int modValue = (int) Math.floorMod(lower, (long) divisor);
-            String matchedNode = effectiveNodes.get(modValue);
-            nodes.add(idx, matchedNode);
-            lower++;
-            idx++;
+        for (int i = 0; i < nodeSize; i++) {
+            nodes.add(i, effectiveNodes.get((int) Math.floorMod(lower + i, (long) divisor)));
         }
         return nodes;
+    }
+
+    private Collection<String> bigSharding(ShardingRange<T> shardingValue) {
+        if (!shardingValue.hasLowerBound() || !shardingValue.hasUpperBound()) {
+            return effectiveNodes;
+        }
+        BigInteger lower = integral(shardingValue.lowerEndpoint(), shardingValue.lowerBoundType(), BigInteger.ONE);
+        BigInteger upper = integral(shardingValue.upperEndpoint(), shardingValue.upperBoundType(), BigInteger.ONE.negate());
+        BigInteger span = upper.subtract(lower);
+        if (span.signum() < 0) {
+            return ExactCollection.empty();
+        }
+        if (span.compareTo(BigInteger.valueOf(divisor - 1L)) >= 0) {
+            return effectiveNodes;
+        }
+        // Fewer values than nodes; their low 64 bits wrap at most once, where two of them may share a node.
+        Set<String> nodes = new LinkedHashSet<>();
+        for (BigInteger value = lower; value.compareTo(upper) <= 0; value = value.add(BigInteger.ONE)) {
+            nodes.add(effectiveNodes.get((int) Math.floorMod(value.longValue(), (long) divisor)));
+        }
+        return new ExactCollection<>(nodes.toArray());
+    }
+
+    /**
+     * The first (step 1) or last (step -1) integer a bound reaches: a {@code BigInteger} endpoint, past it when the bound
+     * is open; the integer part of a {@code BigDecimal} endpoint, which the values beside it share, open or closed.
+     */
+    private static BigInteger integral(Number endpoint, BoundType boundType, BigInteger step) {
+        if (endpoint instanceof BigInteger integer) {
+            return BoundType.OPEN.equals(boundType) ? integer.add(step) : integer;
+        }
+        return ((BigDecimal) endpoint).toBigInteger();
     }
 
     @Override

@@ -16,11 +16,15 @@ package me.ahoo.cosid.sharding;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -95,30 +99,52 @@ class ExactCollectionTest {
         assertArrayEquals(new String[]{"0", "1"}, typedArray);
     }
 
+    // #1458: an array large enough is filled and returned, the slot after the elements nulled.
     @Test
-    void removeReturnsTrueAndClearsMatchingSlot() {
-        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1", "2");
+    void toArrayFillsAnArrayLargeEnough() {
+        ExactCollection<String> exactCollection = new ExactCollection<>("t_1", "t_2");
 
-        assertTrue(exactCollection.remove("1"));
-        assertArrayEquals(new Object[]{"0", null, "2"}, exactCollection.toArray());
+        String[] buffer = {"old-a", "old-b", "sentinel", "keep"};
+        assertSame(buffer, exactCollection.toArray(buffer));
+        assertArrayEquals(new String[]{"t_1", "t_2", null, "keep"}, buffer);
+
+        String[] exact = {"old-a", "old-b"};
+        assertSame(exact, exactCollection.toArray(exact));
+        assertArrayEquals(new String[]{"t_1", "t_2"}, exact);
+
+        String[] small = {"old-a"};
+        String[] grown = exactCollection.toArray(small);
+        assertNotSame(small, grown);
+        assertArrayEquals(new String[]{"t_1", "t_2"}, grown);
+        assertArrayEquals(new String[]{"old-a"}, small);
+    }
+
+    // #1459: the Collection mutators are refused rather than leaving null slots behind; the nodes of a Sharding are
+    // shared by every caller.
+    @Test
+    void removeAndClearAreUnsupported() {
+        Collection<String> exactCollection = new ExactCollection<>("0", "1", "2");
+
+        assertThrows(UnsupportedOperationException.class, () -> exactCollection.remove("1"));
+        assertThrows(UnsupportedOperationException.class, () -> exactCollection.remove("missing"));
+        assertThrows(UnsupportedOperationException.class, exactCollection::clear);
+        assertThrows(UnsupportedOperationException.class, () -> exactCollection.add("3"));
+        assertThrows(UnsupportedOperationException.class, () -> exactCollection.removeIf("0"::equals));
+        Iterator<String> iterator = exactCollection.iterator();
+        iterator.next();
+        assertThrows(UnsupportedOperationException.class, iterator::remove);
+        assertEquals(List.of("0", "1", "2"), List.copyOf(exactCollection));
     }
 
     @Test
-    void removeReturnsFalseWhenElementDoesNotExist() {
-        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1");
+    void theNodesOfAShardingCannotBeChangedByACaller() {
+        ModCycle<Long> modCycle = new ModCycle<>(4, "t_");
+        Collection<String> all = modCycle.sharding(ShardingRange.all());
 
-        assertFalse(exactCollection.remove("missing"));
-        assertArrayEquals(new Object[]{"0", "1"}, exactCollection.toArray());
-    }
-
-    @Test
-    void clearKeepsSizeAndClearsAllSlots() {
-        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1");
-
-        exactCollection.clear();
-
-        assertEquals(2, exactCollection.size());
-        assertArrayEquals(new Object[]{null, null}, exactCollection.toArray());
+        assertThrows(UnsupportedOperationException.class, () -> all.remove("t_1"));
+        assertThrows(UnsupportedOperationException.class, all::clear);
+        assertEquals("t_1", modCycle.sharding(1L));
+        assertEquals(List.of("t_0", "t_1", "t_2", "t_3"), List.copyOf(modCycle.getEffectiveNodes()));
     }
 
     @Test

@@ -18,7 +18,8 @@ public interface Sharding<T extends Comparable<? super T>> extends PreciseShardi
 ## ModCycle：取模分片
 
 `ModCycle<T extends Number>` 将 `value mod divisor` 映射为 `{prefix}{index}`。范围只访问它覆盖的节点，
-一旦跨越 `divisor` 个值，就访问全部节点。
+一旦跨越 `divisor` 个值，就访问全部节点。负数与其他值一样路由，因此没有下界的范围（`atMost`、`lessThan`）访问全部节点。
+`BigInteger` 与 `BigDecimal` 范围不会被截断为 long：范围访问其中每个值所在的节点（`BigDecimal` 按整数部分路由，可能多一个）。
 
 <p align="center"><img src="../../../public/assets/design/CosIdModShardingAlgorithm.png" alt="ModCycle"/></p>
 
@@ -43,7 +44,8 @@ IntervalTimeline logs = new IntervalTimeline("t_log_",
 logs.sharding(LocalDateTime.of(2026, 10, 27, 12, 0));    // t_log_202610
 ```
 
-有效范围之外的值会被拒绝（`IllegalArgumentException`）；有效范围之外的范围不对应任何节点。
+有效范围之外的值会被拒绝（`IllegalArgumentException`）；有效范围之外的范围不对应任何节点。开放上界恰好落在某个区间的起点时
+（按月的 `closedOpen(2026-01-01, 2026-02-01)`），该区间不含任何有效时间，因而不是有效节点。
 
 ### 转换器
 
@@ -51,7 +53,7 @@ logs.sharding(LocalDateTime.of(2026, 10, 27, 12, 0));    // t_log_202610
 
 | 转换器 | 接受 |
 |---|---|
-| `StandardLocalDateTimeConvertor(zone, isSecondTs, formatter)` | `LocalDateTime`、`ZonedDateTime`、`OffsetDateTime`、`Instant`、`LocalDate`、`Date`、`YearMonth`、`Year`、epoch `Long`（毫秒，`isSecondTs` 时为秒）、符合 formatter 格式的 `String` |
+| `StandardLocalDateTimeConvertor(zone, isSecondTs, formatter)` | `LocalDateTime`、`ZonedDateTime`、`OffsetDateTime`、`Instant`、`LocalDate`、`Date`（JDBC `java.sql.Date` 取其日期的零点，`Timestamp` 取其时刻）、`YearMonth`、`Year`、epoch `Long`（毫秒，`isSecondTs` 时为秒）、符合 formatter 格式的 `String` |
 | `SnowflakeLocalDateTimeConvertor(layout, zone[, codec])` | Snowflake ID，`Long` 或文本（默认 62 进制、11 位、左侧补齐）：经 `Layout.unpack` 得到其发号时间 |
 
 因此按月分片的表可以只用 Snowflake ID 作为键：
@@ -65,6 +67,9 @@ logs.sharding(issued.toLocalDateTime(orderId));
 
 `new CachedSharding<>(sharding)` 缓存另一个算法的范围查询结果。缓存有上界：默认最多保存 10 000 个范围，满后自行清空，
 因此查找不加锁。
+
+算法返回的节点集合是只读的（`add`、`remove`、`clear` 抛出 `UnsupportedOperationException`）：它们常常就是算法的有效节点或
+缓存的范围结果，由所有调用方共享。需要修改时请先复制。
 
 ## 与 4.x 的差异
 

@@ -66,6 +66,13 @@ public class StandardLocalDateTimeConvertor implements LocalDateTimeConvertor {
         if (value instanceof LocalDate) {
             return LocalDateTime.of((LocalDate) value, LocalTime.MIN);
         }
+        if (value instanceof java.sql.Date) {
+            // A JDBC DATE is a date without a time or a zone; its toInstant() throws.
+            return LocalDateTime.of(((java.sql.Date) value).toLocalDate(), LocalTime.MIN);
+        }
+        if (value instanceof java.sql.Time) {
+            throw new IllegalArgumentException("Unsupported sharding value type `" + value + "`: a JDBC TIME has no date.");
+        }
         if (value instanceof Date) {
             return LocalDateTime.ofInstant(((Date) value).toInstant(), zoneId);
         }

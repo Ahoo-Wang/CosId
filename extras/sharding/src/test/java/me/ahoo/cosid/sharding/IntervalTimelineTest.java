@@ -111,6 +111,50 @@ class IntervalTimelineTest {
         assertEquals(expected, intervalTimeline.sharding(shardingValue));
     }
 
+    // #1440: an open upper endpoint on the start of a month excludes that month, which holds no valid time.
+    @Test
+    void anOpenUpperEndpointOnAnIntervalStartExcludesThatInterval() {
+        LocalDateTime start = LocalDateTime.of(2026, 1, 1, 0, 0);
+        LocalDateTime end = start.plusMonths(1);
+        ShardingRange<LocalDateTime> interval = ShardingRange.closedOpen(start, end);
+        IntervalTimeline timeline = new IntervalTimeline("t_", interval, IntervalStep.of(ChronoUnit.MONTHS),
+            DateTimeFormatter.ofPattern("yyyyMM"));
+        ExactCollection<String> january = new ExactCollection<>("t_202601");
+
+        assertFalse(timeline.contains(end));
+        assertEquals(1, timeline.size());
+        assertEquals(january, timeline.getEffectiveNodes());
+        assertEquals(january, timeline.sharding(ShardingRange.all()));
+        assertEquals(january, timeline.sharding(interval));
+        assertEquals(january, timeline.sharding(ShardingRange.closed(start, end)));
+        assertEquals(january, timeline.sharding(ShardingRange.atLeast(start)));
+        assertEquals(ExactCollection.empty(), timeline.sharding(ShardingRange.atLeast(end)));
+        assertEquals("t_202601", timeline.sharding(end.minusNanos(1)));
+    }
+
+    @Test
+    void aClosedOrMidIntervalUpperEndpointKeepsItsInterval() {
+        LocalDateTime start = LocalDateTime.of(2026, 1, 1, 0, 0);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMM");
+        IntervalStep months = IntervalStep.of(ChronoUnit.MONTHS);
+        ExactCollection<String> both = new ExactCollection<>("t_202601", "t_202602");
+
+        assertEquals(both, new IntervalTimeline("t_", ShardingRange.closed(start, start.plusMonths(1)), months, formatter)
+            .getEffectiveNodes());
+        assertEquals(both, new IntervalTimeline("t_", ShardingRange.closedOpen(start, start.plusMonths(1).plusNanos(1)), months,
+            formatter).getEffectiveNodes());
+        assertEquals(new ExactCollection<>("t_202601"),
+            new IntervalTimeline("t_", ShardingRange.open(start.minusNanos(1), start.plusMonths(1)), months, formatter)
+                .getEffectiveNodes());
+    }
+
+    @Test
+    void anEffectiveIntervalWithoutTimeIsRejected() {
+        LocalDateTime start = LocalDateTime.of(2026, 1, 1, 0, 0);
+        assertThrows(IllegalArgumentException.class, () -> new IntervalTimeline("t_", ShardingRange.closedOpen(start, start),
+            IntervalStep.of(ChronoUnit.MONTHS), DateTimeFormatter.ofPattern("yyyyMM")));
+    }
+
     @Test
     void metadataShouldExposeFlooredStartIntervalAndAllEffectiveNodes() {
         assertEquals(13, intervalTimeline.size());

@@ -14,7 +14,7 @@ properties ([runtime, stores, machine](basic.md), [generators](generators.md)): 
 | `cosid.server.auth.clients[i].token` | | its token |
 | `cosid.server.auth.clients[i].namespaces` | `[]` | slot namespaces, and range keys whose first segment is one of them; `*` for all; the id endpoints check `cosid.namespace` |
 | `cosid.server.auth.clients[i].key-prefixes` | `[]` | range keys with one of these prefixes |
-| `cosid.server.auth.public-paths` | `/actuator/health`, `/actuator/health/**` | path patterns that need no token |
+| `cosid.server.auth.public-paths` | `/actuator/health`, `/actuator/health/**` | path patterns that need no token; an endpoint of the API listed here serves every caller as anonymous (unrestricted), whatever token it sends |
 | `cosid.server.limits.min-ttl` | `100ms` | the shortest lease ttl |
 | `cosid.server.limits.max-ttl` | `1h` | the longest lease ttl |
 | `cosid.server.limits.max-tolerance` | `1m` | the largest tolerance |

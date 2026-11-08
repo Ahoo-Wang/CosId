@@ -16,11 +16,15 @@ package me.ahoo.cosid.jackson;
 
 import me.ahoo.cosid.codec.IdCodec;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import tools.jackson.core.JsonParser;
 import tools.jackson.core.JsonToken;
 import tools.jackson.databind.BeanProperty;
 import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ValueDeserializer;
+import tools.jackson.databind.jsontype.TypeDeserializer;
+import tools.jackson.databind.util.AccessPattern;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -29,19 +33,23 @@ import java.util.function.Function;
  * Reads an {@link AsString} id. A JSON string is decoded, an empty one is {@code null}; a JSON number is the id itself if
  * the codec could have written it. Text the codec cannot read is reported through
  * {@link DeserializationContext#handleWeirdStringValue}, an {@code InvalidFormatException} (a client error) by default.
+ * A {@code null} (or empty text) for a {@code long} follows {@link DeserializationFeature#FAIL_ON_NULL_FOR_PRIMITIVES}:
+ * an input error when it is enabled, 0 otherwise, as Jackson reads a plain {@code long}.
  */
 public class AsStringDeserializer extends ValueDeserializer<Long> {
     private final Optional<Function<String, IdCodec>> generators;
     private final IdCodec codec;
+    private final boolean primitive;
 
     /** A deserializer of decimal text, without a runtime: what {@code @JsonDeserialize(using = ...)} creates. */
     public AsStringDeserializer() {
-        this(Optional.empty(), AsStringCodecs.TO_STRING);
+        this(Optional.empty(), AsStringCodecs.TO_STRING, false);
     }
 
-    AsStringDeserializer(Optional<Function<String, IdCodec>> generators, IdCodec codec) {
+    AsStringDeserializer(Optional<Function<String, IdCodec>> generators, IdCodec codec, boolean primitive) {
         this.generators = generators;
         this.codec = codec;
+        this.primitive = primitive;
     }
 
     @Override
@@ -51,7 +59,7 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
             return this;
         }
         try {
-            return new AsStringDeserializer(generators, AsStringCodecs.of(asString, generators));
+            return new AsStringDeserializer(generators, AsStringCodecs.of(asString, generators), property.getType().isPrimitive());
         } catch (RuntimeException invalid) {
             return ctxt.reportBadDefinition(property.getType(), "Invalid @AsString on " + property.getName() + ": " + invalid.getMessage());
         }
@@ -78,13 +86,60 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
         }
         String text = p.getString();
         if (text.isEmpty()) {
-            return null;
+            return getNullValue(ctxt);
         }
         try {
             return codec.decode(text);
         } catch (RuntimeException invalid) {
             return (Long) ctxt.handleWeirdStringValue(Long.class, text, "not a valid id: %s", invalid.getMessage());
         }
+    }
+
+    /**
+     * Reads an id with its type id ({@code @JsonTypeInfo}). The type id of a {@code Long} is metadata only: the value is
+     * read with the codec, not with the deserializer the type id names, which knows no codec (#1460). A scalar's type id
+     * wraps it in an array ({@code WRAPPER_ARRAY}, and {@code PROPERTY}, which a scalar falls back to) or an object
+     * ({@code WRAPPER_OBJECT}); with any other inclusion the value stands alone.
+     */
+    @Override
+    public Object deserializeWithType(JsonParser p, DeserializationContext ctxt, TypeDeserializer typeDeserializer) {
+        JsonToken token = p.currentToken();
+        boolean array = token == JsonToken.START_ARRAY;
+        if (!array && !(token == JsonToken.START_OBJECT && typeDeserializer.getTypeInclusion() == JsonTypeInfo.As.WRAPPER_OBJECT)) {
+            return deserialize(p, ctxt);
+        }
+        JsonToken typeId = p.nextToken();
+        if (typeId != (array ? JsonToken.VALUE_STRING : JsonToken.PROPERTY_NAME)) {
+            ctxt.reportWrongTokenException(this, array ? JsonToken.VALUE_STRING : JsonToken.PROPERTY_NAME,
+                "need the type id of the id before its value");
+        }
+        Long value = p.nextToken() == JsonToken.VALUE_NULL ? getNullValue(ctxt) : deserialize(p, ctxt);
+        JsonToken end = array ? JsonToken.END_ARRAY : JsonToken.END_OBJECT;
+        if (p.nextToken() != end) {
+            ctxt.reportWrongTokenException(this, end, "need the end of the type id wrapper after the id");
+        }
+        return value;
+    }
+
+    /**
+     * {@code null} for a {@code Long}; for a {@code long}, an input error when
+     * {@link DeserializationFeature#FAIL_ON_NULL_FOR_PRIMITIVES} is enabled, 0 otherwise (#1439).
+     */
+    @Override
+    public Long getNullValue(DeserializationContext ctxt) {
+        if (!primitive) {
+            return null;
+        }
+        if (ctxt.isEnabled(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)) {
+            return ctxt.reportInputMismatch(this,
+                "Cannot map `null` into type long (set DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES to 'false' to allow)");
+        }
+        return 0L;
+    }
+
+    @Override
+    public AccessPattern getNullAccessPattern() {
+        return primitive ? AccessPattern.DYNAMIC : AccessPattern.ALWAYS_NULL;
     }
 
     @Override

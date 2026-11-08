@@ -17,9 +17,12 @@ package me.ahoo.cosid.jackson;
 import me.ahoo.cosid.codec.IdCodec;
 
 import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonToken;
+import tools.jackson.core.type.WritableTypeId;
 import tools.jackson.databind.BeanProperty;
 import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.jsontype.TypeSerializer;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -57,6 +60,17 @@ public class AsStringSerializer extends ValueSerializer<Long> {
     @Override
     public void serialize(Long value, JsonGenerator gen, SerializationContext ctxt) {
         gen.writeString(codec.encode(value));
+    }
+
+    /**
+     * Writes the id with its type id ({@code @JsonTypeInfo}): the id is a JSON string, so the type id wraps a scalar of
+     * that shape, {@code ["java.lang.Long","..."]} by default (#1460).
+     */
+    @Override
+    public void serializeWithType(Long value, JsonGenerator gen, SerializationContext ctxt, TypeSerializer typeSer) {
+        WritableTypeId typeId = typeSer.writeTypePrefix(gen, ctxt, typeSer.typeId(value, JsonToken.VALUE_STRING));
+        serialize(value, gen, ctxt);
+        typeSer.writeTypeSuffix(gen, ctxt, typeId);
     }
 
     @Override

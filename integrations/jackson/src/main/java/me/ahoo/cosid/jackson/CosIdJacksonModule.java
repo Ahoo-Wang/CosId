@@ -85,7 +85,7 @@ public final class CosIdJacksonModule extends JacksonModule {
 
         @Override
         public Object findDeserializer(MapperConfig<?> config, Annotated am) {
-            return am.hasAnnotation(AsString.class) ? new AsStringDeserializer(generators, AsStringCodecs.TO_STRING) : null;
+            return am.hasAnnotation(AsString.class) ? new AsStringDeserializer(generators, AsStringCodecs.TO_STRING, false) : null;
         }
     }
 }

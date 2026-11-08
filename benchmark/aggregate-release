@@ -13,9 +13,12 @@
 #
 """Joins the results of the release gate's scenario groups (benchmark/run-release, one CI job each) into one report.
 
-    benchmark/aggregate-release OUT GROUP_DIR...
+    benchmark/aggregate-release [--expect "GROUP..."] OUT GROUP_DIR...
 
-Each GROUP_DIR is the --out directory of one run-release (its name is the group's name). OUT receives the joined
+Each GROUP_DIR is the --out directory of one run-release (its name is the group's name). --expect names every group of
+the gate (the release-gate workflow passes its matrix): a group without its directory (a job that failed before it
+uploaded its results) is no result, like a directory without a verdict, and fails the gate (#1465). Without --expect
+only the groups given are judged, and the report says it is no verdict on the whole gate. OUT receives the joined
 baseline-4x.json and v5.json (and rerun-*.json), report.md (the groups with their runners, then each group's
 comparison), a table of the rows that still fail after their re-run with the phase that owns each, and baseline-4x.md (the 4.1.1 side alone, committed by hand as docs/jmh/4.1.1/release-ci.md). Exits 1 when a
 group failed, broke its harness (compare status 4) or is missing its results, 0 otherwise.
@@ -59,7 +62,11 @@ def fmt(value):
 
 
 def main(argv):
-    if len(argv) < 2:
+    expected = None
+    if argv[:1] == ["--expect"] and len(argv) > 1:
+        expected = argv[1].replace(",", " ").split()
+        argv = argv[2:]
+    if not argv or (len(argv) < 2 and not expected):
         print(__doc__, file=sys.stderr)
         return 2
     out, groups = argv[0], sorted(argv[1:], key=os.path.basename)
@@ -67,8 +74,14 @@ def main(argv):
     joined = {"baseline-4x": [], "v5": [], "rerun-baseline-4x": [], "rerun-v5": []}
     summary, sections, failed, still_failing, still_warning = [], [], 0, [], []
     commits = set()
-    for group in groups:
-        name = os.path.basename(group.rstrip("/"))
+    directories = {os.path.basename(group.rstrip("/")): group for group in groups}
+    names = sorted(set(directories) | set(expected or []))
+    for name in names:
+        group = directories.get(name)
+        if group is None:
+            failed += 1
+            summary.append(f"| {name} | - | - | - | - | - | **no result** (no artifact: the job failed before it uploaded its results) |")
+            continue
         verdict, machine = load(os.path.join(group, "verdict.json")), load(os.path.join(group, "machine.json"), {})
         for side in joined:
             joined[side] += load(os.path.join(group, f"{side}.json"), [])
@@ -95,7 +108,7 @@ def main(argv):
             with open(os.path.join(out, f"{side}.json"), "w", encoding="utf-8") as file:
                 json.dump(rows, file, indent=2)
                 file.write("\n")
-    first = load(os.path.join(groups[0], "machine.json"), {})
+    first = load(os.path.join(groups[0], "machine.json"), {}) if groups else {}
     lines = ["# CosId 5.0 release gate", "",
              "4.1.1 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`), each scenario group in its own CI job and both sides "
              "of a group on the same runner, interleaved per scenario, judged by `benchmark/compare` with the rules of "
@@ -105,8 +118,9 @@ def main(argv):
              f"{first.get('os', '?')}; {first.get('frequency scaling', '?')}.", "",
              "| Group | Scenarios | Runner | JDK | Rows | Re-run | Result |", "|---|---|---|---|---|---|---|"]
     lines += summary
-    lines += ["", f"**{'FAIL' if failed else 'PASS'}**: {failed} of {len(groups)} groups failed"
-              + (f"; {len(still_warning)} component rows WARN (D44, not blocking)." if still_warning else ".")]
+    lines += ["", f"**{'FAIL' if failed else 'PASS'}**: {failed} of {len(names)} groups failed"
+              + (f"; {len(still_warning)} component rows WARN (D44, not blocking)" if still_warning else "")
+              + ("" if expected else " (only the groups given, without --expect: no verdict on the whole gate)") + "."]
     if still_warning:
         lines += ["", "## Component rows that WARN (D44)", "",
                   "Past D34 but within the D44 limits of a component (P9, P10): they do not block the gate, which judges end-to-end "
@@ -144,7 +158,7 @@ def main(argv):
                      f"| {fmt(percentiles.get('99.0'))} | {fmt(percentiles.get('99.9'))} | {fmt(alloc)} |")
     with open(os.path.join(out, "baseline-4x.md"), "w", encoding="utf-8") as file:
         file.write("\n".join(table) + "\n")
-    print(f"aggregate-release: {len(groups)} groups, {failed} failed; report in {out}/report.md", file=sys.stderr)
+    print(f"aggregate-release: {len(names)} groups, {failed} failed; report in {out}/report.md", file=sys.stderr)
     return 1 if failed else 0
 
 

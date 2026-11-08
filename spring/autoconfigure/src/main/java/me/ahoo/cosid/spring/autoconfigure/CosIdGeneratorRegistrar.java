@@ -112,7 +112,9 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
             return;
         }
         spec().generators().forEach((name, generator) -> {
-            if (registry.containsBeanDefinition(name)) {
+            // A singleton registered as such, or an alias, holds the name as a definition does (#1475): registering over
+            // it would replace that bean silently, whatever allowBeanDefinitionOverriding says.
+            if (registry.isBeanNameInUse(name)) {
                 throw new IllegalStateException("The bean name [" + name + "] of the CosId generator [" + name
                     + "] is taken by another bean: rename the generator or the bean");
             }

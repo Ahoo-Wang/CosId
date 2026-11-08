@@ -144,14 +144,16 @@ public final class CosIdSpecs {
     }
 
     /**
-     * Fails the binding when a {@code cosid.*} key bound to nothing; the keys checked elsewhere and empty values, such as
-     * {@code preferred-slot: ${POD_ORDINAL:}}, which bind to null, are not unknown. Nor are the keys of a list in a
-     * source below the one it bound from (R2-spring-01): Spring binds a list, such as a {@code codec}, from the first
-     * source that has it, as a whole, so a profile or the command line replaces it.
+     * Fails the binding when a {@code cosid.*} key bound to nothing: a key the Binder never tried, as no property has its
+     * name. A property it tried is known even when it binds to null (#1470), such as {@code preferred-slot:
+     * ${POD_ORDINAL:}} without the variable; the keys checked elsewhere and empty values are not unknown either. Nor are
+     * the keys of a list in a source below the one it bound from (R2-spring-01): Spring binds a list, such as a
+     * {@code codec}, from the first source that has it, as a whole, so a profile or the command line replaces it, an
+     * empty list ({@code codec: []}, the list's own key with an empty value) included (#1450).
      */
     private static final class UnknownKeys extends AbstractBindHandler {
         private final Iterable<ConfigurationPropertySource> sources;
-        private final Set<ConfigurationPropertyName> bound = new HashSet<>();
+        private final Set<ConfigurationPropertyName> tried = new HashSet<>();
         private final Set<ConfigurationPropertyName> lists = new HashSet<>();
 
         private UnknownKeys(Iterable<ConfigurationPropertySource> sources) {
@@ -159,8 +161,13 @@ public final class CosIdSpecs {
         }
 
         @Override
+        public <T> Bindable<T> onStart(ConfigurationPropertyName name, Bindable<T> target, BindContext context) {
+            tried.add(name);
+            return super.onStart(name, target, context);
+        }
+
+        @Override
         public Object onSuccess(ConfigurationPropertyName name, Bindable<?> target, BindContext context, Object result) {
-            bound.add(name);
             if (result instanceof Collection<?>) {
                 lists.add(name);
             }
@@ -178,11 +185,12 @@ public final class CosIdSpecs {
                     if (source instanceof IterableConfigurationPropertySource iterable) {
                         boolean system = isSystem(source);
                         iterable.filter(name::isAncestorOf).forEach(key -> {
-                            Optional<ConfigurationPropertyName> list = lists.stream().filter(root -> root.isAncestorOf(key)).findFirst();
+                            Optional<ConfigurationPropertyName> list = lists.stream()
+                                .filter(root -> root.equals(key) || root.isAncestorOf(key)).findFirst();
                             if (list.isPresent() && listSources.computeIfAbsent(list.get(), root -> source) != source) {
                                 return;
                             }
-                            if (!system && !bound.contains(key) && !boundElsewhere(key) && !isEmpty(source, key)) {
+                            if (!system && !tried.contains(key) && !boundElsewhere(key) && !isEmpty(source, key)) {
                                 unknown.add(key.toString());
                                 bracketed(key).ifPresent(bracketed::add);
                             }

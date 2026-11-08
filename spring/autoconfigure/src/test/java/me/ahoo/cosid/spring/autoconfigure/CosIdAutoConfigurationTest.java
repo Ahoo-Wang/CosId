@@ -64,6 +64,7 @@ import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.cloud.commons.util.UtilAutoConfiguration;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -507,6 +508,61 @@ class CosIdAutoConfigurationTest {
             .withPropertyValues("cosid.stores.mem.type=memory", "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem")
             .run(context -> assertThat(root(context.getStartupFailure()).getMessage(),
                 containsString("The bean name [order] of the CosId generator [order] is taken by another bean")));
+    }
+
+    // #1475: a singleton registered as such holds its name as a bean definition does.
+    @Test
+    void failsStartupWhenAGeneratorNameIsTakenByASingleton() {
+        Object original = new Object();
+        RUNNER.withInitializer(context -> context.getBeanFactory().registerSingleton("order", original))
+            .withAllowBeanDefinitionOverriding(false)
+            .withPropertyValues("cosid.namespace=app", "cosid.generators.order.strategy=uuidv7")
+            .run(context -> assertThat(root(context.getStartupFailure()).getMessage(),
+                containsString("The bean name [order] of the CosId generator [order] is taken by another bean")));
+    }
+
+    // #1455: a store only a disabled generator refers to is not opened, so its client bean is not needed.
+    @Test
+    void aStoreOfDisabledGeneratorsNeedsNoClient() {
+        RUNNER.withPropertyValues("cosid.namespace=app", "cosid.stores.db.type=jdbc", "cosid.stores.db.client=dataSource",
+                "cosid.generators.orders.strategy=segment", "cosid.generators.orders.store=db", "cosid.generators.orders.disabled=true")
+            .run(context -> {
+                assertNull(context.getStartupFailure());
+                assertFalse(context.containsBean("dataSource"));
+                assertThrows(GeneratorDisabledException.class, () -> context.getBean("orders", IdGenerator.class).generate());
+            });
+        // Neither is the store of a machine no enabled generator chooses.
+        RUNNER.withPropertyValues("cosid.namespace=app", "cosid.stores.lease.type=jdbc", "cosid.stores.lease.client=leaseSource",
+                "cosid.machine.leased.store=lease", "cosid.generators.id.strategy=uuidv7")
+            .run(context -> assertNull(context.getStartupFailure()));
+        // A store in use still needs the client it names.
+        RUNNER.withPropertyValues("cosid.namespace=app", "cosid.stores.db.type=jdbc", "cosid.stores.db.client=dataSource",
+                "cosid.generators.orders.strategy=segment", "cosid.generators.orders.store=db")
+            .run(context -> assertThat(root(context.getStartupFailure()).getMessage(), containsString("No bean named 'dataSource' available")));
+    }
+
+    // #1476: the single client of an ancestor context is found, as Spring injects it; one of this context hides it.
+    @Test
+    void usesTheClientOfAParentContext() {
+        javax.sql.DataSource parentSource = DataSources.dataSource("parent_client");
+        try (AnnotationConfigApplicationContext parent = new AnnotationConfigApplicationContext()) {
+            parent.registerBean("dataSource", javax.sql.DataSource.class, () -> parentSource);
+            parent.refresh();
+            String[] jdbc = {"cosid.namespace=app", "cosid.stores.db.type=jdbc", "cosid.stores.db.options.initSchema=true",
+                "cosid.generators.order.strategy=segment", "cosid.generators.order.store=db"};
+            RUNNER.withParent(parent).withPropertyValues(jdbc).run(context -> {
+                assertNull(context.getStartupFailure());
+                assertThat(context.getBean("order", IdGenerator.class).generate(), greaterThan(-1L));
+                assertThat(DataSources.tables(parentSource), greaterThan(0));
+            });
+            javax.sql.DataSource childSource = DataSources.dataSource("child_client");
+            RUNNER.withParent(parent).withBean("childSource", javax.sql.DataSource.class, () -> childSource).withPropertyValues(jdbc)
+                .run(context -> {
+                    assertNull(context.getStartupFailure());
+                    assertThat(context.getBean("order", IdGenerator.class).generate(), greaterThan(-1L));
+                    assertThat(DataSources.tables(childSource), greaterThan(0));
+                });
+        }
     }
 
     @Test

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.autoconfigure;
 
 import me.ahoo.cosid.runtime.StoreSpec;
+import me.ahoo.cosid.store.StoreOptions;
 import me.ahoo.cosid.store.redis.RedisScripts;
 import me.ahoo.cosid.store.redis.RedisStoreException;
 
@@ -25,15 +26,19 @@ import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.redis.connection.RedisClusterConnection;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStaticMasterReplicaConfiguration;
 import org.springframework.data.redis.connection.ReturnType;
 import org.springframework.data.redis.connection.lettuce.LettuceConnection;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.util.ReflectionUtils;
 
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -49,6 +54,8 @@ import java.util.Properties;
  * the store timeout bounds {@code WAIT}.
  */
 public final class SpringDataRedisScripts implements RedisScripts {
+    /** The field of {@link LettuceConnectionFactory} that holds its configuration (CosIdRuntimeHints registers it). */
+    static final String CONFIGURATION_FIELD = "configuration";
     private final RedisConnectionFactory factory;
     private final Duration timeout;
     private final String wait;
@@ -85,13 +92,45 @@ public final class SpringDataRedisScripts implements RedisScripts {
      * @return the client
      */
     static Object clientOf(RedisConnectionFactory factory, StoreSpec store) {
-        if (factory instanceof LettuceConnectionFactory lettuce && lettuce.isRunning()) {
+        // A static master/replica factory's native client has no URI of its own (its nodes live in the factory's
+        // connection provider), so the store could not connect on it (#1445): the adapter keeps the factory's topology.
+        if (factory instanceof LettuceConnectionFactory lettuce && lettuce.isRunning() && !isStaticMasterReplica(lettuce)) {
             AbstractRedisClient client = lettuce.getNativeClient();
             if (client != null) {
                 return client;
             }
         }
-        return new SpringDataRedisScripts(factory, store.timeout(), String.valueOf(store.options().getOrDefault("wait", "auto")));
+        return new SpringDataRedisScripts(factory, store.timeout(), String.valueOf(option(store.options(), "wait", "auto")));
+    }
+
+    /**
+     * An option as the store reads it (#1479): its key compared as {@link StoreOptions} compares keys, without case,
+     * {@code -} and {@code _}, so {@code WAIT} is {@code wait}. The runtime reports a key given twice.
+     */
+    static Object option(Map<String, Object> options, String name, Object fallback) {
+        for (Map.Entry<String, Object> option : options.entrySet()) {
+            if (StoreOptions.canonical(option.getKey()).equals(name)) {
+                return option.getValue();
+            }
+        }
+        return fallback;
+    }
+
+    /**
+     * Whether the factory is on a {@link RedisStaticMasterReplicaConfiguration}, which it does not tell: its
+     * configuration field is read, and a factory whose field cannot be read counts as none (the native client as before).
+     */
+    static boolean isStaticMasterReplica(LettuceConnectionFactory factory) {
+        Field field = ReflectionUtils.findField(LettuceConnectionFactory.class, CONFIGURATION_FIELD);
+        if (field == null) {
+            return false;
+        }
+        try {
+            ReflectionUtils.makeAccessible(field);
+            return ReflectionUtils.getField(field, factory) instanceof RedisStaticMasterReplicaConfiguration;
+        } catch (RuntimeException inaccessible) {
+            return false;
+        }
     }
 
     @Override

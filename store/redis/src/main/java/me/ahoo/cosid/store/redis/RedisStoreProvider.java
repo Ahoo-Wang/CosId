@@ -128,7 +128,7 @@ public final class RedisStoreProvider implements StoreProvider {
 
     private static Store cluster(RedisClusterClient client, StoreConfig config, String wait, int sweepBatch, Runnable shutdown) {
         return opened(config, () -> client.connect(StringCodec.UTF8), shutdown, connection -> LettuceRedisScripts.fewestReplicas(connection, config.timeout()),
-            (connection, replicas) -> LettuceRedisScripts.of(connection, config.timeout(), replicas), wait, sweepBatch);
+            (connection, replicas) -> LettuceRedisScripts.of(connection, config.timeout(), replicas, client::refreshPartitions), wait, sweepBatch);
     }
 
     /** A store on a connection of its own: closing the store closes it, then runs {@code shutdown} (of a client of its own). */

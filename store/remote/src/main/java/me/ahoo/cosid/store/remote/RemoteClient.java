@@ -26,10 +26,15 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Posts JSON to {@code cosid-server} over the JDK {@link HttpClient}: one request per primitive call, the bearer token,
- * the request timeout.
+ * the request timeout. The request timeout bounds the whole call, its response body included: the JDK's own request
+ * timeout ends once the response headers arrive, so a body that stops coming would hold the call without one (#1438).
  */
 final class RemoteClient implements AutoCloseable {
     private final HttpClient http;
@@ -106,14 +111,24 @@ final class RemoteClient implements AutoCloseable {
             .POST(HttpRequest.BodyPublishers.ofString(Json.write(body), StandardCharsets.UTF_8));
         authorization.ifPresent(value -> request.header("Authorization", value));
         HttpResponse<String> response;
+        CompletableFuture<HttpResponse<String>> call = http.sendAsync(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         try {
-            response = http.send(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-        } catch (HttpTimeoutException e) {
-            String message = "POST " + path + " timed out after " + requestTimeout;
-            throw new RemoteStoreException(message, new StoreTimeoutException(message, e));
-        } catch (IOException e) {
-            throw new RemoteStoreException("POST " + path + " to " + baseUrl + " failed: " + e.getMessage(), e);
+            response = call.get(requestTimeout.toNanos(), TimeUnit.NANOSECONDS);
+        } catch (TimeoutException e) {
+            // Cancelling the call aborts its exchange, so the connection does not stay held by the stalled body.
+            call.cancel(true);
+            throw timeout(path, e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof HttpTimeoutException timeout) {
+                throw timeout(path, timeout);
+            }
+            if (cause instanceof IOException failure) {
+                throw new RemoteStoreException("POST " + path + " to " + baseUrl + " failed: " + failure.getMessage(), failure);
+            }
+            throw new RemoteStoreException("POST " + path + " to " + baseUrl + " failed: " + cause, cause);
         } catch (InterruptedException e) {
+            call.cancel(true);
             Thread.currentThread().interrupt();
             throw new RemoteStoreException("POST " + path + " was interrupted", e);
         }
@@ -126,6 +141,11 @@ final class RemoteClient implements AutoCloseable {
         } catch (IllegalArgumentException e) {
             throw new RemoteStoreException(response.statusCode(), null, "POST " + path + " answered HTTP " + response.statusCode() + " without a JSON body: " + e.getMessage());
         }
+    }
+
+    private RemoteStoreException timeout(String path, Exception cause) {
+        String message = "POST " + path + " timed out after " + requestTimeout;
+        return new RemoteStoreException(message, new StoreTimeoutException(message, cause));
     }
 
     @Override

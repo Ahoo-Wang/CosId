@@ -727,9 +727,10 @@ jobs:
 
   # R2-build-01/02: the published jars in applications built outside this build, with Maven and with Gradle (a native
   # platform), on Spring Boot 4.1.2, the lowest supported (D49): the starter with the Redis and MongoDB stores leases a
-  # slot and issues ids, on the store drivers each build resolves (printed). smoke/published/README.md.
+  # slot and issues ids, on the store drivers each build resolves (printed). smoke/published/README.md. L14 (#1471): the
+  # Redis and ZooKeeper stores in a plain-Java consumer, without a BOM (smoke/plain-stores/README.md).
   published-jars:
-    name: Published jars on Boot 4.1.2 (Maven, Gradle)
+    name: Published jars on Boot 4.1.2 (Maven, Gradle) and without a BOM
     needs: changes
     if: needs.changes.outputs.spring == 'true'
     runs-on: ubuntu-latest
@@ -775,6 +776,11 @@ jobs:
           ./gradlew -q -p smoke/published -Pcosid.version="$version" -Pcosid.repo="$PWD/build/repos" dependencyInsight \
             --configuration runtimeClasspath --dependency mongodb-driver-sync
           java -jar smoke/published/build/libs/smoke.jar
+
+      - name: Plain-Java consumer without a BOM
+        run: |
+          version=$(grep '^version=' gradle.properties | cut -d= -f2)
+          ./gradlew -p smoke/plain-stores -Pcosid.version="$version" -Pcosid.repo="$PWD/build/repos" test
 
   # The site, without deploying it, so a broken site (a dead link, a VitePress error) shows on the pull request rather
   # than on release day, when document-deploy.yml is dispatched with the release tag. Its steps are those of

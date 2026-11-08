@@ -14,7 +14,10 @@
 package me.ahoo.cosid.migration.config;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
 import me.ahoo.cosid.migration.ApplyResult;
 import me.ahoo.cosid.time.Layout;
@@ -26,14 +29,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 /**
  * Ahoo-Wang/CosId#1446: a dotted 4.x generator name such as {@code orders.Order} must survive migration config
- * parsing in full, in YAML (bracketed or dotted key) and in {@code .properties} (bracketed key, the Spring Boot Map
- * binding contract), so its step and namespace read under the original name and its migrated key matches.
+ * parsing in full, in YAML (bracketed key) and in {@code .properties} (bracketed key, the Spring Boot Map binding
+ * contract), so its step and namespace read under the original name and its migrated key matches. An unbracketed
+ * dotted YAML key binds to no map entry in 4.x, so it is reported, not converted; and the converted YAML writes a
+ * dotted name bracketed, or a 5.0 application binds no generator from it.
  */
 class FlatConfigDottedNamesTest {
     private static final String YAML = """
@@ -61,7 +67,9 @@ class FlatConfigDottedNamesTest {
     }
 
     @Test
-    void yamlDottedKeyWithoutBracketsIsRecognisedInFull() {
+    void yamlDottedKeyWithoutBracketsIsReportedNotConverted() {
+        // #1446 review: an unbracketed dotted YAML key binds to no map entry in 4.x, so it names no generator
+        // and converts to none; it is reported instead. A bracketed key ("[orders.Order]") is the dotted name.
         FlatConfig config = FlatConfig.ofYaml("""
             cosid:
               namespace: shop
@@ -71,10 +79,112 @@ class FlatConfigDottedNamesTest {
                 provider:
                   orders.Order: { step: 50, namespace: custom }
             """);
-        assertThat(config.names("cosid.segment.provider"), is(Set.of("orders.Order")));
-        Legacy4x legacy = new Legacy4x(config);
-        assertThat(legacy.segments().keySet(), is(Set.of("orders.Order")));
-        assertThat(config.number(legacy.segments().get("orders.Order") + ".step", 10), is(50L));
+        assertThat(config.names("cosid.segment.provider"), is(Set.of()));
+        assertThat(config.ignoredDottedKeys(), is(Set.of("cosid.segment.provider.orders.Order")));
+        assertThat(new Legacy4x(config).segments().keySet(), is(Set.of()));
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("Asia/Shanghai")).convert(config, null);
+        Map<String, Object> generators = (Map<String, Object>) ((Map<String, Object>) conversion.model().get("cosid")).get("generators");
+        assertThat(generators.keySet(), is(Set.of()));
+        // The hint must name the whole dotted entry: "[Order]" would create a generator named `Order`.
+        assertThat(conversion.report(),
+            hasItem("cosid.segment.provider.orders.Order: a dotted key without brackets is no map entry name in Spring Boot binding;"
+                + " ignored (write it as \"[orders.Order]\" to name an entry)"));
+    }
+
+    @Test
+    void yamlMultiDotKeyWithoutBracketsIsReportedNotConverted() {
+        // Debate round 2: the multi-dot variant of the unbracketed key must pin the full hint "[a.b.c]";
+        // after the last dot it would be "[c]", which names no generator either.
+        FlatConfig config = FlatConfig.ofYaml("""
+            cosid:
+              namespace: shop
+              segment:
+                enabled: true
+                share: { enabled: false }
+                provider:
+                  a.b.c: { step: 50 }
+            """);
+        assertThat(config.names("cosid.segment.provider"), is(Set.of()));
+        assertThat(config.ignoredDottedKeys(), is(Set.of("cosid.segment.provider.a.b.c")));
+        assertThat(new Legacy4x(config).segments().keySet(), is(Set.of()));
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("Asia/Shanghai")).convert(config, null);
+        assertThat(conversion.report(),
+            hasItem("cosid.segment.provider.a.b.c: a dotted key without brackets is no map entry name in Spring Boot binding;"
+                + " ignored (write it as \"[a.b.c]\" to name an entry)"));
+    }
+
+    @Test
+    void yamlDottedKeyWithoutBracketsInSnowflakeProviderIsReported() {
+        FlatConfig config = FlatConfig.ofYaml("""
+            cosid:
+              namespace: shop
+              snowflake:
+                enabled: true
+                provider:
+                  trace.Span: { epoch: 1600000000000, namespace: custom }
+            """);
+        assertThat(config.names("cosid.snowflake.provider"), is(Set.of()));
+        assertThat(config.ignoredDottedKeys(), is(Set.of("cosid.snowflake.provider.trace.Span")));
+        // Only the shared default snowflake exists; the ignored key creates none.
+        assertThat(new Legacy4x(config).snowflakes().keySet(), is(Set.of("default")));
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("Asia/Shanghai")).convert(config, null);
+        assertThat(conversion.report(),
+            hasItem(containsString("(write it as \"[trace.Span]\" to name an entry)")));
+    }
+
+    @Test
+    void yamlDottedKeyWithoutBracketsWithEmptyObjectIsReported() {
+        // The empty-object path must leave no trace: pre-fix it declared the entry with every default.
+        FlatConfig config = FlatConfig.ofYaml("""
+            cosid:
+              namespace: shop
+              segment:
+                enabled: true
+                share: { enabled: false }
+                provider:
+                  orders.Order: {}
+            """);
+        assertThat(config.names("cosid.segment.provider"), is(Set.of()));
+        assertThat(config.ignoredDottedKeys(), is(Set.of("cosid.segment.provider.orders.Order")));
+        assertThat(new Legacy4x(config).segments().keySet(), is(Set.of()));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void convertedYamlBracketsTheDottedGeneratorName() {
+        // #1446 review: the converted YAML must bracket a dotted generator name, or a 5.0 application binds no
+        // generator from it. The model keeps the raw name, so its unmigratedSegments comparison still works.
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("Asia/Shanghai")).convert(FlatConfig.ofYaml(YAML), null);
+        String yaml = conversion.yaml();
+        assertThat(yaml, containsString("[orders.Order]"));
+        assertThat(yaml, not(containsString("\n    orders.Order:")));
+        Map<String, Object> generators = (Map<String, Object>) ((Map<String, Object>) conversion.model().get("cosid")).get("generators");
+        assertThat(generators.keySet(), is(Set.of("orders.Order")));
+        // The bracketed YAML re-reads as the same name with the same step.
+        FlatConfig reread = FlatConfig.ofYaml(yaml);
+        assertThat(reread.names("cosid.generators"), is(Set.of("orders.Order")));
+        assertThat(reread.number("cosid.generators.[orders.Order].step", 10), is(50L));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void convertedYamlBracketsDottedNamesInEveryEntryMap() {
+        // Machines and stores cannot carry a dot from a conversion today (machine names are sanitised, store
+        // names are types), but the same bracketing applies to their entry maps.
+        Map<String, Object> cosid = new LinkedHashMap<>();
+        cosid.put("namespace", "shop");
+        cosid.put("generators", Map.of("orders.Order", Map.of("strategy", "segment")));
+        cosid.put("machines", Map.of("a.b", Map.of("static", Map.of("slot", 1))));
+        cosid.put("stores", Map.of("s.t", Map.of("type", "jdbc")));
+        ConfigConverter.Conversion conversion = new ConfigConverter.Conversion(Map.of("cosid", cosid), List.of());
+        String yaml = conversion.yaml();
+        assertThat(yaml, containsString("[orders.Order]"));
+        assertThat(yaml, containsString("[a.b]"));
+        assertThat(yaml, containsString("[s.t]"));
+        Map<String, Object> modelCosid = (Map<String, Object>) conversion.model().get("cosid");
+        assertThat(((Map<String, Object>) modelCosid.get("generators")).keySet(), is(Set.of("orders.Order")));
+        assertThat(((Map<String, Object>) modelCosid.get("machines")).keySet(), is(Set.of("a.b")));
+        assertThat(((Map<String, Object>) modelCosid.get("stores")).keySet(), is(Set.of("s.t")));
     }
 
     @Test

@@ -27,6 +27,8 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -42,7 +44,9 @@ import java.util.regex.Pattern;
  * A Spring configuration file (YAML or {@code .properties}) as flat keys in Spring's canonical form: lower case,
  * kebab-case ({@code machineBit}, {@code machine_bit} and {@code machine-bit} are the same key), list items as
  * {@code [i]}. The names of map entries ({@code provider.<name>}, {@code generators.<name>}) are kept as written; a
- * dotted name stays one segment, bracketed ({@code provider.[orders.Order]}), so it survives the dot split.
+ * dotted name stays one segment, bracketed ({@code provider.[orders.Order]}), so it survives the dot split. Only a
+ * bracketed dotted key is a dotted name: a dotted YAML key without brackets under a map binds to no entry at all in
+ * Spring's map binding, so it is ignored (see {@link #ignoredDottedKeys()}) instead of inventing a generator.
  * Several YAML documents are merged in order; profiles are not evaluated.
  */
 public final class FlatConfig {
@@ -50,9 +54,31 @@ public final class FlatConfig {
     private static final Pattern SIMPLE_DURATION = Pattern.compile("([+-]?\\d+)([a-zA-Z]{0,2})");
     private static final Set<String> MAP_PARENTS = Set.of("cosid.segment.provider", "cosid.snowflake.provider", "cosid.generators", "cosid.stores");
     private final Map<String, String> values;
+    /** The dotted YAML keys without brackets under a map that were ignored, as written, in order. */
+    private final Set<String> ignoredDottedKeys;
 
     FlatConfig(Map<String, String> values) {
+        this(values, Set.of());
+    }
+
+    FlatConfig(Map<String, String> values, Set<String> ignoredDottedKeys) {
         this.values = new TreeMap<>(values);
+        this.ignoredDottedKeys = Collections.unmodifiableSet(new LinkedHashSet<>(ignoredDottedKeys));
+    }
+
+    /**
+     * The entry name of an ignored dotted key: everything after its map parent ({@code orders.Order} of
+     * {@code cosid.segment.provider.orders.Order}), so the report can tell the user the bracketed name to write.
+     * Stripping after the last dot would give {@code Order}, the wrong name.
+     */
+    static String ignoredEntryName(String key) {
+        String lower = key.toLowerCase(Locale.ROOT);
+        for (String parent : MAP_PARENTS) {
+            if (lower.startsWith(parent + ".")) {
+                return key.substring(parent.length() + 1);
+            }
+        }
+        return key.substring(key.lastIndexOf('.') + 1);
     }
 
     /**
@@ -63,6 +89,7 @@ public final class FlatConfig {
      */
     public static FlatConfig load(Path file) {
         Map<String, String> values = new TreeMap<>();
+        Set<String> ignoredDottedKeys = new TreeSet<>();
         try {
             if (file.toString().endsWith(".properties")) {
                 Properties properties = new Properties();
@@ -77,14 +104,14 @@ public final class FlatConfig {
                 try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
                     var documents = YAML.readerFor(JsonNode.class).readValues(reader);
                     while (documents.hasNext()) {
-                        flatten("", (JsonNode) documents.next(), values);
+                        flatten("", (JsonNode) documents.next(), values, ignoredDottedKeys);
                     }
                 }
             }
         } catch (IOException e) {
             throw new UncheckedIOException("Reading " + file + " failed: " + e.getMessage(), e);
         }
-        return new FlatConfig(values);
+        return new FlatConfig(values, ignoredDottedKeys);
     }
 
     /**
@@ -95,18 +122,19 @@ public final class FlatConfig {
      */
     public static FlatConfig ofYaml(String yaml) {
         Map<String, String> values = new TreeMap<>();
+        Set<String> ignoredDottedKeys = new TreeSet<>();
         try {
             var documents = YAML.readerFor(JsonNode.class).readValues(yaml);
             while (documents.hasNext()) {
-                flatten("", (JsonNode) documents.next(), values);
+                flatten("", (JsonNode) documents.next(), values, ignoredDottedKeys);
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return new FlatConfig(values);
+        return new FlatConfig(values, ignoredDottedKeys);
     }
 
-    private static void flatten(String prefix, JsonNode node, Map<String, String> values) {
+    private static void flatten(String prefix, JsonNode node, Map<String, String> values, Set<String> ignoredDottedKeys) {
         if (node == null || node.isNull() || node.isMissingNode()) {
             return;
         }
@@ -117,19 +145,22 @@ public final class FlatConfig {
             }
             for (Map.Entry<String, JsonNode> field : node.properties()) {
                 String key = field.getKey();
-                // A YAML field key is atomic: a dotted key under a map is one entry name, not nesting, so bracket
-                // it before the dot join, or `orders.Order` would flatten to the nested `orders.order`. The
-                // prefix is the raw YAML path, so compare case-insensitively: `Segment:`/`Provider:` bind the
-                // same map under Spring's relaxed binding.
+                // A YAML field key is atomic, but Spring's map binding does not read it that way: for
+                // `Map<String, IdDefinition>` a dotted key without brackets reads `orders` + `Order.step`,
+                // binds no property and creates no entry, so 4.x had no generator from it at all (#1446 review).
+                // Ignore the whole entry instead of inventing a generator 4.x never ran; the converter reports it.
+                // Only a bracketed key ("[orders.Order]") is a dotted name. The prefix is the raw YAML path, so
+                // compare case-insensitively: `Segment:`/`Provider:` bind the same map under Spring's relaxed binding.
                 if (key.indexOf('.') >= 0 && MAP_PARENTS.contains(prefix.toLowerCase(Locale.ROOT)) && !key.startsWith("[")) {
-                    key = "[" + key + "]";
+                    ignoredDottedKeys.add(prefix + "." + key);
+                    continue;
                 }
                 String name = prefix.isEmpty() ? key : prefix + "." + key;
-                flatten(name, field.getValue(), values);
+                flatten(name, field.getValue(), values, ignoredDottedKeys);
             }
         } else if (node.isArray()) {
             for (int i = 0; i < node.size(); i++) {
-                flatten(prefix + "[" + i + "]", node.get(i), values);
+                flatten(prefix + "[" + i + "]", node.get(i), values, ignoredDottedKeys);
             }
         } else {
             // Verbatim (#1456): the blanks of a quoted YAML string are part of it, as of a prefix or a delimiter.
@@ -404,5 +435,15 @@ public final class FlatConfig {
      */
     public Set<String> keys() {
         return values.keySet();
+    }
+
+    /**
+     * The dotted YAML keys without brackets under a map that were ignored: a dotted key without brackets binds to
+     * no map entry in Spring Boot binding, so it names no generator (#1446 review); the converter reports each one.
+     *
+     * @return the ignored keys, as written, in order
+     */
+    public Set<String> ignoredDottedKeys() {
+        return ignoredDottedKeys;
     }
 }

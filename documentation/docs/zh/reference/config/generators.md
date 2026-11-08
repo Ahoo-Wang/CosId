@@ -106,7 +106,7 @@ cosid:
 | `lookahead` | `1s` | 手头的 id 应能维持多久；`0` 关闭预取 |
 | `max-batch` | `max(step × 1000, 2^20)`，按 `step` 取整 | 最大预留量；`step` 的倍数 |
 | `reserve-timeout` | `3s` | 调用方等待补充的时长；不小于存储的 `timeout` |
-| `range-ttl` | 无 | 闲置这么久的区间会被丢弃（跨实例趋势递增） |
+| `range-ttl` | 无 | 闲置这么久的区间会被丢弃（跨实例趋势递增）；至少 `1ms` |
 
 ## `periodic-segment`
 

@@ -634,12 +634,22 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     /**
      * The values at hand, for {@code describe()}.
      *
-     * @return the rest of the current range plus the ready ranges
+     * @return the rest of the current range plus the ready ranges, without the ranges past their time to live, which
+     *     the next take drops
      */
     public long held() {
         switchLock.lock();
         try {
-            return current.remaining(time.currentMillis()) + readyValues;
+            long now = time.currentMillis();
+            long held = current.remaining(now);
+            if (rangeTtlMillis == 0) {
+                return held + readyValues;
+            }
+            // readyValues counts a ready range until a take drops it; at its time to live it holds nothing (#1474).
+            for (RangeCursor range : ready) {
+                held += range.remaining(now);
+            }
+            return held;
         } finally {
             switchLock.unlock();
         }

@@ -25,10 +25,16 @@ import java.util.concurrent.atomic.AtomicLong;
  * linked clocks, so a keeper waiting for a store expiry sees the store clock pass it.
  */
 final class ManualTicker implements Ticker {
-    private final AtomicLong nanos = new AtomicLong();
+    private final AtomicLong nanos;
     private final List<ManualClock> linked;
 
     ManualTicker(ManualClock... linked) {
+        this(0, linked);
+    }
+
+    /** A ticker starting at {@code startNanos}: a monotonic tick has any origin, a negative one included. */
+    ManualTicker(long startNanos, ManualClock... linked) {
+        this.nanos = new AtomicLong(startNanos);
         this.linked = List.of(linked);
     }
 
@@ -48,7 +54,7 @@ final class ManualTicker implements Ticker {
 
     private void advanceNanos(long amount) {
         long before = nanos.getAndAdd(amount);
-        long millis = (before + amount) / 1_000_000 - before / 1_000_000;
+        long millis = Math.floorDiv(before + amount, 1_000_000) - Math.floorDiv(before, 1_000_000);
         for (ManualClock clock : linked) {
             clock.advance(Duration.ofMillis(millis));
         }

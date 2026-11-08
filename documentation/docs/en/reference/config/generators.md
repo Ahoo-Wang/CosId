@@ -122,7 +122,7 @@ generator. It issues no `long` ids: `generator("order")` and `stringGenerator("o
 | `lookahead` | `1s` | how long the ids at hand should last; `0` disables prefetching |
 | `max-batch` | `max(step × 1000, 2^20)` rounded to `step` | the largest reservation; a multiple of `step` |
 | `reserve-timeout` | `3s` | how long a caller waits for a refill; at least the store `timeout` |
-| `range-ttl` | none | a range unused this long is dropped (trend increasing across instances) |
+| `range-ttl` | none | a range unused this long is dropped (trend increasing across instances); at least `1ms` |
 
 ## `periodic-segment`
 

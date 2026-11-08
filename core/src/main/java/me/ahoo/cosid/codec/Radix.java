@@ -71,10 +71,14 @@ public final class Radix implements IdCodec {
     /**
      * The digits {@code Long.MAX_VALUE} takes in {@code radix}: the widest a radix codec can be.
      *
-     * @param radix the base
+     * @param radix the base, from {@value #MIN_RADIX} to {@value #MAX_RADIX}
      * @return the number of digits
+     * @throws IllegalArgumentException when the radix is out of range (a radix of 1 or less never shortens a number)
      */
     public static int maxWidth(int radix) {
+        if (radix < MIN_RADIX || radix > MAX_RADIX) {
+            throw new IllegalArgumentException("radix must be in [" + MIN_RADIX + ", " + MAX_RADIX + "]: " + radix);
+        }
         int width = 0;
         for (long rest = Long.MAX_VALUE; rest > 0; rest /= radix) {
             width++;

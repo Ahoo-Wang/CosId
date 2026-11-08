@@ -29,6 +29,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -267,24 +268,41 @@ public final class AnnotatedIdFiller implements IdFiller {
     }
 
     /**
-     * The most derived accessible getter ({@code setter == false}) or setter of the id: a getter returns the id type or a
-     * supertype of it (a generic getter), a setter takes one of them.
+     * The accessible getter ({@code setter == false}) or setter of the id: a getter returns the id type or a supertype of
+     * it (a generic getter), a setter takes one of them. The getter is the most derived one. Of the setters, as Java's
+     * overload resolution picks, the one that takes the most specific type: the id type itself before a supertype, so
+     * the choice never depends on the order reflection lists the methods in (#1466); among setters of one parameter
+     * type, the most derived. Setters of which none is more specific than the others are ambiguous.
      */
     private static Method findMethod(Class<?> type, String name, Class<?> idType, boolean setter) {
+        Map<Class<?>, Method> setters = new LinkedHashMap<>();
         for (Class<?> c = type; c != null && c != Object.class; c = c.getSuperclass()) {
             for (Method method : c.getDeclaredMethods()) {
                 if (!method.getName().equals(name) || method.isBridge() || method.isSynthetic() || Modifier.isStatic(method.getModifiers())) {
                     continue;
                 }
-                boolean matches = setter
-                    ? method.getParameterCount() == 1 && accepts(method.getParameterTypes()[0], idType)
-                    : method.getParameterCount() == 0 && accepts(method.getReturnType(), idType);
-                if (matches && method.trySetAccessible()) {
-                    return method;
+                if (!setter) {
+                    if (method.getParameterCount() == 0 && accepts(method.getReturnType(), idType) && method.trySetAccessible()) {
+                        return method;
+                    }
+                    continue;
+                }
+                if (method.getParameterCount() == 1 && accepts(method.getParameterTypes()[0], idType)
+                    && !setters.containsKey(method.getParameterTypes()[0]) && method.trySetAccessible()) {
+                    setters.put(method.getParameterTypes()[0], method);
                 }
             }
         }
-        return null;
+        if (setters.size() <= 1) {
+            return setters.isEmpty() ? null : setters.values().iterator().next();
+        }
+        for (Map.Entry<Class<?>, Method> candidate : setters.entrySet()) {
+            if (setters.keySet().stream().allMatch(other -> other.isAssignableFrom(candidate.getKey()))) {
+                return candidate.getValue();
+            }
+        }
+        throw new IllegalStateException("@CosId setters " + setters.values() + " are ambiguous for an id of type "
+            + idType.getName() + ": none takes a type more specific than the others");
     }
 
     private static boolean accepts(Class<?> declared, Class<?> idType) {

@@ -28,6 +28,8 @@ public final class BatchPolicy {
     public static final long DEFAULT_INITIAL_OFFSET = 1;
     /** The default {@code maxBatch} is at least this many values, whatever the step. */
     public static final long DEFAULT_MAX_BATCH_VALUES = 1L << 20;
+    /** The shortest {@link #rangeTtl()}: the generator's clock counts milliseconds. */
+    public static final Duration MIN_RANGE_TTL = Duration.ofMillis(1);
     /** Every default: step 100, initial offset 1, lookahead 1s, the default max batch, reserve timeout 3s, no range ttl. */
     public static final BatchPolicy DEFAULT = builder().build();
 
@@ -60,8 +62,9 @@ public final class BatchPolicy {
         if (reserveTimeout.isNegative() || reserveTimeout.isZero()) {
             throw new IllegalArgumentException("reserveTimeout must be positive: " + reserveTimeout);
         }
-        if (rangeTtl.isPresent() && (rangeTtl.get().isNegative() || rangeTtl.get().isZero())) {
-            throw new IllegalArgumentException("rangeTtl must be positive: " + rangeTtl.get());
+        if (rangeTtl.isPresent() && rangeTtl.get().compareTo(MIN_RANGE_TTL) < 0) {
+            // The generator's clock counts milliseconds: a shorter time to live would truncate to none at all.
+            throw new IllegalArgumentException("rangeTtl must be at least " + MIN_RANGE_TTL.toMillis() + "ms: " + rangeTtl.get());
         }
     }
 

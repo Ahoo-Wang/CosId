@@ -90,6 +90,13 @@ class SegmentModelTest {
             .reserveTimeout(second)
             .rangeTtl(Duration.ZERO)
             .build());
+        // #1444: the generator's clock counts milliseconds; a shorter time to live truncated to none at all.
+        IllegalArgumentException subMillisecond = assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder()
+            .rangeTtl(Duration.ofNanos(500_000))
+            .build());
+        assertThat(subMillisecond.getMessage(), is("rangeTtl must be at least 1ms: PT0.0005S"));
+        assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder().rangeTtl(Duration.ofNanos(1)).build());
+        assertThat(BatchPolicy.builder().rangeTtl(Duration.ofMillis(1)).build().rangeTtl(), is(Optional.of(Duration.ofMillis(1))));
         assertThrows(IllegalArgumentException.class, () -> BatchPolicy.builder()
             .step(100)
             .initialOffset(0)

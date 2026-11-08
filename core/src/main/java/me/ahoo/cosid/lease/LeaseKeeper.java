@@ -461,9 +461,10 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
                 if (state != State.RUNNING) {
                     return -1;
                 }
-                long now = ticker.nanoTime();
-                if (now < nextDueNanos) {
-                    return nextDueNanos - now;
+                // The difference of two ticks, never their order: monotonic ticks may be negative and may wrap.
+                long wait = nextDueNanos - ticker.nanoTime();
+                if (wait > 0) {
+                    return wait;
                 }
                 held = lease;
                 epoch = generation;

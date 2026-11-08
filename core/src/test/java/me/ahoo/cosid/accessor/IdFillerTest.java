@@ -366,6 +366,116 @@ class IdFillerTest {
         assertThat(unresolved.getMessage(), containsString("does not resolve to a class"));
     }
 
+    // #1466: the setter that takes the id type itself, whatever order reflection lists the overloads in.
+    static class ObjectThenLong {
+        @CosId
+        private Long id;
+
+        public void setId(Object id) {
+            throw new IllegalArgumentException("the generic setter is not the Long id setter");
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+    }
+
+    static class LongThenObject {
+        @CosId
+        private Long id;
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+
+        public void setId(Object id) {
+            throw new IllegalArgumentException("the generic setter is not the Long id setter");
+        }
+    }
+
+    static class NumberAndLong {
+        @CosId
+        private Long id;
+
+        public void setId(Number id) {
+            throw new IllegalArgumentException("the Number setter is not the Long id setter");
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
+    }
+
+    static class ObjectAndNumber {
+        @CosId
+        private Long id;
+
+        public void setId(Object id) {
+            throw new IllegalArgumentException("the Object setter is less specific than the Number one");
+        }
+
+        public void setId(Number id) {
+            this.id = id.longValue();
+        }
+    }
+
+    static class Overriding extends Entity<Long> {
+        int calls;
+
+        @Override
+        public void setId(Long id) {
+            calls++;
+            super.setId(id);
+        }
+    }
+
+    static class OverloadedBelowAGenericSetter extends Entity<Long> {
+        public void setId(Number id) {
+            throw new IllegalArgumentException("Number is more specific than the inherited setId(Object), not than Long");
+        }
+    }
+
+    static class Ambiguous {
+        @CosId
+        private Long id;
+
+        public void setId(Number id) {
+            this.id = id.longValue();
+        }
+
+        public void setId(Comparable<?> id) {
+            this.id = (Long) id;
+        }
+    }
+
+    @Test
+    void theMostSpecificSetterIsChosen() {
+        ObjectThenLong objectThenLong = new ObjectThenLong();
+        filler.fill(objectThenLong);
+        assertThat(objectThenLong.id, greaterThan(-1L));
+        LongThenObject longThenObject = new LongThenObject();
+        filler.fill(longThenObject);
+        assertThat(longThenObject.id, greaterThan(-1L));
+        NumberAndLong numberAndLong = new NumberAndLong();
+        filler.fill(numberAndLong);
+        assertThat(numberAndLong.id, greaterThan(-1L));
+        ObjectAndNumber objectAndNumber = new ObjectAndNumber();
+        filler.fill(objectAndNumber);
+        assertThat(objectAndNumber.id, greaterThan(-1L));
+        Overriding overriding = new Overriding();
+        filler.fill(overriding);
+        assertThat(overriding.calls, is(1));
+        assertThat(overriding.getId(), greaterThan(-1L));
+    }
+
+    @Test
+    void settersOfIncomparableTypesAreAmbiguous() {
+        IllegalStateException ambiguous = assertThrows(IllegalStateException.class, () -> filler.fill(new Ambiguous()));
+        assertThat(ambiguous.getMessage(), containsString("are ambiguous for an id of type java.lang.Long"));
+        // setId(Number) of the subclass is more specific than the inherited setId(Object): the overload is chosen.
+        assertThrows(IllegalArgumentException.class, () -> filler.fill(new OverloadedBelowAGenericSetter()));
+    }
+
     static class Fluent {
         @CosId
         private long id;

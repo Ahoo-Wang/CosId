@@ -101,6 +101,16 @@ class RadixTest {
         assertThat(Radix.of(2, 63, false).decode("1".repeat(63)), is(Long.MAX_VALUE));
     }
 
+    // #1441: a radix of 1 never shortened the rest, so maxWidth looped forever before Radix.of could reject it.
+    @Test
+    void maxWidthRejectsARadixOutOfRange() {
+        for (int radix : new int[] {Integer.MIN_VALUE, -1, 0, 1, 63}) {
+            IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> Radix.maxWidth(radix));
+            assertThat(error.getMessage(), is("radix must be in [2, 62]: " + radix));
+        }
+        assertThat(Radix.maxWidth(2), is(63));
+    }
+
     @Test
     void constantRadixPathsMatchMaxWidth() {
         // readDigits passes these maxWidths as literals for its constant-radix cases.

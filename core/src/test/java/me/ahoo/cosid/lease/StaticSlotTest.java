@@ -171,6 +171,30 @@ class StaticSlotTest {
         zero.close();
     }
 
+    // #1454: System.nanoTime() may be negative; without a failed write there is no back-off to wait for.
+    @Test
+    void aNegativeTickIsNoBackOff() throws IOException {
+        ManualTicker negative = new ManualTicker(-Duration.ofSeconds(100).toNanos(), clock);
+        StaticSlot slot = new StaticSlot(3, 4, Optional.of(file()), AHEAD, Optional.empty(), tasks::add, clock, negative);
+        slot.start();
+        negative.advance(Duration.ofSeconds(6));
+        slot.extendIfDue();
+        assertThat(slot.current().ceiling(), is(clock.currentMillis() + AHEAD.toMillis()));
+        assertThat(persisted(), is(slot.current().ceiling()));
+        // A failed write backs off by the difference of two ticks, negative ones included.
+        Path temporary = dir.resolve("slot-3.window.tmp");
+        Files.createDirectory(temporary);
+        negative.advance(Duration.ofSeconds(6));
+        assertThat(slot.extendIfDue(), is(Duration.ofMillis(100).toNanos()));
+        negative.advance(Duration.ofMillis(50));
+        assertThat(slot.extendIfDue(), is(Duration.ofMillis(50).toNanos()));
+        Files.delete(temporary);
+        negative.advance(Duration.ofMillis(50));
+        slot.extendIfDue();
+        assertThat(slot.current().ceiling(), is(clock.currentMillis() + AHEAD.toMillis()));
+        slot.close();
+    }
+
     @Test
     void aFailedExtensionBacksOffAndRetries() throws IOException {
         StaticSlot slot = slot(Optional.empty());

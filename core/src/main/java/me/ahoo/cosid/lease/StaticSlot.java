@@ -283,9 +283,13 @@ public final class StaticSlot implements SlotHandle, AutoCloseable {
             if (!started || closed || window.isEmpty() || binding == null) {
                 return -1;
             }
-            long nowNanos = ticker.nanoTime();
-            if (nowNanos < retryAtNanos) {
-                return retryAtNanos - nowNanos;
+            // Backing off only after a failed write (backoffNanos > 0), and by the difference of two ticks: a monotonic
+            // tick may be negative, so an absolute retryAtNanos of 0 is no deadline (#1454).
+            if (backoffNanos != 0) {
+                long wait = retryAtNanos - ticker.nanoTime();
+                if (wait > 0) {
+                    return wait;
+                }
             }
             current = binding;
             long now = time.currentMillis();

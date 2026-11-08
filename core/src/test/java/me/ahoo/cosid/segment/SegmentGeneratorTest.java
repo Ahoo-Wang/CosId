@@ -533,7 +533,32 @@ class SegmentGeneratorTest {
         try (SegmentGenerator generator = generator(policy, Runnable::run, time)) {
             assertThat(generator.generate(), is(0L));
             assertThat(generator.held(), is(19L));
-            time.advance(1000);
+            time.advance(999);
+            assertThat(generator.held(), is(19L));
+            time.advance(1);
+            // #1474: the ready range expired with the current one; it holds nothing before the next take drops it.
+            assertThat(generator.held(), is(0L));
+            assertThat(generator.generate(), is(20L));
+        }
+    }
+
+    @Test
+    void heldCountsOnlyTheReadyRangesWithinTheirTimeToLive() {
+        ManualTime time = new ManualTime(0);
+        BatchPolicy policy = policy(10, Duration.ofSeconds(1), 10, Duration.ofSeconds(3), Optional.of(Duration.ofSeconds(1)));
+        try (SegmentGenerator generator = generator(policy, Runnable::run, time)) {
+            // [0, 10) and the ready [10, 20) are reserved at 0, so both expire at 1000.
+            for (long expected = 0; expected < 10; expected++) {
+                assertThat(generator.generate(), is(expected));
+            }
+            time.advance(500);
+            // [10, 20) is current now; the range prefetched at 500 expires at 1500.
+            assertThat(generator.generate(), is(10L));
+            long held = generator.held();
+            assertThat(held, greaterThan(9L));
+            time.advance(500);
+            // [11, 20) expired at 1000; the ranges reserved at 500 have not.
+            assertThat(generator.held(), is(held - 9));
             assertThat(generator.generate(), is(20L));
         }
     }

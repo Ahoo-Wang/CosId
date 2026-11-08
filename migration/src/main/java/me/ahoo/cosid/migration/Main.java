@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -36,6 +37,7 @@ public final class Main {
                                          the top of the nodes; above the 4.x machine ids, which must stay below it;
                                          0 migrates it at once, every service stopped)
                   [--rename <4.x name>=<5.0 name>]... [--group-pattern <generator>=<4.x pattern>]...
+                  [--group-locale <language tag, the default format locale of the 4.x JVM, for text such as MMM>]
                   [--from-option k=v]... [--to-option k=v]...
           apply   --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source]
                   [--seal-gap 1099511627776] [--result apply-result.json] [--layout-config ..] [--target-config ..]
@@ -77,8 +79,9 @@ public final class Main {
             switch (args[0]) {
                 case "plan" -> {
                     Args options = Args.parse(rest, Set.of(), Set.of("from", "to", "machine-from", "machine-to", "namespace", "output", "layout-config",
-                        "target-config", "slot-bits", "tolerance", "source-skew", "rename", "group-pattern", "from-option", "to-option",
+                        "target-config", "slot-bits", "tolerance", "source-skew", "rename", "group-pattern", "group-locale", "from-option", "to-option",
                         "machine-from-option", "machine-to-option", "slot-offset"));
+                    String groupLocale = options.get("group-locale");
                     String bits = options.get("slot-bits");
                     String slotOffset = options.get("slot-offset");
                     String machineFrom = options.get("machine-from");
@@ -91,7 +94,8 @@ public final class Main {
                         options.required("namespace"), options.path("layout-config"), options.path("target-config"),
                         bits == null ? null : Integer.parseInt(bits), options.duration("tolerance", Duration.ofSeconds(1)),
                         options.duration("source-skew", Migration.DEFAULT_SOURCE_SKEW), options.pairs("rename"), options.pairs("group-pattern"),
-                        options.path("output", "plan.json"), slotOffset == null ? null : Integer.parseInt(slotOffset)));
+                        options.path("output", "plan.json"), slotOffset == null ? null : Integer.parseInt(slotOffset),
+                        groupLocale == null ? null : Locale.forLanguageTag(groupLocale)));
                     return 0;
                 }
                 case "apply" -> {

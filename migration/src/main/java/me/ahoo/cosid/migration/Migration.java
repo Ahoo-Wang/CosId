@@ -33,9 +33,11 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -98,10 +100,24 @@ public final class Migration {
      * @param slotOffset    the slot offset of a shared {@code cosid.generator.namespace} ({@code --slot-offset}); null for
      *                      the top of the nodes, {@code 2^nodeBits - 2^bits}; 0 migrates it at once, every service
      *                      sharing it stopped (api-freeze.md §2.7)
+     * @param groupLocale   the locale 4.x formatted the group keys in ({@code --group-locale}), the default format locale of
+     *                      its JVM, for patterns with text such as {@code MMM}; null for {@link Locale#ROOT}
      */
     public record PlanOptions(StoreLocation from, StoreLocation to, StoreLocation machineFrom, StoreLocation machineTo, String namespace,
                               Path layoutConfig, Path targetConfig, Integer slotBits, Duration tolerance, Duration sourceSkew,
-                              Map<String, String> renames, Map<String, String> groupPatterns, Path output, Integer slotOffset) {
+                              Map<String, String> renames, Map<String, String> groupPatterns, Path output, Integer slotOffset, Locale groupLocale) {
+        /** In {@link Locale#ROOT}. */
+        public PlanOptions(StoreLocation from, StoreLocation to, StoreLocation machineFrom, StoreLocation machineTo, String namespace,
+                           Path layoutConfig, Path targetConfig, Integer slotBits, Duration tolerance, Duration sourceSkew,
+                           Map<String, String> renames, Map<String, String> groupPatterns, Path output, Integer slotOffset) {
+            this(from, to, machineFrom, machineTo, namespace, layoutConfig, targetConfig, slotBits, tolerance, sourceSkew, renames, groupPatterns, output,
+                slotOffset, null);
+        }
+
+        Locale groupLocaleOrRoot() {
+            return groupLocale == null ? Locale.ROOT : groupLocale;
+        }
+
         /** With the recommended slot offset. */
         public PlanOptions(StoreLocation from, StoreLocation to, StoreLocation machineFrom, StoreLocation machineTo, String namespace,
                            Path layoutConfig, Path targetConfig, Integer slotBits, Duration tolerance, Duration sourceSkew,
@@ -115,7 +131,7 @@ public final class Migration {
             return new PlanOptions(from.checked("--from-option", false), to.checked("--to-option", true),
                 machineFrom == null ? null : machineFrom.checked("--machine-from-option", false),
                 machineTo == null ? null : machineTo.checked("--machine-to-option", true), namespace, layoutConfig, targetConfig, slotBits, tolerance,
-                sourceSkew, renames, groupPatterns, output, slotOffset);
+                sourceSkew, renames, groupPatterns, output, slotOffset, groupLocale);
         }
 
         /** Without separate machine stores. */
@@ -213,10 +229,11 @@ public final class Migration {
         }
 
         LegacySnapshot snapshot;
-        long sourceNow;
+        OptionalLong sourceNow;
         try (Readers readers = readers(options.from(), options.machineFrom())) {
             snapshot = readers.read(options.namespace(), extraNamespaces);
-            sourceNow = readers.now();
+            // plan reads only (#1469): a store whose clock needs a write gives none, and W is estimated without it.
+            sourceNow = readers.readOnlyNow();
         }
         Plan.Shared shared = null;
         int slotOffset = 0;
@@ -243,12 +260,12 @@ public final class Migration {
             throw new MigrationAbortedException("4.x key [" + options.namespace() + "." + Legacy4x.SHARE + "] needs --layout-config (or --rename "
                 + Legacy4x.SHARE + "=<generator>): its 5.0 name depends on whether the 4.x snowflake share is enabled too");
         }
-        KeyMapper mapper = new KeyMapper(options.namespace(), renames, groupPatterns);
+        KeyMapper mapper = new KeyMapper(options.namespace(), renames, groupPatterns, options.groupLocaleOrRoot());
         List<String> unrecognized = new ArrayList<>(snapshot.unrecognized());
         List<Plan.SegmentPlan> segments = new ArrayList<>();
-        long targetNow;
+        OptionalLong targetNow;
         try (TargetAdmin target = targets.apply(options.to()); TargetAdmin slotTarget = machineTarget(options.to(), options.machineTo(), target)) {
-            targetNow = Math.max(target.now(), slotTarget.now());
+            targetNow = latest(target.readOnlyNow(), slotTarget.readOnlyNow());
             Map<String, LegacySnapshot.Key> owners = new LinkedHashMap<>();
             for (Map.Entry<LegacySnapshot.Key, Long> entry : snapshot.segments().entrySet()) {
                 LegacySnapshot.Key key = entry.getKey();
@@ -283,7 +300,15 @@ public final class Migration {
             warnings.add("apply aborts unless each key not migrated is named with --allow-unmigrated <key>");
         }
         long sourceSkew = options.sourceSkew().toMillis();
-        long w = floorW(Math.max(targetNow, sourceNow), snapshot.maxTimestamp(), sourceSkew);
+        OptionalLong storesNow = latest(targetNow, sourceNow);
+        boolean estimated = sourceNow.isEmpty() || targetNow.isEmpty();
+        if (estimated) {
+            warnings.add("a store tells its clock only by writing (ZooKeeper), which plan does not: W is estimated with this machine's clock"
+                + (storesNow.isEmpty() ? "" : " and the clocks of the other stores") + "; apply reads every store clock, computes W again and"
+                + " validates the layouts (M3) at it");
+        }
+        long clock = estimated ? Math.max(storesNow.orElse(0), System.currentTimeMillis()) : storesNow.getAsLong();
+        long w = floorW(clock, snapshot.maxTimestamp(), sourceSkew);
         List<LayoutCheck> layouts = layouts(legacy, options.targetConfig(), w);
         if (legacy == null) {
             warnings.add("no --layout-config: layouts are not validated (M3), namespaces of their own and separate machine stores are not"
@@ -292,9 +317,10 @@ public final class Migration {
         Plan plan = new Plan(Plan.FORMAT, Instant.now().toString(), options.namespace(), options.from().redacted(), options.to().redacted(),
             options.machineFrom() == null ? null : options.machineFrom().redacted(), options.machineTo() == null ? null : options.machineTo().redacted(),
             extraNamespaces, slots, renames, groupPatterns, segments, unrecognized,
-            new Plan.Machines(snapshot.machines().size(), snapshot.maxTimestamp(), Math.max(targetNow, sourceNow), sourceSkew, w,
+            new Plan.Machines(snapshot.machines().size(), snapshot.maxTimestamp(), clock, sourceSkew, w,
                 snapshot.maxMachineId(options.namespace())), layouts, warnings, shared, generatorNamespace,
-            recordedNamespaces.isEmpty() ? null : recordedNamespaces);
+            recordedNamespaces.isEmpty() ? null : recordedNamespaces,
+            options.groupLocale() == null ? null : options.groupLocale().toLanguageTag());
         Json.write(options.output(), plan);
         report(plan);
         return plan;
@@ -410,6 +436,20 @@ public final class Migration {
         }
     }
 
+    /** The later of two clocks; empty when neither is known. */
+    private static OptionalLong latest(OptionalLong one, OptionalLong other) {
+        if (one.isEmpty()) {
+            return other;
+        }
+        return other.isEmpty() ? one : OptionalLong.of(Math.max(one.getAsLong(), other.getAsLong()));
+    }
+
+    /** The key mapper of a plan, in the locale plan read the group keys in (#1480). */
+    private static KeyMapper mapper(Plan plan) {
+        return new KeyMapper(plan.namespace(), plan.renames(), plan.groupPatterns(),
+            plan.groupLocale() == null ? Locale.ROOT : Locale.forLanguageTag(plan.groupLocale()));
+    }
+
     /** The 4.x readers of one command: one reader when segments and machine ids share a store. */
     private Readers readers(StoreLocation from, StoreLocation machineFrom) {
         SourceReader segments = sources.apply(from);
@@ -430,6 +470,11 @@ public final class Migration {
 
         long now() {
             return machines == segments ? segments.now() : Math.max(segments.now(), machines.now());
+        }
+
+        /** The latest clock the stores tell without writing; empty when none does. */
+        OptionalLong readOnlyNow() {
+            return latest(segments.readOnlyNow(), machines == segments ? OptionalLong.empty() : machines.readOnlyNow());
         }
 
         @Override
@@ -457,6 +502,11 @@ public final class Migration {
         @Override
         public long now() {
             return delegate.now();
+        }
+
+        @Override
+        public OptionalLong readOnlyNow() {
+            return delegate.readOnlyNow();
         }
 
         @Override
@@ -642,7 +692,7 @@ public final class Migration {
         List<String> warnings = new ArrayList<>();
         Map<LegacySnapshot.Key, Plan.SegmentPlan> planned = new LinkedHashMap<>();
         plan.segments().forEach(segment -> planned.put(new LegacySnapshot.Key(segment.sourceNamespace(), segment.sourceName()), segment));
-        KeyMapper mapper = new KeyMapper(plan.namespace(), plan.renames(), plan.groupPatterns());
+        KeyMapper mapper = mapper(plan);
         try (Readers source = readers(from, machineFrom); TargetAdmin target = targets.apply(to);
              TargetAdmin slotTarget = machineTarget(to, machineTo, target)) {
             final Map<String, Plan.GeneratorNamespace> machineNamespaces = checkMachineNamespaces(plan, slotTarget);
@@ -870,7 +920,7 @@ public final class Migration {
                 }
             }
             Set<String> allowed = new HashSet<>(result.allowedUnmigrated() == null ? List.of() : result.allowedUnmigrated());
-            KeyMapper mapper = new KeyMapper(plan.namespace(), plan.renames(), plan.groupPatterns());
+            KeyMapper mapper = mapper(plan);
             for (LegacySnapshot.Key key : snapshot.segments().keySet()) {
                 if (applied.contains(key) || allowed.contains(key.toString())) {
                     continue;
@@ -1027,6 +1077,10 @@ public final class Migration {
             throw new MigrationAbortedException(reason);
         });
         ConfigConverter.Conversion conversion = new ConfigConverter(options.zone()).convert(input, result);
+        if (!conversion.problems().isEmpty()) {
+            // Not equivalent (#1463): a configuration that would issue other ids or text is not written.
+            throw new MigrationAbortedException("the 4.x configuration has no equivalent 5.0 one:\n  - " + String.join("\n  - ", conversion.problems()));
+        }
         List<String> missing = conversion.unmigratedSegments(result).stream().filter(name -> !options.allowNew().contains(name)).toList();
         if (!missing.isEmpty()) {
             throw new MigrationAbortedException("segment generators " + missing + " continue no key of "

@@ -13,9 +13,11 @@
 
 package me.ahoo.cosid.migration.config;
 
+import me.ahoo.cosid.codec.Radix;
 import me.ahoo.cosid.migration.ApplyResult;
 import me.ahoo.cosid.migration.Plan;
 import me.ahoo.cosid.migration.StoreLocation;
+import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.store.StoreOptions;
 import me.ahoo.cosid.time.Layout;
 
@@ -28,6 +30,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
@@ -73,10 +76,22 @@ public final class ConfigConverter {
     /**
      * The converted configuration and the report.
      *
-     * @param model  the 5.0 configuration as nested maps, {@code cosid} at the root
-     * @param report what was not converted as is
+     * @param model    the 5.0 configuration as nested maps, {@code cosid} at the root
+     * @param report   what was not converted as is
+     * @param problems what has no 5.0 counterpart that keeps the 4.x ids or text: {@code config} writes nothing while
+     *                 there is one, as the configuration it would write is not equivalent (#1463)
      */
-    public record Conversion(Map<String, Object> model, List<String> report) {
+    public record Conversion(Map<String, Object> model, List<String> report, List<String> problems) {
+        /**
+         * A conversion without problems.
+         *
+         * @param model  the 5.0 configuration
+         * @param report what was not converted as is
+         */
+        public Conversion(Map<String, Object> model, List<String> report) {
+            this(model, report, List.of());
+        }
+
         /**
          * The segment and periodic segment generators that continue no key of an apply result: a plain generator needs
          * {@code {ns}/{name}}, a periodic one some {@code {ns}/{name}/{period}} (rc-review D-B2).
@@ -149,6 +164,7 @@ public final class ConfigConverter {
     public Conversion convert(FlatConfig config, ApplyResult result) {
         Legacy4x legacy = new Legacy4x(config);
         final List<String> report = new ArrayList<>();
+        final List<String> problems = new ArrayList<>();
         Set<String> handled = new LinkedHashSet<>();
         Map<String, Object> cosid = new LinkedHashMap<>();
         cosid.put("namespace", legacy.namespace());
@@ -170,14 +186,15 @@ public final class ConfigConverter {
             : store(config, "cosid.segment.distributor", "redis", new Placement(segmentTarget, source, placed), stores, report, handled);
         final Map<String, Legacy4x.MachineNamespace> machineNamespaces = legacy.machineNamespaces();
         Map<String, Object> generators = new LinkedHashMap<>();
-        legacy.snowflakes().forEach((name, prefix) -> generators.put(name, snowflake(legacy, name, prefix, machineNamespaces, report, handled)));
+        legacy.snowflakes().forEach((name, prefix) -> generators.put(name, snowflake(legacy, name, prefix, machineNamespaces, report, problems, handled)));
         // The names plan and apply gave the migrated keys (--rename, the share): the generators must continue them (D-B2).
         Map<String, String> renames = result == null || result.renames() == null ? Map.of() : result.renames();
         legacy.segments().forEach((name, prefix) -> {
             String renamed = renames.get(prefix.equals("cosid.segment.share") ? Legacy4x.SHARE : name);
             String generator = renamed == null ? name : renamed;
-            generators.put(generator, segment(legacy, name, prefix, segmentStore, migratedNext(result, generator), report, handled));
+            generators.put(generator, segment(legacy, name, prefix, segmentStore, migratedNext(result, generator), report, problems, handled));
         });
+        reserveTimeouts(stores, generators, report);
         if (legacy.cosidEnabled()) {
             if (generators.containsKey("cosid")) {
                 report.add("cosid.generator: a generator named [cosid] exists already; the CosIdGenerator is written as [cosid80]");
@@ -227,7 +244,7 @@ public final class ConfigConverter {
         }
         Map<String, Object> model = new LinkedHashMap<>();
         model.put("cosid", cosid);
-        return new Conversion(model, report);
+        return new Conversion(model, report, List.copyOf(problems));
     }
 
     private static boolean covered(String key, Set<String> handled) {
@@ -396,7 +413,7 @@ public final class ConfigConverter {
                 handled.add(prefix + ".zookeeper.*");
             }
             default -> {
-                copy(config, prefix + ".jdbc.fetch-plan", "fetchPlan", options);
+                fetchPlan(config, prefix + ".jdbc.fetch-plan", options, report);
                 for (String key : config.keys(prefix + ".jdbc")) {
                     if (!key.endsWith("query-timeout") && !key.endsWith(".fetch-plan")) {
                         report.add(key + ": custom 4.x SQL and table initialization are gone; 5.0 uses JdbcDialect and options.initSchema (06 §2.1)");
@@ -456,6 +473,56 @@ public final class ConfigConverter {
         String key = result.namespace() + "/" + generator;
         return result.segments().stream().filter(segment -> segment.targetKey().equals(key)).map(ApplyResult.SegmentResult::targetNext).findFirst()
             .orElse(null);
+    }
+
+    /** The 4.x fetch plan: AUTO, the default, is the 5.0 statement plan; TRANSACTION keeps its name (#1472). */
+    private static void fetchPlan(FlatConfig config, String key, Map<String, Object> options, List<String> report) {
+        String plan = config.get(key);
+        if (plan == null || plan.isEmpty()) {
+            return;
+        }
+        switch (plan.toLowerCase(Locale.ROOT)) {
+            case "auto", "statement" -> options.put("fetchPlan", "statement");
+            case "transaction" -> options.put("fetchPlan", "transaction");
+            default -> report.add(key + " = " + plan + ": not a 4.x fetch plan (auto, transaction); dropped");
+        }
+    }
+
+    /**
+     * Each segment and periodic segment generator waits for a range up to its {@code reserve-timeout}, 3s by default,
+     * which 5.0 requires to be at least its store's timeout (#1462): a store timeout above it becomes the generators'
+     * reserve timeout.
+     */
+    private static void reserveTimeouts(Map<String, Map<String, Object>> stores, Map<String, Object> generators, List<String> report) {
+        Duration reserve = BatchPolicy.DEFAULT.reserveTimeout();
+        stores.forEach((name, store) -> {
+            Object timeout = store.get("timeout");
+            if (timeout == null) {
+                return;
+            }
+            Duration storeTimeout;
+            try {
+                storeTimeout = FlatConfig.parseDuration(String.valueOf(timeout));
+            } catch (IllegalArgumentException unreadable) {
+                return;
+            }
+            if (storeTimeout.compareTo(reserve) <= 0) {
+                return;
+            }
+            List<String> raised = new ArrayList<>();
+            generators.forEach((generatorName, value) -> {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> generator = (Map<String, Object>) value;
+                if (name.equals(generator.get("store")) && !generator.containsKey("reserve-timeout")) {
+                    generator.put("reserve-timeout", timeout);
+                    raised.add(generatorName);
+                }
+            });
+            if (!raised.isEmpty()) {
+                report.add("store [" + name + "] timeout " + timeout + " exceeds the default reserve-timeout " + reserve.toSeconds() + "s, which 5.0"
+                    + " requires to be at least it: reserve-timeout " + timeout + " for " + raised + ", which may wait that long for a range");
+            }
+        });
     }
 
     private static void copy(FlatConfig config, String key, String option, Map<String, Object> options) {
@@ -592,7 +659,7 @@ public final class ConfigConverter {
     }
 
     private Map<String, Object> snowflake(Legacy4x legacy, String name, String prefix, Map<String, Legacy4x.MachineNamespace> machineNamespaces,
-                                          List<String> report, Set<String> handled) {
+                                          List<String> report, List<String> problems, Set<String> handled) {
         final FlatConfig config = legacy.config();
         Map<String, Object> generator = new LinkedHashMap<>();
         generator.put("strategy", "snowflake");
@@ -643,7 +710,7 @@ public final class ConfigConverter {
             report.add(prefix + ".clock-sync: replaced by the clock regression policy (borrow 5ms, wait 1s; 03 §4)");
             handled.add(prefix + ".clock-sync");
         }
-        generator.put("codec", codecs(config, prefix + ".converter", true, report, handled));
+        generator.put("codec", codecs(config, prefix + ".converter", true, null, report, problems, handled));
         handled.add("cosid.snowflake.zone-id");
         return generator;
     }
@@ -655,7 +722,7 @@ public final class ConfigConverter {
     }
 
     private Map<String, Object> segment(Legacy4x legacy, String name, String prefix, String store, Long migratedNext, List<String> report,
-                                        Set<String> handled) {
+                                        List<String> problems, Set<String> handled) {
         final FlatConfig config = legacy.config();
         Map<String, Object> generator = new LinkedHashMap<>();
         String period = legacy.period(prefix);
@@ -694,7 +761,9 @@ public final class ConfigConverter {
             }
         }
         ownNamespace(config, prefix, handled);
-        List<Object> codec = codecs(config, prefix + ".converter", false, report, handled);
+        // The group prefix of a periodic segment is its period item, placed where the 4.x chain applied it (#1478).
+        List<Object> codec = codecs(config, prefix + ".converter", false, period == null ? null : periodItem(config, prefix + ".converter"),
+            report, problems, handled);
         if (period != null) {
             generator.put("period", period);
             generator.put("zone", zone().getId());
@@ -712,46 +781,38 @@ public final class ConfigConverter {
             }
             handled.add(prefix + ".group.by");
             handled.add(prefix + ".group.pattern");
-            generator.put("codec", withPeriod(config, prefix + ".converter", codec));
             handled.add(prefix + ".converter.group-prefix.*");
-        } else {
-            generator.put("codec", codec);
         }
+        generator.put("codec", codec);
         return generator;
     }
 
-    /**
-     * The codec list of a periodic segment: the 4.x {@code group-prefix} becomes the {@code period} item at the place
-     * the 4.x converter chain gave it (applied inside out: the base converter, the group prefix when
-     * {@code before-prefix} is true, the date prefix, {@code prefix}, the group prefix when {@code before-prefix} is
-     * false, {@code suffix}). Off, the period item leaves the period out of the text.
-     */
-    private static List<Object> withPeriod(FlatConfig config, String converter, List<Object> codec) {
-        List<Object> grouped = new ArrayList<>(codec);
+    /** The period item of the 4.x {@code group-prefix}: its delimiter, or, off, a period left out of the text. */
+    private static Map<String, Object> periodItem(FlatConfig config, String converter) {
         Map<String, Object> period = new LinkedHashMap<>();
         if (config.bool(converter + ".group-prefix.enabled", false)) {
             period.put("delimiter", text(config, converter + ".group-prefix.delimiter", "-"));
         } else {
             period.put("enabled", false);
         }
-        int at;
-        if (config.bool(converter + ".group-prefix.before-prefix", true)) {
-            // Right around the base converter, the only item that is no decoration.
-            at = !grouped.isEmpty() && grouped.get(0) instanceof Map<?, ?> first
-                && (first.containsKey("radix") || first.containsKey("friendly") || first.containsKey("custom")) ? 1 : 0;
-        } else {
-            // Around prefix: before the suffix, the last item when there is one.
-            at = config.get(converter + ".suffix") != null ? grouped.size() - 1 : grouped.size();
-        }
-        grouped.add(at, Map.of("period", period));
-        return grouped;
+        return Map.of("period", period);
     }
 
     private ZoneId zone() {
         return zone == null ? ZoneId.systemDefault() : zone;
     }
 
-    private List<Object> codecs(FlatConfig config, String prefix, boolean snowflake, List<String> report, Set<String> handled) {
+    /**
+     * The codec list of a 4.x converter, in the order the 4.x chain applied its parts, inside out (#1478): the base
+     * converter, the group prefix when its {@code before-prefix} is true, the date prefix when its {@code before-prefix}
+     * is true, {@code prefix}, the group prefix when its {@code before-prefix} is false, the date prefix when its
+     * {@code before-prefix} is false, {@code suffix}. Texts are kept as written (#1456); an empty prefix or suffix,
+     * which 4.x left out, is left out.
+     *
+     * @param period the period item of a periodic segment, null otherwise
+     */
+    private List<Object> codecs(FlatConfig config, String prefix, boolean snowflake, Map<String, Object> period, List<String> report,
+                                List<String> problems, Set<String> handled) {
         List<Object> codec = new ArrayList<>();
         String type = config.get(prefix + ".type", "radix").toLowerCase(Locale.ROOT).replace('-', '_');
         handled.add(prefix + ".type");
@@ -760,7 +821,7 @@ public final class ConfigConverter {
             case "radix36" -> codec.add(radix(36, config.number(prefix + ".radix36.char-size", 13), config.bool(prefix + ".radix36.pad-start", true)));
             case "to_string" -> {
                 if (config.bool(prefix + ".to-string.pad-start", false)) {
-                    codec.add(radix(10, config.number(prefix + ".to-string.char-size", 11), true));
+                    toString(config.number(prefix + ".to-string.char-size", 11), prefix, codec, problems);
                 }
             }
             case "snowflake_friendly" -> {
@@ -787,34 +848,66 @@ public final class ConfigConverter {
         for (String part : List.of("radix", "radix36", "to-string", "friendly", "custom")) {
             handled.add(prefix + "." + part + ".*");
         }
+        Map<String, Object> date = null;
         if (config.bool(prefix + ".date-prefix.enabled", false)) {
             Map<String, Object> datePrefix = new LinkedHashMap<>();
-            datePrefix.put("pattern", config.get(prefix + ".date-prefix.pattern", "yyMMdd"));
+            String pattern = config.text(prefix + ".date-prefix.pattern");
+            datePrefix.put("pattern", pattern == null || pattern.isEmpty() ? "yyMMdd" : pattern);
             datePrefix.put("delimiter", text(config, prefix + ".date-prefix.delimiter", "-"));
             // 4.x prefixed the date of the conversion, not the id's.
             datePrefix.put("source", "NOW");
-            codec.add(Map.of("date-prefix", datePrefix));
+            date = Map.of("date-prefix", datePrefix);
         }
         handled.add(prefix + ".date-prefix.*");
-        String text = config.get(prefix + ".prefix");
-        if (text != null) {
+        boolean groupFirst = config.bool(prefix + ".group-prefix.before-prefix", true);
+        boolean dateFirst = config.bool(prefix + ".date-prefix.before-prefix", true);
+        if (period != null && groupFirst) {
+            codec.add(period);
+        }
+        if (date != null && dateFirst) {
+            codec.add(date);
+        }
+        String text = config.text(prefix + ".prefix");
+        if (text != null && !text.isEmpty()) {
             codec.add(Map.of("prefix", text));
         }
-        String suffix = config.get(prefix + ".suffix");
-        if (suffix != null) {
+        if (period != null && !groupFirst) {
+            codec.add(period);
+        }
+        if (date != null && !dateFirst) {
+            codec.add(date);
+        }
+        String suffix = config.text(prefix + ".suffix");
+        if (suffix != null && !suffix.isEmpty()) {
             codec.add(Map.of("suffix", suffix));
         }
         handled.add(prefix + ".prefix");
         handled.add(prefix + ".suffix");
-        if (!config.bool(prefix + ".date-prefix.before-prefix", true) && text != null) {
-            report.add(prefix + ".date-prefix.before-prefix = false: the 5.0 codec list applies in order; check the order of date-prefix and prefix");
-        }
         return codec;
     }
 
-    /** A text value where the empty text is a value of its own, such as a delimiter. */
+    /**
+     * The 4.x zero padded decimal text (#1463): at least {@code charSize} digits, a longer id in full. A 5.0 radix width
+     * is the most digits an id may take, so only a {@code charSize} of 19 or more converts: every id has at most 19
+     * decimal digits, padded to 19, and the zeros beyond them are a prefix. A smaller one has no 5.0 counterpart.
+     */
+    private static void toString(long charSize, String prefix, List<Object> codec, List<String> problems) {
+        int digits = Radix.maxWidth(10);
+        if (charSize >= digits) {
+            codec.add(radix(10, digits, true));
+            if (charSize > digits) {
+                codec.add(Map.of("prefix", "0".repeat((int) (charSize - digits))));
+            }
+            return;
+        }
+        problems.add(prefix + ".to-string: pad-start pads to at least char-size " + charSize + " digits and writes a longer id in full;"
+            + " a 5.0 radix width is the most digits an id may take, so no 5.0 codec keeps both. Set pad-start: false (decimal text"
+            + " without zeros) or char-size: 19 (every id padded to 19 digits) in the 4.x configuration, and convert it again");
+    }
+
+    /** A text value as written, where the empty text is a value of its own, such as a delimiter. */
     private static String text(FlatConfig config, String key, String fallback) {
-        String value = config.get(key);
+        String value = config.text(key);
         return value == null ? fallback : value;
     }
 

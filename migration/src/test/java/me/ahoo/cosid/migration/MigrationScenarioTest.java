@@ -317,6 +317,11 @@ abstract class MigrationScenarioTest {
         }
 
         @Override
+        public java.util.OptionalLong readOnlyNow() {
+            return delegate.readOnlyNow();
+        }
+
+        @Override
         public long seal(String namespace, String name, long increment) {
             if (fail.getAsBoolean()) {
                 throw new IllegalStateException("crash before sealing " + name);
@@ -335,6 +340,11 @@ abstract class MigrationScenarioTest {
         @Override
         public long now() {
             return delegate.now();
+        }
+
+        @Override
+        public java.util.OptionalLong readOnlyNow() {
+            return delegate.readOnlyNow();
         }
 
         @Override

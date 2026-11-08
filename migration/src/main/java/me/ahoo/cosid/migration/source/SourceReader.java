@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.migration.source;
 
+import java.util.OptionalLong;
+
 /**
  * Reads the 4.x data of a namespace (09 §4). Read-only, except for {@link #seal}, the one write the migration makes to
  * a 4.x store (09 §2).
@@ -44,6 +46,17 @@ public interface SourceReader extends AutoCloseable {
      * @return the time; 0 when the store has no clock of its own to read
      */
     long now();
+
+    /**
+     * The clock of the 4.x store read without writing, for {@code plan}, which only reads (#1469); apply reads
+     * {@link #now()}.
+     *
+     * @return the time, as {@link #now()}; empty when the store has no clock to read without a write, such as ZooKeeper,
+     *     whose time is the creation time of a node
+     */
+    default OptionalLong readOnlyNow() {
+        return OptionalLong.of(now());
+    }
 
     @Override
     void close();

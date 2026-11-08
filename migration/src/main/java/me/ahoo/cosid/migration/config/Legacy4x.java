@@ -94,7 +94,8 @@ public final class Legacy4x {
 
     /**
      * Why the 4.x {@code CosIdGenerator} bits cannot be kept by 5.0 cosid80: its time and sequence bits do not fit the
-     * {@code long} the 5.0 sequencer packs them in ({@code timeBits + seqBits <= 63}).
+     * {@code long} the 5.0 sequencer packs them in ({@code timeBits + seqBits <= 63}), or all its bits fit a long, which
+     * 5.0 cosid80 refuses (#1473).
      *
      * @return the reason, empty when they fit or the generator is disabled
      */
@@ -104,6 +105,13 @@ public final class Legacy4x {
         }
         int timeBits = (int) config.number("cosid.generator.timestamp-bit", 44);
         int seqBits = (int) config.number("cosid.generator.sequence-bit", 16);
+        int totalBits = cosidLayout().totalBits();
+        if (totalBits <= Layout.LONG_BITS) {
+            return Optional.of("cosid.generator.timestamp-bit + machine-bit + sequence-bit = " + totalBits + " fit a long: 5.0 cosid80 refuses a"
+                + " layout of at most " + Layout.LONG_BITS + " bits, and a snowflake would not keep the 4.x text, which encodes each part on its"
+                + " own. Convert this generator by hand: widen the layout past " + Layout.LONG_BITS + " bits for a cosid80 (the text changes"
+                + " width), or move it to a snowflake (its ids and text change)");
+        }
         if (timeBits + seqBits <= Layout.LONG_BITS) {
             return Optional.empty();
         }
@@ -273,8 +281,9 @@ public final class Legacy4x {
     public Map<String, String> groupPatterns() {
         Map<String, String> patterns = new LinkedHashMap<>();
         segments().forEach((name, prefix) -> {
-            String pattern = config.get(prefix + ".group.pattern");
-            if (period(prefix) != null && pattern != null) {
+            // As written: the blanks of a pattern formatted every 4.x group key.
+            String pattern = config.text(prefix + ".group.pattern");
+            if (period(prefix) != null && pattern != null && !pattern.isEmpty()) {
                 patterns.put(name, pattern);
             }
         });

@@ -40,6 +40,18 @@ public final class KeyMapper {
     private final String namespace;
     private final Map<String, String> renames;
     private final Map<String, String> groupPatterns;
+    private final Locale groupLocale;
+
+    /**
+     * A mapper of group keys formatted in {@link Locale#ROOT}.
+     *
+     * @param namespace     the namespace
+     * @param renames       4.x name to 5.0 generator name; {@code __share__} maps to {@code default} unless named here
+     * @param groupPatterns 5.0 generator name to the 4.x pattern of its group keys
+     */
+    public KeyMapper(String namespace, Map<String, String> renames, Map<String, String> groupPatterns) {
+        this(namespace, renames, groupPatterns, Locale.ROOT);
+    }
 
     /**
      * A mapper.
@@ -47,14 +59,17 @@ public final class KeyMapper {
      * @param namespace     the namespace
      * @param renames       4.x name to 5.0 generator name; {@code __share__} maps to {@code default} unless named here
      * @param groupPatterns 5.0 generator name to the 4.x pattern of its group keys
+     * @param groupLocale   the locale 4.x formatted the group keys in, its JVM's default format locale, for the text of a
+     *                      pattern such as {@code MMM} ({@code --group-locale}); numbers read alike in every locale
      */
-    public KeyMapper(String namespace, Map<String, String> renames, Map<String, String> groupPatterns) {
+    public KeyMapper(String namespace, Map<String, String> renames, Map<String, String> groupPatterns, Locale groupLocale) {
         this.namespace = Objects.requireNonNull(namespace, "namespace");
         Map<String, String> withShare = new HashMap<>();
         withShare.put(Legacy4x.SHARE, Legacy4x.DEFAULT);
         withShare.putAll(renames);
         this.renames = Map.copyOf(withShare);
         this.groupPatterns = Map.copyOf(groupPatterns);
+        this.groupLocale = Objects.requireNonNull(groupLocale, "groupLocale");
     }
 
     /**
@@ -78,11 +93,18 @@ public final class KeyMapper {
         String groupKey = sourceName.substring(at + 1);
         String pattern = groupPatterns.containsKey(generator) ? groupPatterns.get(generator) : groupPatterns.get(base);
         try {
-            String[] period = pattern == null ? preset(groupKey) : reformat(groupKey, pattern);
+            String[] period = pattern == null ? preset(groupKey) : reformat(groupKey, pattern, groupLocale);
             return portable(new Mapping(sourceName, generator, period[0], period[1], namespace + "/" + generator + "/" + period[1], null));
         } catch (IllegalArgumentException | DateTimeException e) {
-            return Mapping.unrecognized(sourceName, "group key [" + groupKey + "] " + e.getMessage()
-                + "; name its 4.x pattern with --group-pattern " + generator + "=<pattern>");
+            if (pattern == null) {
+                return Mapping.unrecognized(sourceName, "group key [" + groupKey + "] " + e.getMessage()
+                    + "; name its 4.x pattern with --group-pattern " + generator + "=<pattern>");
+            }
+            // The pattern is named already (#1480): what may be missing is the locale of its text.
+            return Mapping.unrecognized(sourceName, "group key [" + groupKey + "] does not read with the 4.x pattern [" + pattern + "] in the "
+                + (Locale.ROOT.equals(groupLocale) ? "root" : groupLocale.toLanguageTag()) + " locale: " + e.getMessage()
+                + "; check the pattern (--group-pattern " + generator + "=<pattern>), and for text such as MMM name the default format locale of"
+                + " the 4.x JVM with --group-locale <tag>, such as fr-FR");
         }
     }
 
@@ -105,14 +127,23 @@ public final class KeyMapper {
         return new String[]{name, groupKey};
     }
 
-    /** Parses a group key with its 4.x pattern and formats it as the preset of the pattern's granularity. */
+    /** Parses a group key with its 4.x pattern in {@link Locale#ROOT}, as {@link #reformat(String, String, Locale)}. */
     static String[] reformat(String groupKey, String pattern) {
-        TemporalAccessor parsed = DateTimeFormatter.ofPattern(pattern, Locale.ROOT).parse(groupKey);
+        return reformat(groupKey, pattern, Locale.ROOT);
+    }
+
+    /**
+     * Parses a group key with its 4.x pattern and formats it as the preset of its granularity: the finest of day, month
+     * and year the parsed key holds (#1457), not a letter of the pattern, which may be quoted text such as
+     * {@code yyyy'-period'}.
+     */
+    static String[] reformat(String groupKey, String pattern, Locale locale) {
+        TemporalAccessor parsed = DateTimeFormatter.ofPattern(pattern, locale).parse(groupKey);
         int year = parsed.get(ChronoField.YEAR);
-        if (pattern.contains("d")) {
+        if (parsed.isSupported(ChronoField.DAY_OF_MONTH)) {
             return preset(String.format(Locale.ROOT, "%04d%02d%02d", year, parsed.get(ChronoField.MONTH_OF_YEAR), parsed.get(ChronoField.DAY_OF_MONTH)));
         }
-        if (pattern.contains("M")) {
+        if (parsed.isSupported(ChronoField.MONTH_OF_YEAR)) {
             return preset(String.format(Locale.ROOT, "%04d%02d", year, parsed.get(ChronoField.MONTH_OF_YEAR)));
         }
         return preset(String.format(Locale.ROOT, "%04d", year));

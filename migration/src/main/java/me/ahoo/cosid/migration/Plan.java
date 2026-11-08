@@ -45,12 +45,14 @@ import java.util.Map;
  * @param machineNamespaces the namespaces of their own of this service's time-based generators, as the target records
  *                      them, by the name of their 5.0 machine ({@link me.ahoo.cosid.migration.config.Legacy4x#machineNamespaces()}); null in plans of
  *                      5.0.0-rc.1, which know {@code generatorNamespace} only
+ * @param groupLocale   the language tag of the locale the group keys were read in ({@code --group-locale}), which apply
+ *                      reads them in too; null for {@link java.util.Locale#ROOT}, as in plans of 5.0.0
  */
 public record Plan(String format, String createdAt, String namespace, StoreLocation source, StoreLocation target, StoreLocation machineSource,
                    StoreLocation machineTarget, Map<String, List<String>> extraNamespaces, Slots slots,
                    Map<String, String> renames, Map<String, String> groupPatterns, List<SegmentPlan> segments, List<String> unrecognized,
                    Machines machines, List<LayoutCheck> layouts, List<String> warnings, Shared shared, GeneratorNamespace generatorNamespace,
-                   Map<String, GeneratorNamespace> machineNamespaces) {
+                   Map<String, GeneratorNamespace> machineNamespaces, String groupLocale) {
     public static final String FORMAT = "cosid-migration-plan/1";
 
     /**

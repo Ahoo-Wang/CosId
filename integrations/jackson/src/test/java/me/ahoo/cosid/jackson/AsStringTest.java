@@ -40,6 +40,7 @@ import tools.jackson.databind.exc.InvalidDefinitionException;
 import tools.jackson.databind.exc.InvalidFormatException;
 import tools.jackson.databind.exc.MismatchedInputException;
 import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.util.AccessPattern;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -224,6 +225,19 @@ class AsStringTest {
         assertThat(back.absent, nullValue());
         assertThrows(MismatchedInputException.class, () -> mapper.readValue("{\"text\":[\"java.lang.Long\",\"1\",\"2\"]}", Typed.class));
         assertThrows(MismatchedInputException.class, () -> mapper.readValue("{\"text\":[1]}", Typed.class));
+        // A wrapper object needs the type id as its one property.
+        assertThrows(MismatchedInputException.class, () -> mapper.readValue("{\"radix\":{}}", Typed.class));
+        assertThrows(MismatchedInputException.class,
+            () -> mapper.readValue("{\"radix\":{\"java.lang.Long\":\"" + radix + "\",\"other\":1}}", Typed.class));
+        // A null in the wrapper is the null of the property; a value without a wrapper is read as it is.
+        assertThat(mapper.readValue("{\"text\":[\"java.lang.Long\",null]}", Typed.class).text, nullValue());
+        assertThat(mapper.readValue("{\"text\":\"7\"}", Typed.class).text, is(7L));
+    }
+
+    @Test
+    void theNullOfALongIsDynamicAndOfALongObjectAlwaysNull() {
+        assertThat(new AsStringDeserializer().getNullAccessPattern(), is(AccessPattern.ALWAYS_NULL));
+        assertThat(new AsStringDeserializer(java.util.Optional.empty(), AsStringCodecs.TO_STRING, true).getNullAccessPattern(), is(AccessPattern.DYNAMIC));
     }
 
     public static class Primitive {

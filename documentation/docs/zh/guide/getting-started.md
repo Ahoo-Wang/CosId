@@ -143,4 +143,4 @@ try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
   | `segment-jdbc` | `./gradlew :examples:segment-jdbc:bootRun` |
   | `snowflake-redis` | `REDIS_URI=redis://localhost:6379 ./gradlew :examples:snowflake-redis:bootRun` |
   | `server`（cosid-server 的客户端，compose 文件会一并启动 server） | `./gradlew :server:dockerImage :examples:server:bootJar && docker compose -f examples/server/compose.yaml up` |
-  | `plain-stores`（只有测试，没有应用；需要 Docker） | `./gradlew :examples:plain-stores:test` |
+  | `smoke/plain-stores`（只有测试：不经任何 BOM 使用已发布的 Redis 与 ZooKeeper 存储；需要 Docker） | `./gradlew publishAllPublicationsToProjectBuildRepoRepository && ./gradlew -p smoke/plain-stores -Pcosid.version=<version> -Pcosid.repo=$PWD/build/repos test` |

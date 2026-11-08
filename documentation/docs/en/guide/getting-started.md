@@ -146,4 +146,4 @@ what the runtime opened. See [the runtime](concepts/runtime.md).
   | `segment-jdbc` | `./gradlew :examples:segment-jdbc:bootRun` |
   | `snowflake-redis` | `REDIS_URI=redis://localhost:6379 ./gradlew :examples:snowflake-redis:bootRun` |
   | `server` (a client of cosid-server, which the compose file starts too) | `./gradlew :server:dockerImage :examples:server:bootJar && docker compose -f examples/server/compose.yaml up` |
-  | `plain-stores` (a test only, no application; needs Docker) | `./gradlew :examples:plain-stores:test` |
+  | `smoke/plain-stores` (a test only, of the published Redis and ZooKeeper stores without a BOM; needs Docker) | `./gradlew publishAllPublicationsToProjectBuildRepoRepository && ./gradlew -p smoke/plain-stores -Pcosid.version=<version> -Pcosid.repo=$PWD/build/repos test` |

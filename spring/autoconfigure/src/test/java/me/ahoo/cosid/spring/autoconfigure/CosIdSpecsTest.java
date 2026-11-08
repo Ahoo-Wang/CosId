@@ -17,6 +17,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -38,9 +39,17 @@ import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.PlaceholdersResolver;
+import org.springframework.boot.context.properties.bind.PropertySourcesPlaceholdersResolver;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+import org.springframework.boot.env.YamlPropertySourceLoader;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.io.ByteArrayResource;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
@@ -118,6 +127,74 @@ class CosIdSpecsTest {
         Exception failed = assertThrows(Exception.class, () -> CosIdSpecs.bind(
             List.of(new MapConfigurationPropertySource(typo), new MapConfigurationPropertySource(application)), PlaceholdersResolver.NONE));
         assertThat(rootMessage(failed), containsString("cosid.generators.g.codec[0].radix.widht"));
+    }
+
+    // #1450: a profile that empties a list (codec: []) replaces it as a whole, as a profile with items does.
+    @Test
+    void aListEmptiedByAHigherSourceIsNoUnknownKey() throws IOException {
+        MutablePropertySources sources = new MutablePropertySources();
+        yaml(sources, "profile", """
+            cosid:
+              generators:
+                g:
+                  codec: []
+            """);
+        yaml(sources, "application", """
+            cosid:
+              namespace: app
+              machine:
+                static:
+                  slot: 1
+              generators:
+                g:
+                  strategy: snowflake
+                  codec:
+                    - radix: { radix: 62 }
+                    - prefix: O
+            """);
+        CosIdProperties properties = CosIdSpecs.bind(ConfigurationPropertySources.from(sources), PlaceholdersResolver.NONE);
+        assertEquals(List.of(), ((GeneratorSpec.Snowflake) CosIdSpecs.toSpec(properties, ZONE).generators().get("g")).codec());
+        // A typo beside it is still one.
+        yaml(sources, "typo", """
+            cosid:
+              generators:
+                g:
+                  strategi: snowflake
+            """);
+        Exception failed = assertThrows(Exception.class, () -> CosIdSpecs.bind(ConfigurationPropertySources.from(sources), PlaceholdersResolver.NONE));
+        assertThat(rootMessage(failed), containsString("cosid.generators.g.strategi"));
+    }
+
+    // #1470: a property the Binder tried is known even when its placeholder resolves to nothing; a typo is not.
+    @Test
+    void anOptionalPlaceholderWithoutAValueIsNoUnknownKey() {
+        String[] leased = {"cosid.namespace", "app", "cosid.stores.db.type", "memory", "cosid.machine.leased.store", "db"};
+        assertNull(withPlaceholders(Map.of(), leased, "cosid.machine.leased.preferred-slot", "${POD_ORDINAL:}").machine().leased().preferredSlot());
+        assertNull(withPlaceholders(Map.of(), leased, "cosid.machine.leased.preferred-slot", "").machine().leased().preferredSlot());
+        assertEquals(3, withPlaceholders(Map.of("POD_ORDINAL", "3"), leased, "cosid.machine.leased.preferred-slot", "${POD_ORDINAL:}")
+            .machine().leased().preferredSlot());
+        assertThrows(Exception.class, () -> withPlaceholders(Map.of("POD_ORDINAL", "first"), leased, "cosid.machine.leased.preferred-slot",
+            "${POD_ORDINAL:}"));
+        Exception typo = assertThrows(Exception.class, () -> withPlaceholders(Map.of(), leased, "cosid.machine.leased.preffered-slot",
+            "${POD_ORDINAL:}"));
+        assertThat(rootMessage(typo), containsString("cosid.machine.leased.preffered-slot"));
+    }
+
+    private static void yaml(MutablePropertySources sources, String name, String yaml) throws IOException {
+        new YamlPropertySourceLoader().load(name, new ByteArrayResource(yaml.getBytes(StandardCharsets.UTF_8))).forEach(sources::addLast);
+    }
+
+    /** Binds pairs of key and value, resolving placeholders against variables, as the registrar does. */
+    private static CosIdProperties withPlaceholders(Map<String, Object> variables, String[] pairs, String key, String value) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (int at = 0; at < pairs.length; at += 2) {
+            map.put(pairs[at], pairs[at + 1]);
+        }
+        map.put(key, value);
+        MutablePropertySources sources = new MutablePropertySources();
+        sources.addLast(new MapPropertySource("application", map));
+        sources.addLast(new MapPropertySource("variables", variables));
+        return CosIdSpecs.bind(ConfigurationPropertySources.from(sources), new PropertySourcesPlaceholdersResolver(sources));
     }
 
     @Test

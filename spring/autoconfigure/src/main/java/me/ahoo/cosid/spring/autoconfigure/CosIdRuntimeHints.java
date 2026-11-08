@@ -48,6 +48,9 @@ public class CosIdRuntimeHints implements RuntimeHintsRegistrar {
             hints.reflection().registerTypeIfPresent(classLoader, provider, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
         }
         hints.reflection().registerType(TypeReference.of(CosIdGeneratorRegistrar.GeneratorBean.class), MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
+        // SpringDataRedisScripts reads the configuration of a Lettuce factory to tell a static master/replica one (#1445).
+        hints.reflection().registerTypeIfPresent(classLoader, "org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory",
+            type -> type.withField("configuration"));
         new BindingReflectionHintsRegistrar().registerReflectionHints(hints.reflection(), CosIdEndpoint.Generator.class);
         // The registrar binds cosid.* through the Binder itself, while the bean definitions are processed: every record of it.
         BindableRuntimeHintsRegistrar.forTypes(CosIdProperties.class).registerHints(hints, classLoader);

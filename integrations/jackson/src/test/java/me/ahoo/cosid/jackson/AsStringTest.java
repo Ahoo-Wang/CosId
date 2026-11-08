@@ -30,9 +30,11 @@ import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.store.tck.internal.TestRuntimes;
 import me.ahoo.cosid.time.Layout;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.exc.InvalidDefinitionException;
 import tools.jackson.databind.exc.InvalidFormatException;
@@ -183,6 +185,73 @@ class AsStringTest {
         InvalidFormatException invalid = assertThrows(InvalidFormatException.class, () -> mapper.readValue("{\"radix\":\"!!\"}", Inline.class));
         assertThat(invalid.getMessage(), startsWith("Cannot deserialize value of type `java.lang.Long` from String \"!!\""));
         assertThrows(MismatchedInputException.class, () -> mapper.readValue("{\"radix\":true}", Inline.class));
+    }
+
+    public static class Typed {
+        @AsString(codec = Codec.TO_STRING)
+        @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+        public Long text;
+        @AsString
+        @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.WRAPPER_OBJECT)
+        public Long radix;
+        @AsString(generator = "order")
+        @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.WRAPPER_ARRAY)
+        public Long order;
+        @AsString
+        @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS)
+        public Long absent;
+    }
+
+    // #1460: the type id wraps the text the codec writes, and the codec reads it back.
+    @Test
+    void writesAndReadsTheTypeIdOfAnId() {
+        Typed typed = new Typed();
+        typed.text = 123L;
+        typed.radix = ID;
+        typed.order = 1234L;
+        String json = mapper.writeValueAsString(typed);
+        String radix = Radix.of(62, 11, true).encode(ID);
+        String order = runtime.get(TestRuntimes.ORDER, IdCodec.class).encode(1234);
+        JsonNode tree = mapper.readTree(json);
+        assertThat(tree.get("text").toString(), is("[\"java.lang.Long\",\"123\"]"));
+        assertThat(tree.get("radix").toString(), is("{\"java.lang.Long\":\"" + radix + "\"}"));
+        assertThat(tree.get("order").toString(), is("[\"java.lang.Long\",\"" + order + "\"]"));
+        assertThat(tree.get("absent").isNull(), is(true));
+        Typed back = mapper.readValue(json, Typed.class);
+        assertThat(back.text, is(123L));
+        assertThat(back.radix, is(ID));
+        assertThat(back.order, is(1234L));
+        assertThat(back.absent, nullValue());
+        assertThrows(MismatchedInputException.class, () -> mapper.readValue("{\"text\":[\"java.lang.Long\",\"1\",\"2\"]}", Typed.class));
+        assertThrows(MismatchedInputException.class, () -> mapper.readValue("{\"text\":[1]}", Typed.class));
+    }
+
+    public static class Primitive {
+        @AsString
+        public long id = 7;
+    }
+
+    public record PrimitiveRecord(@AsString long id) {
+    }
+
+    // #1439: null and empty text for a long follow FAIL_ON_NULL_FOR_PRIMITIVES, as for a plain long.
+    @Test
+    void nullForALongFollowsTheNullPolicyOfPrimitives() {
+        JsonMapper lenient = mapper.rebuild().disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES).build();
+        for (String value : new String[] {"null", "\"\""}) {
+            assertThat(lenient.readValue("{\"id\":" + value + "}", Primitive.class).id, is(0L));
+            assertThat(lenient.readValue("{\"id\":" + value + "}", PrimitiveRecord.class).id(), is(0L));
+        }
+        JsonMapper strict = mapper.rebuild().enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES).build();
+        for (String value : new String[] {"null", "\"\""}) {
+            MismatchedInputException error = assertThrows(MismatchedInputException.class,
+                () -> strict.readValue("{\"id\":" + value + "}", Primitive.class));
+            assertThat(error.getMessage(), containsString("Cannot map `null` into type long"));
+            assertThrows(MismatchedInputException.class, () -> strict.readValue("{\"id\":" + value + "}", PrimitiveRecord.class));
+        }
+        assertThat(strict.readValue("{\"id\":\"" + Radix.of(62, 11, true).encode(42) + "\"}", PrimitiveRecord.class).id(), is(42L));
+        assertThat(strict.readValue("{\"text\":null}", Inline.class).text, nullValue());
+        assertThat(strict.readValue("{\"text\":\"\"}", Inline.class).text, nullValue());
     }
 
     @Test

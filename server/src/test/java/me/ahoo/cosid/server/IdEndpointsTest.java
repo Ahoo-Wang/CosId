@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.store.remote.RemoteApi;
 import me.ahoo.cosid.store.tck.InMemoryStore;
 
@@ -50,6 +51,7 @@ class IdEndpointsTest {
     static void start() {
         server = TestServer.memory(new InMemoryStore(),
             "cosid.server.ids.enabled=true",
+            "cosid.metrics.generated.enabled=true",
             "cosid.server.limits.max-count=50",
             "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
             "cosid.server.auth.clients[0].token=" + SERVICE,
@@ -119,6 +121,18 @@ class IdEndpointsTest {
         JsonNode strings = ok(RemoteApi.IDS + "/order/strings?count=2", TestServer.TOKEN).get("ids");
         assertEquals(2, strings.size());
         assertThat(strings.get(0).asString(), startsWith("O"));
+    }
+
+    // #1467: the periodic endpoint issues through the runtime's counted view, as /ids and /strings do.
+    @Test
+    void periodicValuesAreCounted() {
+        CosIdRuntime runtime = server.context().getBean(CosIdRuntime.class);
+        long before = runtime.generated("bill").orElseThrow();
+        JsonNode body = ok(RemoteApi.IDS + "/bill/periodic?count=4", TestServer.TOKEN);
+        long periodic = body.get("values").size();
+        assertEquals(before + periodic, runtime.generated("bill").orElseThrow());
+        ok(RemoteApi.IDS + "/bill/strings?count=2", TestServer.TOKEN);
+        assertEquals(before + periodic + 2, runtime.generated("bill").orElseThrow());
     }
 
     @Test

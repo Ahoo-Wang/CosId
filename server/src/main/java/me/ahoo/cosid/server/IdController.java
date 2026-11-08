@@ -14,10 +14,10 @@
 package me.ahoo.cosid.server;
 
 import me.ahoo.cosid.GroupedId;
+import me.ahoo.cosid.GroupedIdGenerator;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.runtime.RuntimeSpec;
-import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
 import me.ahoo.cosid.store.remote.RemoteApi;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -119,7 +119,9 @@ class IdController {
     CompletableFuture<Bodies.PeriodicBody> periodic(@PathVariable String generator, @RequestParam(defaultValue = "1") int count,
                                                     @RequestAttribute(Grant.ATTRIBUTE) Grant grant) {
         int n = admit(count, grant);
-        PeriodicSegmentGenerator ids = lookup(generator, () -> runtime.periodic(generator));
+        // The runtime's grouped view, which counts what it issues (cosid.generator.generated); periodic(name) is the
+        // concrete generator, which counts nothing (#1467).
+        GroupedIdGenerator ids = lookup(generator, () -> runtime.get(generator, GroupedIdGenerator.class));
         return calls.submit(() -> {
             GroupedId first = ids.generate();
             List<Long> values = new ArrayList<>(n);

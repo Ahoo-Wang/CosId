@@ -14,7 +14,7 @@
 | `cosid.server.auth.clients[i].token` | | 它的 token |
 | `cosid.server.auth.clients[i].namespaces` | `[]` | 槽位命名空间，以及首段为其中之一的区间 key；`*` 表示全部；id 端点检查 `cosid.namespace` |
 | `cosid.server.auth.clients[i].key-prefixes` | `[]` | 带有这些前缀之一的区间 key |
-| `cosid.server.auth.public-paths` | `/actuator/health`、`/actuator/health/**` | 无需 token 的路径模式 |
+| `cosid.server.auth.public-paths` | `/actuator/health`、`/actuator/health/**` | 无需 token 的路径模式；列在此处的 API 端点以匿名（不受限）身份服务所有调用方，不论其发送什么 token |
 | `cosid.server.limits.min-ttl` | `100ms` | 最短的租约 ttl |
 | `cosid.server.limits.max-ttl` | `1h` | 最长的租约 ttl |
 | `cosid.server.limits.max-tolerance` | `1m` | 最大的 tolerance |

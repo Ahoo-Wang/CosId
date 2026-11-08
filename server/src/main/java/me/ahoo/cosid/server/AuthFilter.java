@@ -34,7 +34,7 @@ import java.util.stream.Stream;
 
 /**
  * Bearer token authentication of every path but the public ones (08-remote.md §3), and {@code Cache-Control: no-store}
- * on every response. A known token puts its {@link Grant} in the request; the endpoints check it against the namespace
+ * on every response. A public path is open to every caller with the anonymous grant, an endpoint of the API included. A known token puts its {@link Grant} in the request; the endpoints check it against the namespace
  * or key ({@code 403}). No token or an unknown one is a {@code 401}. A client token, limited to its scope, may use the
  * client paths (the store primitives and the id endpoints, which check that scope) and nothing else: everything else
  * (Actuator, whose {@code cosid} endpoint issues ids of every generator, springdoc, whatever path they are moved to)
@@ -97,6 +97,9 @@ final class AuthFilter extends OncePerRequestFilter {
             return;
         }
         if (matches(publicPaths, path)) {
+            // A public path needs no token: its caller is anonymous, as on an open server, so an endpoint of the API
+            // listed there finds a grant like any other (#1435); a token sent along is not looked at.
+            request.setAttribute(Grant.ATTRIBUTE, Grant.ANONYMOUS);
             chain.doFilter(request, response);
             return;
         }

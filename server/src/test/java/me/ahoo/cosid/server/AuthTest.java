@@ -136,6 +136,23 @@ class AuthTest {
         assertEquals(401, server.get("/actuator/info", null).statusCode(), "info is not public by default");
     }
 
+    // #1435: an endpoint of the API listed in public-paths is open to every caller, with or without a token.
+    @Test
+    void anApiPathMadePublicServesEveryCaller() {
+        String scoped = "scoped-token-0123456789";
+        try (TestServer open = TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
+            "cosid.server.auth.clients[0].token=" + scoped,
+            "cosid.server.auth.clients[0].namespaces[0]=elsewhere",
+            "cosid.server.auth.public-paths[0]=" + RemoteApi.RESERVE)) {
+            assertEquals(200, open.post(RemoteApi.RESERVE, reserve("orders/a"), null).statusCode(), "without a token");
+            HttpResponse<String> withToken = open.post(RemoteApi.RESERVE, reserve("orders/a"), TestServer.TOKEN);
+            assertEquals(200, withToken.statusCode(), withToken::body);
+            assertEquals(200, open.post(RemoteApi.RESERVE, reserve("orders/a"), scoped).statusCode(), "a public path looks at no token");
+            assertEquals(200, open.post(RemoteApi.RESERVE, reserve("orders/a"), "unknown-token-0123456789").statusCode());
+            assertEquals(401, open.post(RemoteApi.SEAL, "{\"key\":\"orders/a\"}", null).statusCode(), "other paths still need one");
+        }
+    }
+
     /**
      * C-B1, R1-server-01: Actuator (the cosid endpoint issues ids) and springdoc ignore client scopes; a client token
      * gets the client paths only, so 403 there and anywhere else.

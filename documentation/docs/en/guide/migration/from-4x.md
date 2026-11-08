@@ -71,6 +71,8 @@ layout checks and the warnings. Fix what it asks for and plan again:
 - `--group-pattern name=yyyy-MM-dd`: a grouped segment whose group key is not a 5.0 preset (`yyyy`, `yyyyMM`,
   `yyyyMMdd`). Its keys are reformatted to the preset of the same granularity. **Every period is migrated, past ones
   included**, because 4.x used the server's default zone.
+- `--group-locale fr-FR`: the default format locale of the 4.x JVM, when a group pattern has text such as `MMM`
+  (`2026-nov.` in French); the root locale by default. Plan records it for apply.
 - `--slot-bits` (the 4.x `machine-bit`, 10 by default), `--tolerance` (1s): the slot parameters of the 5.0 namespace.
 - `--machine-from <4.x store>` and `--machine-to <5.0 store>`: when 4.x kept the machine ids in another store than the
   segments (`cosid.machine.distributor.type` other than `cosid.segment.distributor.type`), name both; `plan` compares

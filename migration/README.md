@@ -90,7 +90,9 @@ slot: `WAIT` counts the writes of its own connection only.
 Key mapping (09 §4.1): `{ns}.{name}` → `{ns}/{name}`; grouped `{ns}.{name}@{groupKey}` → `{ns}/{name}/{period}`, every
 period, past ones included. A group key must be a 5.0 preset (`yyyy`, `yyyyMM`, `yyyyMMdd`), or its 4.x pattern is named
 (`group.pattern` of `--layout-config`, or `--group-pattern name=yyyy-MM-dd`) and the key is reformatted to the preset of
-the same granularity. The 4.x share `__share__` becomes `default` (`segment-share` when the 4.x snowflake share is also
+the granularity it holds (quoted text such as `yyyy'-period'` is no field). 4.x formatted the text of a pattern, such as
+`MMM`, in its JVM's default format locale: name it with `--group-locale fr-FR` (the root locale by default); plan records
+it, and apply reads the keys in it too. The 4.x share `__share__` becomes `default` (`segment-share` when the 4.x snowflake share is also
 enabled; `--rename` overrides). 5.0 generator names cannot contain `/`. Keys that do not map are listed, never migrated.
 
 ## `plan.json`
@@ -135,7 +137,7 @@ enabled; `--rename` overrides). 5.0 generator names cannot contain `/`. Keys tha
 plan    --from <4.x> --to <5.0> --namespace <ns> [--output plan.json] [--layout-config <4.x yaml|properties>]
         [--machine-from <4.x machine store>] [--machine-to <5.0 slot store>]
         [--target-config <5.0 yaml>] [--slot-bits 10] [--tolerance 1s] [--source-skew 10s]
-        [--rename old=new]... [--group-pattern generator=pattern]... [--from-option k=v]... [--to-option k=v]...
+        [--rename old=new]... [--group-pattern generator=pattern]... [--group-locale tag] [--from-option k=v]... [--to-option k=v]...
 apply   --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source]
         [--seal-gap 1099511627776] [--result apply-result.json] [--layout-config ..] [--target-config ..]
         [--allow-unmigrated <4.x key>]... [options]

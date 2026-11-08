@@ -60,6 +60,12 @@ public final class ZookeeperTarget implements TargetAdmin {
         this.owned = owned;
     }
 
+    /** ZooKeeper tells its time only as the creation time of a node: none without writing one. */
+    @Override
+    public java.util.OptionalLong readOnlyNow() {
+        return java.util.OptionalLong.empty();
+    }
+
     @Override
     public long now() {
         String path = "/cosid/.migration-clock-" + UUID.randomUUID();

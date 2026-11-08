@@ -84,9 +84,11 @@ class MainTest {
         Files.writeString(layoutFile, Files.readString(MigrationScenarioTest.resource("scenario-4x.yaml")).replace("namespace: app", "namespace: " + namespace));
         String layout = layoutFile.toString();
         assertThat(run("plan", "--from", store.url(), "--to", store.url(), "--to-option", "initSchema=true", "--namespace", namespace,
-            "--output", plan, "--layout-config", layout, "--source-skew", "0", "--slot-bits", "8", "--tolerance", "500ms"), is(0));
+            "--output", plan, "--layout-config", layout, "--source-skew", "0", "--slot-bits", "8", "--tolerance", "500ms", "--group-locale", "fr-FR"), is(0));
         assertThat(out(), containsString(namespace + "/order next >= " + (order + 1)));
         assertThat(Files.readString(Path.of(plan)), containsString("\"format\" : \"cosid-migration-plan/1\""));
+        // #1480: apply and verify read the group keys in the locale plan read them in.
+        assertThat(Files.readString(Path.of(plan)), containsString("\"groupLocale\" : \"fr-FR\""));
 
         assertThat(run("apply", "--plan", plan, "--result", result), is(1));
         assertThat(err(), containsString("--confirm-stopped"));

@@ -22,6 +22,7 @@ import me.ahoo.cosid.store.StoreKeys;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Locale;
 import java.util.Map;
 
 class KeyMapperTest {
@@ -60,6 +61,35 @@ class KeyMapperTest {
         assertThat(mapper.map("short@2610").targetKey(), is("app/short/202610"));
         assertThat(mapper.map("year2@26").targetKey(), is("app/year2/2026"));
         assertThat(mapper.map("dashed@20261026").mapped(), is(false));
+    }
+
+    // #1457: the granularity is what the parsed key holds, never a letter inside quoted text.
+    @Test
+    void quotedTextInAPatternIsNoField() {
+        KeyMapper quoted = new KeyMapper("app", Map.of(), Map.of("year", "yyyy'-period'", "mark", "yyyy'M'", "month", "yyyyMM'd'", "day", "yyyy-MM-dd"));
+        KeyMapper.Mapping year = quoted.map("year@2026-period");
+        assertThat(year.problem(), nullValue());
+        assertThat(year.targetKey(), is("app/year/2026"));
+        assertThat(year.period(), is("YEAR"));
+        assertThat(quoted.map("mark@2026M").targetKey(), is("app/mark/2026"));
+        assertThat(quoted.map("month@202611d").targetKey(), is("app/month/202611"));
+        assertThat(quoted.map("month@202611d").period(), is("YEAR_MONTH"));
+        assertThat(quoted.map("day@2026-11-08").targetKey(), is("app/day/20261108"));
+    }
+
+    // #1480: 4.x formatted text in its JVM's default format locale; --group-locale names it.
+    @Test
+    void textOfAPatternReadsInTheGroupLocale() {
+        Map<String, String> patterns = Map.of("order", "yyyy-MMM");
+        assertThat(new KeyMapper("app", Map.of(), patterns).map("order@2026-Nov").targetKey(), is("app/order/202611"));
+        assertThat(new KeyMapper("app", Map.of(), patterns, Locale.ENGLISH).map("order@2026-Nov").targetKey(), is("app/order/202611"));
+        assertThat(new KeyMapper("app", Map.of(), patterns, Locale.FRANCE).map("order@2026-nov.").targetKey(), is("app/order/202611"));
+        KeyMapper.Mapping root = new KeyMapper("app", Map.of(), patterns).map("order@2026-nov.");
+        assertThat(root.mapped(), is(false));
+        assertThat(root.problem(), containsString("does not read with the 4.x pattern [yyyy-MMM] in the root locale"));
+        assertThat(root.problem(), containsString("--group-locale <tag>"));
+        // Numbers read alike in every locale.
+        assertThat(new KeyMapper("app", Map.of(), Map.of("order", "yyyy-MM"), Locale.FRANCE).map("order@2026-11").targetKey(), is("app/order/202611"));
     }
 
     @Test

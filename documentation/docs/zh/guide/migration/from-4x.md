@@ -65,6 +65,7 @@ java -jar cosid-migration.jar plan \
 - `--rename old=new`：不是合法 5.0 生成器名（不能含 `/`）的 4.x 名字，或你想改的名字。4.x 的 share `__share__` 变为 `default`。
 - `--group-pattern name=yyyy-MM-dd`：分组键不是 5.0 预设（`yyyy`、`yyyyMM`、`yyyyMMdd`）的分组号段。它的 key 会被重新格式化为
   同粒度的预设。**每个周期都会迁移，包括过去的周期**，因为 4.x 使用服务器的默认时区。
+- `--group-locale fr-FR`：分组格式含文本（如 `MMM`，法语为 `2026-nov.`）时，4.x JVM 的默认格式区域设置；默认为 root。plan 会记录它供 apply 使用。
 - `--slot-bits`（4.x 的 `machine-bit`，默认 10）、`--tolerance`（1s）：5.0 命名空间的槽位参数。
 - `--machine-from <4.x 存储>` 与 `--machine-to <5.0 存储>`：4.x 把机器号放在与号段不同的存储里时（`cosid.machine.distributor.type`
   与 `cosid.segment.distributor.type` 不同），两个都要指定；`plan` 会用 `--layout-config` 比对，未声明的拆分会被拒绝。

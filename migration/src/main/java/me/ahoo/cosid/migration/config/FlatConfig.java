@@ -24,13 +24,18 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A Spring configuration file (YAML or {@code .properties}) as flat keys in Spring's canonical form: lower case,
@@ -40,6 +45,7 @@ import java.util.TreeSet;
  */
 public final class FlatConfig {
     private static final ObjectMapper YAML = new YAMLMapper(new YAMLFactory());
+    private static final Pattern SIMPLE_DURATION = Pattern.compile("([+-]?\\d+)([a-zA-Z]{0,2})");
     private static final Set<String> MAP_PARENTS = Set.of("cosid.segment.provider", "cosid.snowflake.provider", "cosid.generators", "cosid.stores");
     private final Map<String, String> values;
 
@@ -62,7 +68,8 @@ public final class FlatConfig {
                     properties.load(reader);
                 }
                 for (String name : properties.stringPropertyNames()) {
-                    values.put(canonical(name), properties.getProperty(name).trim());
+                    // As Spring reads it: Properties drops the blanks before a value, the ones after it are part of it.
+                    values.put(canonical(name), properties.getProperty(name));
                 }
             } else {
                 try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
@@ -115,7 +122,8 @@ public final class FlatConfig {
                 flatten(prefix + "[" + i + "]", node.get(i), values);
             }
         } else {
-            values.put(canonical(prefix), node.asText().trim());
+            // Verbatim (#1456): the blanks of a quoted YAML string are part of it, as of a prefix or a delimiter.
+            values.put(canonical(prefix), node.asText());
         }
     }
 
@@ -158,35 +166,116 @@ public final class FlatConfig {
     }
 
     /**
-     * A value.
+     * A setting, without the blanks around it, as Spring converts a number, a boolean, an enum or a duration.
      *
      * @param key the canonical key
      * @return the value, or null
      */
     public String get(String key) {
-        return values.get(key);
+        String value = values.get(key);
+        return value == null ? null : value.trim();
     }
 
     /**
-     * A value or a default.
+     * A setting or a default.
      *
      * @param key      the canonical key
      * @param fallback the default
      * @return the value
      */
     public String get(String key, String fallback) {
-        String value = values.get(key);
+        String value = get(key);
         return value == null || value.isEmpty() ? fallback : value;
     }
 
+    /**
+     * A text as written, blanks included, as Spring binds a {@code String}: the text of an id, such as a prefix, a
+     * suffix, a delimiter or a date pattern, whose blanks are part of every id (#1456).
+     *
+     * @param key the canonical key
+     * @return the text, or null
+     */
+    public String text(String key) {
+        return values.get(key);
+    }
+
+    /**
+     * A boolean as Spring converts one (#1468): {@code true}, {@code on}, {@code yes}, {@code 1} and {@code false},
+     * {@code off}, {@code no}, {@code 0}, in any case; any other text is an error, never read as false.
+     *
+     * @param key      the canonical key
+     * @param fallback the value when the key is unset or empty
+     * @return the value
+     * @throws IllegalArgumentException if the value is no boolean
+     */
     public boolean bool(String key, boolean fallback) {
-        String value = values.get(key);
-        return value == null || value.isEmpty() ? fallback : Boolean.parseBoolean(value);
+        String value = get(key);
+        if (value == null || value.isEmpty()) {
+            return fallback;
+        }
+        return switch (value.toLowerCase(Locale.ROOT)) {
+            case "true", "on", "yes", "1" -> true;
+            case "false", "off", "no", "0" -> false;
+            default -> throw new IllegalArgumentException(key + " = " + value + ": not a boolean (true, on, yes, 1, false, off, no, 0)");
+        };
     }
 
     public long number(String key, long fallback) {
-        String value = values.get(key);
+        String value = get(key);
         return value == null || value.isEmpty() ? fallback : Long.parseLong(value);
+    }
+
+    /**
+     * A duration as Spring Boot converts one: ISO-8601 ({@code PT5S}), or a whole number with {@code ns}, {@code us},
+     * {@code ms}, {@code s}, {@code m}, {@code h} or {@code d}, a bare number being milliseconds.
+     *
+     * @param key the canonical key
+     * @return the duration, empty when the key is unset or empty
+     * @throws IllegalArgumentException if the value is no duration
+     */
+    public Optional<Duration> duration(String key) {
+        String value = get(key);
+        if (value == null || value.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(parseDuration(value));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(key + " = " + value + ": " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * A duration as Spring Boot converts one, as {@link #duration(String)}.
+     *
+     * @param text the text
+     * @return the duration
+     * @throws IllegalArgumentException if the text is no duration
+     */
+    public static Duration parseDuration(String text) {
+        String value = text.trim();
+        try {
+            if (value.toUpperCase(Locale.ROOT).startsWith("P") || value.toUpperCase(Locale.ROOT).startsWith("-P")) {
+                return Duration.parse(value);
+            }
+            Matcher simple = SIMPLE_DURATION.matcher(value);
+            if (!simple.matches()) {
+                throw new IllegalArgumentException("not a duration: " + text);
+            }
+            long amount = Long.parseLong(simple.group(1));
+            return switch (simple.group(2).toLowerCase(Locale.ROOT)) {
+                case "ns" -> Duration.ofNanos(amount);
+                case "us" -> Duration.ofNanos(Math.multiplyExact(amount, 1000L));
+                case "", "ms" -> Duration.ofMillis(amount);
+                case "s" -> Duration.ofSeconds(amount);
+                case "m" -> Duration.ofMinutes(amount);
+                case "h" -> Duration.ofHours(amount);
+                case "d" -> Duration.ofDays(amount);
+                default -> throw new IllegalArgumentException("not a duration unit: " + text);
+            };
+        } catch (ArithmeticException | DateTimeParseException | NumberFormatException e) {
+            throw new IllegalArgumentException("not a duration: " + text, e);
+        }
     }
 
     /**

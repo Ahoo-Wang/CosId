@@ -150,6 +150,12 @@ public final class ZookeeperSource implements SourceReader {
         }
     }
 
+    /** ZooKeeper tells its time only as the creation time of a node: none without writing one. */
+    @Override
+    public java.util.OptionalLong readOnlyNow() {
+        return java.util.OptionalLong.empty();
+    }
+
     @Override
     public long now() {
         String path = ROOT + "/.migration-clock-" + java.util.UUID.randomUUID();

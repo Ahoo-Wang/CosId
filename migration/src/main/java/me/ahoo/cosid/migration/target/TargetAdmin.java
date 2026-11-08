@@ -15,6 +15,7 @@ package me.ahoo.cosid.migration.target;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 /**
  * The narrow admin path of the migration into one 5.0 store (09 §3): it writes the 5.0 schema of {@code store/*}
@@ -28,6 +29,16 @@ public interface TargetAdmin extends AutoCloseable {
      * @return the time
      */
     long now();
+
+    /**
+     * The store clock read without writing, for {@code plan}, which only reads (#1469); apply reads {@link #now()}.
+     *
+     * @return the time, as {@link #now()}; empty when the store has no clock to read without a write, such as ZooKeeper,
+     *     whose time is the creation time of a node
+     */
+    default OptionalLong readOnlyNow() {
+        return OptionalLong.of(now());
+    }
 
     /**
      * Reads a range key.

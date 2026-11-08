@@ -29,7 +29,7 @@
 # build/benchmark-release. --dry-run proves the pipeline in minutes with smoke JMH settings and tolerates missing
 # stores; it is never a result. Exits with the status of the final compare (0 PASS, 1 FAIL, 4 harness error). A
 # harness error (a side without its rows, a JMH <failure> in a log) is no result: nothing re-runs, and the report shows
-# the first lines of each exception.
+# the first lines of each exception; a JMH run that exits with an error (NAME.failed beside its log) is one too.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -216,7 +216,12 @@ if $rerun && [[ $(python3 -I -c 'import json, sys; print(len(json.load(open(sys.
             "$java" -jar "$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)" "$regex" "${args[@]}" -bm "$mode" \
                 ${param_args[@]+"${param_args[@]}"} -prof gc -rf json -rff "$work/$name.json" \
                 -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" >"$work/$name.log" 2>&1 \
-                || echo "run-release: the re-run on $side failed, see $work/$name.log" >&2
+                || {
+                    status=$?
+                    echo "run-release: the re-run on $side failed (status $status), see $work/$name.log" >&2
+                    # No result (#1433): compare --logs reports a harness error with the end of the log.
+                    echo "JMH exited with status $status" >"$work/$name.failed"
+                }
         done
     done < <(python3 -I -c '
 import json, re, sys

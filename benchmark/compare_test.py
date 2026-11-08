@@ -137,8 +137,75 @@ class CompareTest(unittest.TestCase):
         harness = []
         lines, failed, keys = compare.compare(row("P.a"), row("P.b"), harness=harness)
         self.assertEqual((0, []), (failed, keys))
-        self.assertEqual([("P.a", "thrpt", 1, "")], harness)
-        self.assertIn("**HARNESS ERROR**: 0 of 1 baseline rows failed, 1 missing, 0 JMH failures in the logs.", lines)
+        self.assertEqual([("P.a", "thrpt", 1, ""), ("P.b", "thrpt", 1, "")], harness)
+        self.assertIn("**HARNESS ERROR**: 0 of 1 baseline rows failed, 2 missing, 0 JMH failures in the logs.", lines)
+
+    # #1433: a 4.x run that broke leaves the 5.x rows alone; they are not "only in 5.x", they are a harness error.
+    def test_a_missing_baseline_row_is_a_harness_error(self):
+        harness = []
+        lines, failed, keys = compare.compare({}, row("SnowflakeMillisBenchmark.generate_t1"), harness=harness)
+        self.assertEqual((0, []), (failed, keys))
+        self.assertEqual([("SnowflakeMillisBenchmark.generate_t1", "thrpt", 1, "")], harness)
+        self.assertIn("| SnowflakeMillisBenchmark.generate_t1 | thrpt | 1 |  | - | missing | - | - | HARNESS ERROR |", lines)
+        self.assertFalse(any(line.startswith("Only in 5.x") for line in lines))
+
+    def test_no_row_on_either_side_is_a_harness_error_not_a_pass(self):
+        lines = compare.compare({}, {})[0]
+        self.assertIn("Neither side produced a row: nothing ran.", lines)
+        self.assertTrue(lines[-1].startswith("**HARNESS ERROR**"), lines[-1])
+        with tempfile.TemporaryDirectory() as directory:
+            empty = os.path.join(directory, "empty.json")
+            with open(empty, "w") as file:
+                file.write("[]")
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(4, compare.main([empty, empty]))
+
+    # #1433: a JMH run that exited with an error (a JVM that did not start prints no <failure>) is a harness error.
+    def test_a_failed_run_is_a_harness_error_with_the_end_of_its_log(self):
+        with tempfile.TemporaryDirectory() as logs:
+            with open(os.path.join(logs, "baseline-4x-SnowflakeMillisBenchmark.log"), "w") as file:
+                file.write("Error: Could not create the Java Virtual Machine.\n")
+            with open(os.path.join(logs, "baseline-4x-SnowflakeMillisBenchmark.failed"), "w") as file:
+                file.write("JMH exited with status 1\n")
+            found = compare.failures(logs)
+            self.assertEqual([("baseline-4x-SnowflakeMillisBenchmark.log",
+                               ["JMH exited with status 1", "Error: Could not create the Java Virtual Machine."])], found)
+            base = row("SnowflakeMillisBenchmark.generate_t1")
+            self.assertTrue(compare.compare(base, base, logs=found)[0][-1].startswith("**HARNESS ERROR**"))
+            with open(os.path.join(logs, "base.json"), "w") as file:
+                json.dump(list(base.values()), file)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(4, compare.main([os.path.join(logs, "base.json"), os.path.join(logs, "base.json"), "--logs", logs]))
+
+    # #1442: a candidate in another unit is converted to the baseline's before it is judged.
+    def test_a_candidate_in_another_unit_is_judged_in_the_baselines(self):
+        name = "SnowflakeMillisBenchmark.generate_t1"
+        lines, failed, keys = compare.compare(row(name, score=100, error=0, unit="ops/us"),
+                                              row(name, score=1000, error=0, unit="ops/ms"), smoke=True)
+        self.assertEqual(1, failed)
+        self.assertIn(f"| {name} | thrpt | 1 |  | score (ops/us) | 100.000 | 1.000 | >= 90.000 | FAIL |", lines)
+        self.assertEqual(0, self.failed(row(name, score=1, error=0, unit="ops/us"), row(name, score=1000, error=0, unit="ops/ms")))
+        sample = "SegmentBenchmark.sample_t1"
+        self.assertEqual(1, self.failed(row(sample, "sample", score=1, error=0, unit="us/op", percentiles={"99.0": 1.0, "99.9": 2.0}),
+                                        row(sample, "sample", score=1, error=0, unit="ns/op", percentiles={"99.0": 2000.0, "99.9": 2000.0})))
+        self.assertEqual(0, self.failed(row(sample, "sample", score=1, error=0, unit="us/op", percentiles={"99.0": 1.0, "99.9": 2.0}),
+                                        row(sample, "sample", score=1, error=0, unit="ns/op", percentiles={"99.0": 1000.0, "99.9": 2000.0})))
+        average = "SpringStartBenchmark.start"
+        self.assertEqual(1, self.failed(row(average, "avgt", score=1, error=0, unit="s/op"), row(average, "avgt", score=1100, error=0, unit="ms/op")))
+        self.assertEqual(0, self.failed(row(average, "avgt", score=1, error=0, unit="s/op"), row(average, "avgt", score=1000, error=0, unit="ms/op")))
+
+    def test_units_that_do_not_convert_are_bad_input(self):
+        name = "SnowflakeMillisBenchmark.generate_t1"
+        with self.assertRaises(ValueError):
+            compare.compare(row(name, unit="ops/ms"), row(name, unit="us/op"))
+        with tempfile.TemporaryDirectory() as directory:
+            paths = []
+            for side, unit in (("base", "ops/ms"), ("cand", "ms/op")):
+                paths.append(os.path.join(directory, f"{side}.json"))
+                with open(paths[-1], "w") as file:
+                    json.dump(list(row(name, unit=unit).values()), file)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(2, compare.main(paths))
 
     def test_a_jmh_failure_in_a_log_is_a_harness_error_with_its_exception(self):
         with tempfile.TemporaryDirectory() as logs:
@@ -281,7 +348,7 @@ class CompareTest(unittest.TestCase):
     def test_rows_match_by_threads(self):
         harness = []
         compare.compare(row("P.a", threads=4), row("P.a", threads=1), harness=harness)
-        self.assertEqual([("P.a", "thrpt", 4, "")], harness)
+        self.assertEqual([("P.a", "thrpt", 1, ""), ("P.a", "thrpt", 4, "")], harness)
 
 
 if __name__ == "__main__":

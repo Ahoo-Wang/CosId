@@ -44,6 +44,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       sha: ${{ steps.sha.outputs.sha }}
+      groups: ${{ steps.groups.outputs.groups }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -51,6 +52,25 @@ jobs:
           ref: ${{ inputs.ref || github.sha }}
       - id: sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      # The scenario groups, one gate job each, in this one place: the gate's matrix, and the groups the report expects a
+      # result from, so that a job that uploads nothing is a group without a result, not a group left out (#1465). The
+      # store groups start only the store they measure, so no other container shares the runner.
+      - id: groups
+        run: |
+          groups="$(jq -c . <<'JSON'
+          [
+            {"group": "snowflake", "scenarios": "P1 P2 P3 P4 P13"},
+            {"group": "segment", "scenarios": "P5 P6 P8"},
+            {"group": "codec-filler", "scenarios": "P9 P12"},
+            {"group": "spring-start", "scenarios": "P11"},
+            {"group": "mysql", "scenarios": "MySqlChainIdBenchmark MySqlStoreBenchmark", "store": "mysql"},
+            {"group": "redis", "scenarios": "RedisChainIdBenchmark RedisStoreBenchmark", "store": "redis"},
+            {"group": "mongo", "scenarios": "MongoChainIdBenchmark MongoStoreBenchmark", "store": "mongo"},
+            {"group": "zookeeper", "scenarios": "ZookeeperChainIdBenchmark ZookeeperStoreBenchmark", "store": "zookeeper"}
+          ]
+          JSON
+          )"
+          echo "groups=$groups" >> "$GITHUB_OUTPUT"
 
   gate:
     name: Gate ${{ matrix.group }}
@@ -59,29 +79,9 @@ jobs:
     timeout-minutes: 340
     strategy:
       fail-fast: false
-      # The scenario groups; the store groups start only the store they measure, so no other container shares the runner.
+      # The scenario groups of the resolve job.
       matrix:
-        include:
-          - group: snowflake
-            scenarios: P1 P2 P3 P4 P13
-          - group: segment
-            scenarios: P5 P6 P8
-          - group: codec-filler
-            scenarios: P9 P12
-          - group: spring-start
-            scenarios: P11
-          - group: mysql
-            scenarios: MySqlChainIdBenchmark MySqlStoreBenchmark
-            store: mysql
-          - group: redis
-            scenarios: RedisChainIdBenchmark RedisStoreBenchmark
-            store: redis
-          - group: mongo
-            scenarios: MongoChainIdBenchmark MongoStoreBenchmark
-            store: mongo
-          - group: zookeeper
-            scenarios: ZookeeperChainIdBenchmark ZookeeperStoreBenchmark
-            store: zookeeper
+        include: ${{ fromJSON(needs.resolve.outputs.groups) }}
     env:
       COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
       COSID_TEST_MYSQL_USERNAME: root
@@ -186,7 +186,10 @@ jobs:
 
       - name: Join the groups
         id: join
+        env:
+          EXPECTED: ${{ join(fromJSON(needs.resolve.outputs.groups).*.group, ' ') }}
         run: |
+          shopt -s nullglob
           groups=()
           for dir in build/release-gate/release-gate-*; do
             # A re-run of this job also sees its own artifacts of the previous attempt.
@@ -196,7 +199,8 @@ jobs:
             groups+=("$group")
           done
           status=0
-          benchmark/aggregate-release build/release-gate/report "${groups[@]}" || status=$?
+          # Every group of the matrix is expected: one without its artifact is no result (#1465).
+          benchmark/aggregate-release --expect "$EXPECTED" build/release-gate/report ${groups[@]+"${groups[@]}"} || status=$?
           {
             cat build/release-gate/report/report.md
             echo

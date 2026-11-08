@@ -23,9 +23,10 @@
 # classes) runs each side twice in ABBA order, 4.x 5.x 5.x 4.x, with half the forks each (rounded up), so that neither
 # side always runs right after the other on the store (benchmark/merge-results joins the two runs of a side).
 # --max-load aborts (status 3) when the 1-minute load average is above N before a scenario. Results land in DIR
-# (default build/benchmark-smoke): the JSON of each side, the run logs, load.tsv and report.md. Exits with the status
-# of compare (0 PASS, 1 FAIL, 2 bad input, 4 harness error: a side without its rows or a JMH <failure> in a log, which
-# is no result).
+# (default build/benchmark-smoke): the JSON of each side, the run logs, load.tsv and report.md; a JMH run that exits
+# with an error leaves NAME.failed (its status) beside its log. Exits with the status of compare (0 PASS, 1 FAIL, 2 bad
+# input, 4 harness error: a side without its rows, a JMH <failure> in a log or a run that exited with an error, which is
+# no result).
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -38,7 +39,7 @@ while (($#)); do
         --release) profile=release ;;
         --out) out="$2"; shift ;;
         --max-load) max_load="$2"; shift ;;
-        -h|--help) sed -n '14,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help) sed -n '14,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) scenarios+=("$1") ;;
     esac
     shift
@@ -106,7 +107,7 @@ cd "$root"
     || { echo "run-smoke: harness error: the JMH jars did not build or failed checkJmhJar" >&2; exit 4; }
 java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
 mkdir -p "$out"
-rm -f "$out"/*.json "$out"/*.log "$out"/report.md "$out"/load.tsv
+rm -f "$out"/*.json "$out"/*.log "$out"/*.failed "$out"/report.md "$out"/load.tsv
 
 # The 1-minute load average.
 load1() {
@@ -116,24 +117,26 @@ load1() {
 # Runs one side; waits for another JMH run on the machine (JMH's machine-wide lock) rather than overlapping it.
 # run SIDE CLASS [PART]: PART (a, b) is one of the two runs of an ABBA scenario, on half the forks.
 run() {
-    local side="$1" class="$2" part="${3:-}" jar log name args
+    local side="$1" class="$2" part="${3:-}" jar log name args status
     jar="$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)"
     name="$side-$class${part:+.$part}"
     log="$out/$name.log"
     args=("${jmh_args[@]}")
     [[ -n $part ]] && args=("${abba_args[@]}")
     for _ in $(seq 1 40); do
-        if "$java" -jar "$jar" "^me\.ahoo\.cosid\.benchmark\.$class\." "${args[@]}" -prof gc \
+        status=0
+        "$java" -jar "$jar" "^me\.ahoo\.cosid\.benchmark\.$class\." "${args[@]}" -prof gc \
             -rf json -rff "$out/$name.json" -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" \
-            >"$log" 2>&1; then
-            return 0
-        fi
+            >"$log" 2>&1 || status=$?
+        ((status == 0)) && return 0
         grep -q "Unable to acquire the JMH lock" "$log" || break
         echo "run-smoke: another JMH run holds the lock; waiting" >&2
         sleep 30
     done
-    # A failing scenario leaves its rows out: compare reports a harness error, with the exception from this log.
-    echo "run-smoke: $side $class${part:+ ($part)} failed, see $log" >&2
+    # A run that failed is no result, whatever rows it left (#1433): NAME.failed makes compare --logs report a harness
+    # error with the end of this log, and a side without its rows is one too.
+    echo "run-smoke: $side $class${part:+ ($part)} failed (status $status), see $log" >&2
+    echo "JMH exited with status $status" >"$out/$name.failed"
     [[ -s "$out/$name.json" ]] || echo "[]" >"$out/$name.json"
 }
 
@@ -162,9 +165,17 @@ for class in "${classes[@]}"; do
     run v5 "$class"
 done
 
-# One result per side; the two runs of an ABBA scenario become one row each (benchmark/merge-results).
+# One result per side; the two runs of an ABBA scenario become one row each (benchmark/merge-results). A side that ran
+# nothing (4.x when every scenario is 5.x only, such as P13 alone, #1436) has no rows: compare still finds a two-sided
+# class without its 4.x rows (a harness error), and every run that failed left its NAME.failed.
 merge() {
-    "$root/benchmark/merge-results" "$out/$1.json.tmp" "$out/$1"-*.json
+    local files
+    files=("$out/$1"-*.json)
+    if [[ ! -e ${files[0]} ]]; then
+        echo "[]" >"$out/$1.all.json"
+        return
+    fi
+    "$root/benchmark/merge-results" "$out/$1.json.tmp" "${files[@]}"
     mv "$out/$1.json.tmp" "$out/$1.all.json"
 }
 merge baseline-4x

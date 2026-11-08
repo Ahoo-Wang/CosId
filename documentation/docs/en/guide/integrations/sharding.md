@@ -19,7 +19,9 @@ public interface Sharding<T extends Comparable<? super T>> extends PreciseShardi
 ## ModCycle: modulo sharding
 
 `ModCycle<T extends Number>` maps `value mod divisor` to `{prefix}{index}`. A range visits only the nodes it covers,
-and all of them once it spans `divisor` values.
+and all of them once it spans `divisor` values. Negative values route like any other, so a range without a lower bound
+(`atMost`, `lessThan`) visits every node. `BigInteger` and `BigDecimal` ranges are not truncated to a long: a range visits
+the node of each value in it (a `BigDecimal`, which routes by its integer part, perhaps one more).
 
 <p align="center"><img src="../../../public/assets/design/CosIdModShardingAlgorithm.png" alt="ModCycle"/></p>
 
@@ -45,7 +47,9 @@ IntervalTimeline logs = new IntervalTimeline("t_log_",
 logs.sharding(LocalDateTime.of(2026, 10, 27, 12, 0));    // t_log_202610
 ```
 
-A value outside the effective range is rejected (`IllegalArgumentException`); a range outside it gets no node.
+A value outside the effective range is rejected (`IllegalArgumentException`); a range outside it gets no node. An open
+upper endpoint on the start of an interval (`closedOpen(2026-01-01, 2026-02-01)` by month) leaves that interval out: it
+holds no valid time, so it is no effective node.
 
 ### Convertors
 
@@ -53,7 +57,7 @@ The interval algorithm shards a `LocalDateTime`. A convertor turns the column va
 
 | Convertor | Accepts |
 |---|---|
-| `StandardLocalDateTimeConvertor(zone, isSecondTs, formatter)` | `LocalDateTime`, `ZonedDateTime`, `OffsetDateTime`, `Instant`, `LocalDate`, `Date`, `YearMonth`, `Year`, an epoch `Long` (milliseconds, or seconds when `isSecondTs`), a `String` in the formatter's pattern |
+| `StandardLocalDateTimeConvertor(zone, isSecondTs, formatter)` | `LocalDateTime`, `ZonedDateTime`, `OffsetDateTime`, `Instant`, `LocalDate`, `Date` (a JDBC `java.sql.Date` as its date at midnight, a `Timestamp` as its instant), `YearMonth`, `Year`, an epoch `Long` (milliseconds, or seconds when `isSecondTs`), a `String` in the formatter's pattern |
 | `SnowflakeLocalDateTimeConvertor(layout, zone[, codec])` | a Snowflake id, `Long` or text (base 62, 11 digits, padded by default): the time it was issued, through `Layout.unpack` |
 
 So a table sharded by month can be keyed by the Snowflake id alone:
@@ -67,6 +71,9 @@ logs.sharding(issued.toLocalDateTime(orderId));
 
 `new CachedSharding<>(sharding)` caches the range results of another algorithm. It is bounded: by default it keeps up
 to 10 000 ranges and empties itself once full, so lookups take no lock.
+
+The node collections an algorithm returns are read-only (`UnsupportedOperationException` on `add`, `remove`, `clear`):
+they are often its effective nodes or a cached range, shared by every caller. Copy one to change it.
 
 ## Changes from 4.x
 

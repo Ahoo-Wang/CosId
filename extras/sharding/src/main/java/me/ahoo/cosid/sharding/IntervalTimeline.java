@@ -54,14 +54,30 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
         this.logicNamePrefix = logicNamePrefix;
         this.suffixFormatter = suffixFormatter;
         this.effectiveIntervals = initIntervals(effectiveInterval, step, logicNamePrefix, suffixFormatter);
+        if (this.effectiveIntervals.length == 0) {
+            throw new IllegalArgumentException("The effective interval " + effectiveInterval + " holds no time.");
+        }
         this.startInterval = this.effectiveIntervals[0];
         this.effectiveNodes = initEffectiveNodes(this.effectiveIntervals);
     }
 
     private static Interval[] initIntervals(ShardingRange<LocalDateTime> effectiveInterval, IntervalStep step, String logicNamePrefix, DateTimeFormatter suffixFormatter) {
-        LocalDateTime lower = step.floorUnit(effectiveInterval.lowerEndpoint());
-        LocalDateTime upper = step.floorUnit(effectiveInterval.upperEndpoint());
+        // The first and the last valid time (a LocalDateTime counts nanoseconds): an open endpoint on the start of an
+        // interval excludes that whole interval, which holds no valid time.
+        LocalDateTime first = effectiveInterval.lowerEndpoint();
+        if (BoundType.OPEN.equals(effectiveInterval.lowerBoundType())) {
+            first = first.plusNanos(1);
+        }
+        LocalDateTime last = effectiveInterval.upperEndpoint();
+        if (BoundType.OPEN.equals(effectiveInterval.upperBoundType())) {
+            last = last.minusNanos(1);
+        }
         List<Interval> intervalList = new ArrayList<>();
+        if (first.isAfter(last)) {
+            return new Interval[0];
+        }
+        LocalDateTime lower = step.floorUnit(first);
+        LocalDateTime upper = step.floorUnit(last);
         while (!lower.isAfter(upper)) {
             String nodeName = logicNamePrefix + lower.format(suffixFormatter);
             intervalList.add(new Interval(lower, nodeName));
@@ -143,7 +159,8 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
         if (shardingValue.hasUpperBound()) {
             LocalDateTime upperEndpoint = shardingValue.upperEndpoint();
             if (!upperEndpoint.isAfter(effectiveInterval.upperEndpoint())) {
-                upperOffset = step.offsetUnit(startInterval.getLower(), shardingValue.upperEndpoint());
+                // The open upper endpoint of the effective interval may start an interval it excludes: the last one.
+                upperOffset = Math.min(step.offsetUnit(startInterval.getLower(), upperEndpoint), maxOffset);
                 Interval lastInterval = effectiveIntervals[upperOffset];
                 if (BoundType.OPEN.equals(shardingValue.upperBoundType())
                     && lastInterval.getLower().equals(upperEndpoint)) {
@@ -153,6 +170,10 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
                     upperOffset = upperOffset - 1;
                 }
             }
+        }
+
+        if (lowerOffset > upperOffset) {
+            return ExactCollection.empty();
         }
 
         Interval lastInterval = effectiveIntervals[upperOffset];

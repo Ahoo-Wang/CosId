@@ -28,6 +28,12 @@ import java.util.RandomAccess;
  * nodes is known in advance, avoiding the memory overhead
  * of HashSet and unnecessary array expansion.
  *
+ * <p>The algorithm fills the slots by index ({@link #add(int, Object)}); through the {@link Collection} interface the
+ * collection is read-only. Every mutator ({@code add}, {@code remove}, {@code clear}, the bulk ones and the iterator's
+ * {@code remove}) throws {@link UnsupportedOperationException}: the collections returned by {@link Sharding} are often
+ * the algorithm's own nodes (its effective nodes, a cached range) and are shared by every caller, so a caller that
+ * removed a node would change the routing of every later call.
+ *
  * @author ahoo wang
  */
 public class ExactCollection<E> extends AbstractCollection<E> implements RandomAccess {
@@ -94,17 +100,19 @@ public class ExactCollection<E> extends AbstractCollection<E> implements RandomA
     @SuppressWarnings("unchecked")
     @Override
     public <T> T[] toArray(T[] a) {
-        return (T[]) Arrays.copyOf(elements, size, a.getClass());
+        if (a.length < size) {
+            return (T[]) Arrays.copyOf(elements, size, a.getClass());
+        }
+        System.arraycopy(elements, 0, a, 0, size);
+        if (a.length > size) {
+            a[size] = null;
+        }
+        return a;
     }
 
     @Override
     public boolean remove(Object o) {
-        int idx = indexOf(o);
-        if (idx >= 0) {
-            elements[idx] = null;
-            return true;
-        }
-        return false;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -143,7 +151,7 @@ public class ExactCollection<E> extends AbstractCollection<E> implements RandomA
 
     @Override
     public void clear() {
-        Arrays.fill(elements, null);
+        throw new UnsupportedOperationException();
     }
 
     private class Itr implements Iterator<E> {

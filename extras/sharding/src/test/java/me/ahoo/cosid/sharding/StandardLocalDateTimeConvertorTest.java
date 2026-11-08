@@ -55,6 +55,9 @@ class StandardLocalDateTimeConvertorTest {
             arguments(instant, EXPECTED),
             arguments(LocalDate.of(2021, 12, 14), LocalDateTime.of(LocalDate.of(2021, 12, 14), LocalTime.MIN)),
             arguments(Date.from(instant), EXPECTED),
+            // #1453: a JDBC DATE is the date alone (its toInstant() throws); a TIMESTAMP is an instant.
+            arguments(java.sql.Date.valueOf("2021-12-14"), LocalDateTime.of(2021, 12, 14, 0, 0)),
+            arguments(java.sql.Timestamp.from(instant), EXPECTED),
             arguments(EPOCH_MILLIS, EXPECTED),
             arguments("2021-12-14 22:00:00", EXPECTED),
             arguments(YearMonth.of(2021, 12), LocalDateTime.of(2021, 12, 1, 0, 0)),
@@ -73,6 +76,14 @@ class StandardLocalDateTimeConvertorTest {
         StandardLocalDateTimeConvertor secondConvertor = new StandardLocalDateTimeConvertor(ZONE_ID, true, FORMATTER);
 
         assertEquals(EXPECTED, secondConvertor.toLocalDateTime(EPOCH_SECONDS));
+    }
+
+    @Test
+    void toLocalDateTimeShouldRejectAJdbcTimeWhichHasNoDate() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+            () -> millisecondConvertor.toLocalDateTime(java.sql.Time.valueOf("22:00:00")));
+
+        assertEquals("Unsupported sharding value type `22:00:00`: a JDBC TIME has no date.", error.getMessage());
     }
 
     @Test

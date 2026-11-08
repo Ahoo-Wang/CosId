@@ -22,6 +22,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.stream.Stream;
 
@@ -137,18 +139,19 @@ class ModCycleTest {
             /**
              * Range.lessThan
              */
-            arguments(ShardingRange.lessThan(0L), ExactCollection.empty()),
-            arguments(ShardingRange.lessThan(1L), new ExactCollection<>("t_mod_0")),
-            arguments(ShardingRange.lessThan(2L), new ExactCollection<>("t_mod_0", "t_mod_1")),
-            arguments(ShardingRange.lessThan(3L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
+            // #1451: no lower bound reaches the negative values, which route to every node.
+            arguments(ShardingRange.lessThan(0L), ALL_NODES),
+            arguments(ShardingRange.lessThan(1L), ALL_NODES),
+            arguments(ShardingRange.lessThan(2L), ALL_NODES),
+            arguments(ShardingRange.lessThan(3L), ALL_NODES),
             arguments(ShardingRange.lessThan(4L), ALL_NODES),
             arguments(ShardingRange.lessThan(5L), ALL_NODES),
             /**
              * Range.atMost
              */
-            arguments(ShardingRange.atMost(0L), new ExactCollection<>("t_mod_0")),
-            arguments(ShardingRange.atMost(1L), new ExactCollection<>("t_mod_0", "t_mod_1")),
-            arguments(ShardingRange.atMost(2L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
+            arguments(ShardingRange.atMost(0L), ALL_NODES),
+            arguments(ShardingRange.atMost(1L), ALL_NODES),
+            arguments(ShardingRange.atMost(2L), ALL_NODES),
             arguments(ShardingRange.atMost(3L), ALL_NODES),
             arguments(ShardingRange.atMost(4L), ALL_NODES),
             arguments(ShardingRange.atMost(5L), ALL_NODES),
@@ -183,6 +186,63 @@ class ModCycleTest {
         Assertions.assertEquals(expected, actual);
     }
 
+
+    // #1434: the last value, Long.MAX_VALUE, ends the loop without overflowing into Long.MIN_VALUE.
+    @Test
+    public void theEndOfTheLongDomainIsARange() {
+        ModCycle<Long> modCycle = createModCycle();
+        Assertions.assertEquals("t_mod_3", modCycle.sharding(Long.MAX_VALUE));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_3"), modCycle.sharding(ShardingRange.singleton(Long.MAX_VALUE)));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_2", "t_mod_3"),
+            modCycle.sharding(ShardingRange.closed(Long.MAX_VALUE - 1, Long.MAX_VALUE)));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_3"), modCycle.sharding(ShardingRange.atLeast(Long.MAX_VALUE)));
+        Assertions.assertEquals(ExactCollection.empty(), modCycle.sharding(ShardingRange.greaterThan(Long.MAX_VALUE)));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0"), modCycle.sharding(ShardingRange.singleton(Long.MIN_VALUE)));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0"), modCycle.sharding(ShardingRange.atMost(Long.MIN_VALUE)));
+        Assertions.assertEquals(ExactCollection.empty(), modCycle.sharding(ShardingRange.lessThan(Long.MIN_VALUE)));
+        Assertions.assertEquals(ALL_NODES, modCycle.sharding(ShardingRange.closed(Long.MIN_VALUE, Long.MAX_VALUE)));
+    }
+
+    // #1451: a range without a lower bound reaches the negative values, which route like any other.
+    @Test
+    public void aRangeWithoutALowerBoundReachesTheNegativeValues() {
+        ModCycle<Long> modCycle = createModCycle();
+        Assertions.assertEquals("t_mod_3", modCycle.sharding(-1L));
+        Assertions.assertEquals(ALL_NODES, modCycle.sharding(ShardingRange.atMost(-1L)));
+        Assertions.assertEquals(ALL_NODES, modCycle.sharding(ShardingRange.lessThan(0L)));
+        Assertions.assertEquals(ALL_NODES, modCycle.sharding(ShardingRange.atMost(Long.MIN_VALUE + 3)));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2"),
+            modCycle.sharding(ShardingRange.atMost(Long.MIN_VALUE + 2)));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_3", "t_mod_0", "t_mod_1"), modCycle.sharding(ShardingRange.closed(-1L, 1L)));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0"), modCycle.sharding(ShardingRange.open(-1L, 1L)));
+    }
+
+    // #1452: BigInteger and BigDecimal ranges are not truncated to a long; a range holds the node of each of its values.
+    @Test
+    public void bigNumbersAreNotTruncated() {
+        ModCycle<BigInteger> big = new ModCycle<>(DIVISOR, LOGIC_NAME_PREFIX);
+        BigInteger twoTo64 = BigInteger.ONE.shiftLeft(64);
+        Assertions.assertEquals("t_mod_1", big.sharding(BigInteger.ONE));
+        Assertions.assertEquals(ALL_NODES, big.sharding(ShardingRange.closed(BigInteger.ONE, twoTo64)));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_2", "t_mod_3"),
+            big.sharding(ShardingRange.openClosed(BigInteger.ONE, BigInteger.valueOf(3))));
+        Assertions.assertEquals(ALL_NODES, big.sharding(ShardingRange.atLeast(twoTo64)));
+        // Beyond a long, a value routes by its low 64 bits, as longValue() does.
+        Assertions.assertEquals(big.sharding(twoTo64), big.sharding(ShardingRange.singleton(twoTo64)).iterator().next());
+        Assertions.assertEquals(ExactCollection.empty(), big.sharding(ShardingRange.open(BigInteger.ONE, BigInteger.TWO)));
+
+        ModCycle<BigDecimal> decimal = new ModCycle<>(DIVISOR, LOGIC_NAME_PREFIX);
+        Assertions.assertEquals("t_mod_1", decimal.sharding(new BigDecimal("1.5")));
+        Collection<String> nodes = decimal.sharding(ShardingRange.closedOpen(new BigDecimal("0.5"), new BigDecimal("1.5")));
+        Assertions.assertTrue(nodes.contains("t_mod_1"), nodes::toString);
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1"), nodes);
+        // 1.2 is in (1, 2) and routes to 1: an open bound of a fraction keeps its integer part.
+        Assertions.assertEquals(new ExactCollection<>("t_mod_1", "t_mod_2"),
+            decimal.sharding(ShardingRange.open(BigDecimal.ONE, BigDecimal.TWO)));
+
+        ModCycle<Double> doubles = new ModCycle<>(DIVISOR, LOGIC_NAME_PREFIX);
+        Assertions.assertTrue(doubles.sharding(ShardingRange.open(1.0, 2.0)).contains(doubles.sharding(1.2)));
+    }
 
     @Test
     public void negativeValuesMapToANode() {

@@ -225,12 +225,21 @@ public final class LettuceRedisScripts implements RedisScripts {
             }
         }
         if (replicas > 0) {
-            long acknowledged = await(target.server().waitForReplication(replicas, timeout.toMillis()), timeout.multipliedBy(2));
+            long acknowledged = await(target.server().waitForReplication(replicas, waitMillis(timeout)), timeout.multipliedBy(2));
             if (acknowledged < replicas) {
                 throw new RedisStoreException("The write was acknowledged by " + acknowledged + " of " + replicas + " replicas within " + timeout);
             }
         }
         return reply;
+    }
+
+    /**
+     * The {@code WAIT} timeout, in whole milliseconds rounded up: Redis reads {@code WAIT n 0} as "wait forever", so a
+     * positive timeout below 1 ms must not truncate to 0, and no timeout is shortened.
+     */
+    static long waitMillis(Duration timeout) {
+        long millis = timeout.toMillis();
+        return timeout.getNano() % 1_000_000 == 0 ? millis : millis + 1;
     }
 
     /** Runs the script by digest, by text on {@code NOSCRIPT}; after {@code ASKING} on a target of an {@code ASK}. */

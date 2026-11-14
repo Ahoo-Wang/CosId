@@ -6,7 +6,7 @@ plugins {
 }
 
 val cosidVersion = findProperty("cosid.version")?.toString() ?: error("-Pcosid.version=<the version in build/repos>")
-val junitVersion = "6.0.3"
+val junitVersion = "6.1.3"
 val testcontainersVersion = "2.0.5"
 
 java {

@@ -50,6 +50,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.bind.PropertySourcesPlaceholdersResolver;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.PropertySource;
@@ -401,5 +403,63 @@ class ConfigBindingTest {
         assertThat(spec.stores().get("remote").type(), is("remote"));
         assertThat(spec.stores().get("remote").options(), is(Map.of("baseUrl", "https://cosid-server.example:8688", "token", "secret-token",
             "connectTimeout", "3s", "requestTimeout", "4s")));
+    }
+
+    @Test
+    void aDottedGeneratorNameBindsAsAnApplicationBindsIt(@TempDir Path dir) throws IOException {
+        // #1446 review: the converted YAML must bracket a dotted generator name, or a 5.0 application binds no
+        // generator from it (Spring reads `orders.Order:` as nesting, not as one entry name).
+        Path input = dir.resolve("application.yaml");
+        Files.writeString(input, """
+            cosid:
+              namespace: shop
+              snowflake: { enabled: false }
+              segment:
+                enabled: true
+                share: { enabled: false }
+                distributor: { type: jdbc }
+                provider:
+                  "[orders.Order]": { step: 50 }
+            """);
+        Legacy4x legacy = new Legacy4x(FlatConfig.load(input));
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("UTC")).convert(legacy.config(), null);
+        Path output = dir.resolve("application-5.yaml");
+        conversion.write(output);
+        assertThat(Files.readString(output), containsString("[orders.Order]"));
+        RuntimeSpec spec = specOf(output);
+        assertThat(spec.generators().keySet(), is(Set.of("orders.Order")));
+        assertThat(((GeneratorSpec.Segment) spec.generators().get("orders.Order")).batch().step(), is(50L));
+    }
+
+    @Test
+    void aDottedGeneratorNameBindsStrictlyAsAnApplicationBindsIt(@TempDir Path dir) throws IOException {
+        // #1446 review: the strict bind a 5.0 application uses fails startup on any key that binds to nothing,
+        // so it catches an unbracketed dotted name where the lenient Binder would silently drop the generator.
+        Path input = dir.resolve("application.yaml");
+        Files.writeString(input, """
+            cosid:
+              namespace: shop
+              snowflake: { enabled: false }
+              segment:
+                enabled: true
+                share: { enabled: false }
+                distributor: { type: jdbc }
+                provider:
+                  "[orders.Order]": { step: 50 }
+            """);
+        Legacy4x legacy = new Legacy4x(FlatConfig.load(input));
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("UTC")).convert(legacy.config(), null);
+        Path output = dir.resolve("application-5.yaml");
+        conversion.write(output);
+        StandardEnvironment environment = new StandardEnvironment();
+        for (PropertySource<?> source : new YamlPropertySourceLoader().load(output.getFileName().toString(), new FileSystemResource(output))) {
+            environment.getPropertySources().addFirst(source);
+        }
+        environment.getPropertySources().addLast(new MapPropertySource("slots", Map.of("POD_ORDINAL", "3", "COSID_SLOT", "5")));
+        CosIdProperties properties = CosIdSpecs.bind(ConfigurationPropertySources.get(environment),
+            new PropertySourcesPlaceholdersResolver(environment));
+        RuntimeSpec spec = CosIdSpecs.toSpec(properties, ZoneId.of("UTC"));
+        assertThat(spec.generators().keySet(), is(Set.of("orders.Order")));
+        assertThat(((GeneratorSpec.Segment) spec.generators().get("orders.Order")).batch().step(), is(50L));
     }
 }

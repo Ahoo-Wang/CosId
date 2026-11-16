@@ -118,7 +118,10 @@ public final class ConfigConverter {
         }
 
         /**
-         * The configuration as YAML, the report as comments at its top.
+         * The configuration as YAML, the report as comments at its top. The name of a map entry that carries a dot
+         * is written bracketed ({@code "[orders.Order]"}), or Spring binds it as nesting and the entry binds to
+         * nothing, so a 5.0 application would start without that generator (#1446 review). The model itself keeps
+         * the raw name, which {@link #unmigratedSegments} compares with the apply result.
          *
          * @return the text
          */
@@ -129,11 +132,36 @@ public final class ConfigConverter {
                 report.forEach(line -> text.append("#  - ").append(line).append('\n'));
             }
             try {
-                text.append(YAML.writeValueAsString(model));
+                text.append(YAML.writeValueAsString(bracketed(model)));
             } catch (JsonProcessingException e) {
                 throw new IllegalStateException(e);
             }
             return text.toString();
+        }
+
+        /**
+         * The model with the names of the map entries ({@code generators}, {@code machines}, {@code stores}) that
+         * carry a dot written bracketed, so Spring binds them as one entry name.
+         */
+        @SuppressWarnings("unchecked")
+        private static Map<String, Object> bracketed(Map<String, Object> model) {
+            Map<String, Object> copy = new LinkedHashMap<>(model);
+            Object cosidValue = copy.get("cosid");
+            if (!(cosidValue instanceof Map<?, ?> cosid)) {
+                return copy;
+            }
+            Map<String, Object> cosidCopy = new LinkedHashMap<>((Map<String, Object>) cosid);
+            copy.put("cosid", cosidCopy);
+            for (String entries : List.of("generators", "machines", "stores")) {
+                Object value = cosidCopy.get(entries);
+                if (value instanceof Map<?, ?> map) {
+                    Map<String, Object> bracketed = new LinkedHashMap<>();
+                    map.forEach((name, spec) -> bracketed.put(
+                        name.toString().indexOf('.') >= 0 && !name.toString().startsWith("[") ? "[" + name + "]" : name.toString(), spec));
+                    cosidCopy.put(entries, bracketed);
+                }
+            }
+            return copy;
         }
 
         /**
@@ -165,6 +193,12 @@ public final class ConfigConverter {
         Legacy4x legacy = new Legacy4x(config);
         final List<String> report = new ArrayList<>();
         final List<String> problems = new ArrayList<>();
+        // A dotted key without brackets under a map names no entry in 4.x, so nothing of it converts (#1446 review).
+        for (String ignored : config.ignoredDottedKeys()) {
+            String name = FlatConfig.ignoredEntryName(ignored);
+            report.add(ignored + ": a dotted key without brackets is no map entry name in Spring Boot binding; ignored"
+                + " (write it as \"[" + name + "]\" to name an entry)");
+        }
         Set<String> handled = new LinkedHashSet<>();
         Map<String, Object> cosid = new LinkedHashMap<>();
         cosid.put("namespace", legacy.namespace());
@@ -1001,7 +1035,7 @@ public final class ConfigConverter {
     public static Map<String, Layout> layoutsOf5(FlatConfig config) {
         Map<String, Layout> layouts = new LinkedHashMap<>();
         for (String name : config.names("cosid.generators")) {
-            String prefix = "cosid.generators." + name;
+            String prefix = FlatConfig.childKey("cosid.generators", name);
             String strategy = config.get(prefix + ".strategy", "");
             if ("cosid80".equals(strategy)) {
                 Layout base = Layout.COSID_80;

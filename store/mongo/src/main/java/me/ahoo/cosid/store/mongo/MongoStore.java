@@ -120,10 +120,12 @@ public final class MongoStore implements Store {
         if (!writeConcern.isAcknowledged()) {
             throw new IllegalArgumentException("the write concern must be acknowledged: " + writeConcern);
         }
+        // The driver reads a timeout of 0 as "no timeout": a positive timeout below 1ms becomes 1ms instead of 0.
+        long timeoutMillis = Math.max(1L, timeout.toMillis());
         return database.withWriteConcern(writeConcern)
             .withReadConcern(ReadConcern.MAJORITY)
             .withReadPreference(ReadPreference.primary())
-            .withTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            .withTimeout(timeoutMillis, TimeUnit.MILLISECONDS);
     }
 
     /**

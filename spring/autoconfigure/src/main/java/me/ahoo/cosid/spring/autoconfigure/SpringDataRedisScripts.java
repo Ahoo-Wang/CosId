@@ -163,10 +163,20 @@ public final class SpringDataRedisScripts implements RedisScripts {
 
     /** {@code WAIT}; a Lettuce connection needs to be told that the reply is an integer. */
     private Object waitFor(RedisConnection connection, int count) {
+        byte[] millis = bytes(waitMillis(timeout));
         if (connection instanceof LettuceConnection lettuce) {
-            return lettuce.execute("WAIT", new IntegerOutput<>(ByteArrayCodec.INSTANCE), bytes(count), bytes(timeout.toMillis()));
+            return lettuce.execute("WAIT", new IntegerOutput<>(ByteArrayCodec.INSTANCE), bytes(count), millis);
         }
-        return connection.execute("WAIT", bytes(count), bytes(timeout.toMillis()));
+        return connection.execute("WAIT", bytes(count), millis);
+    }
+
+    /**
+     * The {@code WAIT} timeout, in whole milliseconds rounded up: Redis reads {@code WAIT n 0} as "wait forever", so a
+     * positive timeout below 1 ms must not truncate to 0, and no timeout is shortened.
+     */
+    static long waitMillis(Duration timeout) {
+        long millis = timeout.toMillis();
+        return timeout.getNano() % 1_000_000 == 0 ? millis : millis + 1;
     }
 
     private static List<Object> run(RedisConnection connection, String sha, String script, int keys, byte[][] keysAndArgs) {

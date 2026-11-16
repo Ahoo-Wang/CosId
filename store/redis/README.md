@@ -34,7 +34,8 @@ is strict, prefer the JDBC or ZooKeeper store. For the same reason the keys must
 | `wait` | `auto` | `auto`: `WAIT 1` after every write when the server has replicas (`INFO replication` at open; in a cluster, each primary serving slots is asked for its replicas, `INFO replication` and `CLUSTER REPLICAS`, and the open fails when some primaries have replicas and others none); `off`; or the replica count. `auto` is resolved once, when the store opens, and logged at INFO: **restart the application after adding or removing replicas** |
 | `sweepBatch` | 16 | how many expired leases one acquire moves back to the free set at most |
 
-`StoreConfig.timeout` bounds every command and is the `WAIT` timeout; a command that gets no answer within it fails
+`StoreConfig.timeout` bounds every command and is the `WAIT` timeout, rounded up to whole milliseconds (`WAIT n 0`
+would wait forever, so a timeout below 1 ms waits 1 ms); a command that gets no answer within it fails
 with a `RedisStoreException` whose cause is a `StoreTimeoutException`. A write that fewer replicas acknowledge fails
 with `RedisStoreException`; its outcome is unknown, and acquire, renew and reserve may be retried (a lost range is a gap).
 

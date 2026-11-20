@@ -805,7 +805,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: 24.22.2
+          node-version: 24.22.3
           cache-dependency-path: documentation/pnpm-lock.yaml
           cache: 'pnpm'
 

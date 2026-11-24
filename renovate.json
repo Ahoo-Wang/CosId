@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
-  "baseBranches": ["main"],
+  "baseBranchPatterns": ["main"],
   "timezone": "Asia/Shanghai",
   "labels": ["dependencies"],
   "semanticCommits": "enabled",
@@ -27,6 +27,48 @@
       "description": "Group Kotlin-related updates into a single PR",
       "matchPackageNames": ["/^org\\.jetbrains\\.kotlin/"],
       "groupName": "kotlin"
+    },
+    {
+      "description": "cosid4 is the released CosId 4.1.1 that benchmark/baseline-4x compares against and the migration legacy4x source set reads (D21): it stays 4.1.1, so no update applies. Matched on the version.ref of gradle/libs.versions.toml",
+      "matchManagers": ["gradle"],
+      "matchJsonata": ["sharedVariableName = 'cosid4'"],
+      "enabled": false
+    },
+    {
+      "description": "lettuce4 is the Lettuce that cosid-spring-redis 4.1.1 brings; baseline4x-* are the drivers of benchmark/baseline-4x, at the versions the Spring Boot BOM gives benchmark/v5. A major update would put the 4.1.1 jars on a line they were not built for, or the two benchmark sides on different drivers, so it is made by hand. Matched on the version.ref, so the 5.0 entries of the same artifacts keep their updates",
+      "matchManagers": ["gradle"],
+      "matchJsonata": ["sharedVariableName = 'lettuce4' or $contains(sharedVariableName, /^baseline4x\\./)"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Axon 5 has no IdentifierFactory, which integrations/axon implements: the integration serves the Axon 4.x line",
+      "matchPackageNames": ["org.axonframework:axon-messaging"],
+      "allowedVersions": "<5"
+    },
+    {
+      "description": "The build and CI run on Java 21, the bytecode baseline (D3): actions/setup-java keeps java-version 21. The cosid-server image (server/Dockerfile, eclipse-temurin 25-jre, D48) is a separate docker dependency and keeps its updates",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["java-jdk"],
+      "allowedVersions": "21.x"
+    },
+    {
+      "description": "MongoDB 6.0 is the minimum CI tests (D27) and 4.4 and 5.0 are the probes below it (D28): those images name what they test and never move. Renovate does not read the store-mongo matrix today; this keeps it so if it starts to. Newer images (mongo:8.0, the published-jars service) keep their updates",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["mongo"],
+      "matchCurrentValue": "/^[456]\\./",
+      "enabled": false
+    },
+    {
+      "description": "mybatis-activiti is the MyBatis of integrations/activiti: Activiti 7.0.0.SR1 calls TypeHandlerRegistry.register(Class, JdbcType, TypeHandler), which MyBatis 3.6 removed (NoSuchMethodError, #1449), so it stays on 3.5 until an Activiti release supports 3.6. The mybatis entry of integrations/mybatis keeps its updates",
+      "matchManagers": ["gradle"],
+      "matchJsonata": ["sharedVariableName in ['mybatis.activiti', 'mybatis-activiti']"],
+      "allowedVersions": "<3.6"
+    },
+    {
+      "description": "The esbuild override of the documentation site follows Vite 6, built for esbuild 0.25: with 0.28 the site build fails to lower destructuring in the mermaid chunk for Vite's browser targets (#1407)",
+      "matchPackageNames": ["esbuild"],
+      "allowedVersions": "<0.26.0"
     }
   ]
 }

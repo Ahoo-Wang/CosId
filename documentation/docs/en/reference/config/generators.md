@@ -145,9 +145,9 @@ Each item is exactly one of:
 | `friendly` | `zone` (system), `pad-start` (`true`) | `yyyyMMddHHmmssSSS-node-seq`; time-based only |
 | `prefix` | a string | |
 | `suffix` | a string | |
-| `date-prefix` | `pattern` (`yyyyMMdd`), `delimiter` (`-`), `source` (`ID_TIME` or `NOW`), `zone` (system) | in a periodic segment, the period prefix (its pattern comes from the period) |
+| `date-prefix` | `pattern` (`yyyyMMdd`), `delimiter` (`-`), `source` (`ID_TIME` or `NOW`), `zone` (system) | in a periodic segment, the period prefix (its pattern comes from the period; use the `period` item's `pattern` to change it) |
 | `custom` | a bean name or class name | an `IdCodec` of your own |
-| `period` | `enabled` (`true`), `delimiter` (`-`) | periodic segment only: where the period key goes in the text (4.x `group-prefix`) |
+| `period` | `enabled` (`true`), `delimiter` (`-`), `pattern` (the period key) | periodic segment only: where the period key goes in the text (4.x `group-prefix`), and how it is written (4.x `group.pattern`) |
 
 Rules:
 
@@ -186,6 +186,39 @@ cosid:
 Without the period in the text (`enabled: false`), the text cannot tell the period, so `GroupedCodec.decode` is not
 supported (`UnsupportedOperationException`). A list holds at most one `period` item, and only periodic segments take
 one. `cosid-migration config` converts the 4.x settings to these forms.
+
+### How the period is written
+
+The period key is `yyyy`, `yyyyMM` or `yyyyMMdd`. The `period` item's `pattern` writes it another way in the text, as
+the 4.x `group.pattern` did:
+
+```yaml
+cosid:
+  generators:
+    "[trading.trade_order]":
+      strategy: periodic-segment
+      store: db
+      period: YEAR_MONTH_DAY
+      zone: Asia/Shanghai
+      codec:
+        - period: { pattern: yyMMdd }
+        - prefix: "TO-"                  # TO-261124-1, TO-261124-2, … and TO-261125-1 the next day
+```
+
+- Only the text changes. The store keys and `GroupedId.period()` keep the preset (`20261124`), and `decode` gives them
+  back. So changing `pattern` does not restart the sequence; texts written in the old pattern no longer decode.
+- The pattern must tell exactly the period's date: a `YEAR_MONTH_DAY` pattern needs the year, month and day, and no
+  pattern takes a field finer than its period (`yyMMdd` for `YEAR_MONTH` fails the start). It is read strictly in the
+  root locale (`MMM` is `Nov` on every machine), and `yy` reads as 2000 to 2099.
+- A pattern of fixed length, such as `yyMMdd`, decodes even with an empty `delimiter`; any other needs one.
+- `enabled: false` with a `pattern` is a configuration error. The pattern takes the presets only: a custom `Period` set
+  by a `RuntimeSpecCustomizer` has keys the codec cannot read.
+
+::: warning Replacing a custom period
+A custom `Period` that keys its periods in another pattern (`261124`) has other store keys than a preset with a
+`pattern` (`20261124`). Switching from one to the other starts new keys, so the sequence of the current period starts
+again: switch between two periods, with every instance stopped.
+:::
 
 ### Example
 

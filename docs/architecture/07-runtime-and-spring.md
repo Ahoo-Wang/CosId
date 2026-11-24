@@ -218,6 +218,8 @@ cosid:
 - codec 一律是有序列表,写的顺序就是应用顺序。周期号段的列表要么含一个 `period` 项,要么第一项是分组前缀(`date-prefix`,期号在最前,其余项作用于值部分):
   `period: { enabled, delimiter }`(默认 true、`-`,对应 4.x `group-prefix`)放在期号所在的位置,它之前的项作用于值,之后的项装饰以期号开头的整段文本
   (如其后的 `prefix` 让期号跟在业务前缀之后,4.x `group-prefix.before-prefix`);`enabled: false` 不输出期号,这样的文本无法反解(`GroupedCodecSpec.ValueOnly`)。
+  `period.pattern`(默认不设,即期间的预设 key,对应 4.x `group.pattern`)只改期号在文本里的写法,如 `yyMMdd`(`GroupedCodecSpec.FormattedDatePrefix`,D51);
+  与 `enabled: false` 同时设置是配置错误。`date-prefix` 项的 `pattern` 在周期号段里仍不生效。
 - 绑定类是不可变的 `record`;`CosIdProperties → RuntimeSpec` 是纯函数,无需 Spring 即可单测。绑定类不属于 API 兼容承诺,承诺的是属性键(api-freeze.md §0)。
 - 编程式扩展:`RuntimeSpecCustomizer` Bean(按 `@Order` 执行)可以在启动前增加、删除或修改生成器(取代 4.x 的 `Customize*Properties`)。
   由 customizer 增加的生成器同样会注册为 Bean:注册器在 `BeanDefinitionRegistryPostProcessor` 阶段只登记名字和类型,实例在 `CosIdRuntime` 启动后提供。

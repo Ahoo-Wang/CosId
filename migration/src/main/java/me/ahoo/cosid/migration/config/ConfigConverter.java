@@ -13,11 +13,13 @@
 
 package me.ahoo.cosid.migration.config;
 
+import me.ahoo.cosid.codec.GroupedCodec;
 import me.ahoo.cosid.codec.Radix;
 import me.ahoo.cosid.migration.ApplyResult;
 import me.ahoo.cosid.migration.Plan;
 import me.ahoo.cosid.migration.StoreLocation;
 import me.ahoo.cosid.segment.BatchPolicy;
+import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.store.StoreOptions;
 import me.ahoo.cosid.time.Layout;
 
@@ -795,13 +797,10 @@ public final class ConfigConverter {
             }
         }
         ownNamespace(config, prefix, handled);
-        // The group prefix of a periodic segment is its period item, placed where the 4.x chain applied it (#1478).
-        List<Object> codec = codecs(config, prefix + ".converter", false, period == null ? null : periodItem(config, prefix + ".converter"),
-            report, problems, handled);
+        Map<String, Object> periodText = null;
+        String patternLine = null;
         if (period != null) {
-            generator.put("period", period);
-            generator.put("zone", zone().getId());
-            report.add(prefix + ".group: 4.x used the server's default time zone; the 5.0 period zone is " + zone().getId() + ", check it (--zone)");
+            periodText = periodText(config, prefix + ".converter");
             String pattern = config.get(prefix + ".group.pattern");
             String presetPattern = switch (period) {
                 case "YEAR" -> "yyyy";
@@ -809,9 +808,28 @@ public final class ConfigConverter {
                 default -> "yyyyMMdd";
             };
             if (pattern != null && !pattern.equals(presetPattern)) {
-                report.add(prefix + ".group.pattern = " + pattern + ": 5.0 period keys are " + presetPattern + "; plan reformats the 4.x keys"
-                    + (config.bool(prefix + ".converter.group-prefix.enabled", false)
-                        ? ", and grouped string ids now carry the " + presetPattern + " prefix" : ""));
+                patternLine = prefix + ".group.pattern = " + pattern + ": 5.0 period keys are " + presetPattern + "; plan reformats the 4.x keys";
+                if (config.bool(prefix + ".converter.group-prefix.enabled", false)) {
+                    // D51: the store keys take the preset, the text keeps the 4.x key (#1501).
+                    String refused = refusedPattern(period, pattern);
+                    if (refused == null) {
+                        periodText.put("pattern", pattern);
+                        patternLine += ", and the period item keeps writing them as " + pattern + " in grouped string ids (period.pattern)";
+                    } else {
+                        patternLine += "; " + refused + ", so grouped string ids now carry the " + presetPattern + " prefix";
+                    }
+                }
+            }
+        }
+        // The group prefix of a periodic segment is its period item, placed where the 4.x chain applied it (#1478).
+        List<Object> codec = codecs(config, prefix + ".converter", false, periodText == null ? null : Map.of("period", periodText), report, problems,
+            handled);
+        if (period != null) {
+            generator.put("period", period);
+            generator.put("zone", zone().getId());
+            report.add(prefix + ".group: 4.x used the server's default time zone; the 5.0 period zone is " + zone().getId() + ", check it (--zone)");
+            if (patternLine != null) {
+                report.add(patternLine);
             }
             handled.add(prefix + ".group.by");
             handled.add(prefix + ".group.pattern");
@@ -821,15 +839,33 @@ public final class ConfigConverter {
         return generator;
     }
 
-    /** The period item of the 4.x {@code group-prefix}: its delimiter, or, off, a period left out of the text. */
-    private static Map<String, Object> periodItem(FlatConfig config, String converter) {
+    /** The period item of the 4.x {@code group-prefix}, its content: its delimiter, or, off, a period left out of the text. */
+    private static Map<String, Object> periodText(FlatConfig config, String converter) {
         Map<String, Object> period = new LinkedHashMap<>();
         if (config.bool(converter + ".group-prefix.enabled", false)) {
             period.put("delimiter", text(config, converter + ".group-prefix.delimiter", "-"));
         } else {
             period.put("enabled", false);
         }
-        return Map.of("period", period);
+        return period;
+    }
+
+    /**
+     * Why a 4.x group pattern cannot write the keys of a 5.0 period in grouped string ids, or null if it can: the 5.0
+     * period item takes a pattern that tells exactly the period's date (D51).
+     */
+    private static String refusedPattern(String period, String pattern) {
+        Period preset = switch (period) {
+            case "YEAR" -> Period.YEAR;
+            case "YEAR_MONTH" -> Period.YEAR_MONTH;
+            default -> Period.YEAR_MONTH_DAY;
+        };
+        try {
+            GroupedCodec.datePrefix(preset, pattern, "-", Radix.of(10, Radix.maxWidth(10), false), codec -> codec);
+            return null;
+        } catch (IllegalArgumentException e) {
+            return e.getMessage();
+        }
     }
 
     private ZoneId zone() {

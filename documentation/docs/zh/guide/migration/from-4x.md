@@ -134,6 +134,8 @@ java -jar cosid-migration.jar config --input application.yaml --result apply-res
   写成 `retry.baseSleepTime`、`retry.maxRetries`、`retry.maxSleep`。
 - **Friendly 文本。** 4.x 的 `snowflake_friendly` 转换器与 `@AsString(FRIENDLY_ID)` 不给节点号和序列补零（`…-1-5`），5.0 的 `friendly`
   默认补零（`…-0001-0005`）。`config` 会写 `pad-start: false`，文本保持原样；代码中给 `@AsString` 写 `padStart = false`。两种形式都能解析。
+- **分组 pattern。** `plan` 把 4.x 的分组 key 重新格式化为 5.0 预设（`yyMMdd` 的 key 变为 `yyyyMMdd`）；`config` 则把 4.x 的 `group.pattern`
+  写成 `period` 项的 `pattern`，分组文本 ID 保持 4.x 的形式（`TO-261124-1`）。不能恰好表达周期日期的 pattern（按日分组却写 `yyMM`）做不到这一点：报告会写明，这些 ID 改为预设格式。
 - **独立命名空间的 snowflake** 会得到一个命名 machine（[见下文](#共享的-cosidgenerator-命名空间)）。
 
 CosIdGenerator 的键按下表对应（`config` 会写出）：

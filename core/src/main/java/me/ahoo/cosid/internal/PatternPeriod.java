@@ -15,6 +15,7 @@ package me.ahoo.cosid.internal;
 
 import me.ahoo.cosid.segment.Period;
 
+import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Year;
@@ -23,6 +24,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
+import java.time.temporal.Temporal;
+import java.time.temporal.TemporalAccessor;
 
 /**
  * The preset periods: calendar years, months and days in a time zone, keyed by their {@link #pattern()}.
@@ -48,6 +51,46 @@ public enum PatternPeriod implements Period {
     @Override
     public String keyOf(Instant instant, ZoneId zone) {
         return formatter.format(LocalDate.ofInstant(instant, zone));
+    }
+
+    /**
+     * The date a key names.
+     *
+     * @param key the period key
+     * @return a {@link Year}, {@link YearMonth} or {@link LocalDate}, as this period counts
+     * @throws IllegalArgumentException if {@code key} is not a key of this period
+     */
+    public Temporal dateOf(String key) {
+        try {
+            return dateOf(formatter.parse(key));
+        } catch (DateTimeException e) {
+            throw new IllegalArgumentException("[" + key + "] is not a " + name() + " period key (" + pattern + ")", e);
+        }
+    }
+
+    /**
+     * The date of this period's kind in {@code parsed}, such as the {@link YearMonth} of a {@link LocalDate}.
+     *
+     * @param parsed a date, or the fields parsed from a text
+     * @return a {@link Year}, {@link YearMonth} or {@link LocalDate}, as this period counts
+     * @throws DateTimeException if {@code parsed} does not tell the date
+     */
+    public Temporal dateOf(TemporalAccessor parsed) {
+        return switch (this) {
+            case YEAR -> Year.from(parsed);
+            case YEAR_MONTH -> YearMonth.from(parsed);
+            case YEAR_MONTH_DAY -> LocalDate.from(parsed);
+        };
+    }
+
+    /**
+     * The key of a date of this period's kind.
+     *
+     * @param date a date from {@link #dateOf(TemporalAccessor)}
+     * @return the period key
+     */
+    public String keyOfDate(TemporalAccessor date) {
+        return formatter.format(date);
     }
 
     @Override

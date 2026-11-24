@@ -152,6 +152,11 @@ public final class Codecs {
                 yield GroupedCodec.datePrefix(period, date.delimiter(), ids(date.value(), Optional.empty()),
                     codec -> decorate(codec, date.outer(), Optional.empty()));
             }
+            case GroupedCodecSpec.FormattedDatePrefix date -> {
+                decorate(DECIMAL, date.outer(), Optional.empty());
+                yield GroupedCodec.datePrefix(period, date.pattern(), date.delimiter(), ids(date.value(), Optional.empty()),
+                    codec -> decorate(codec, date.outer(), Optional.empty()));
+            }
             case GroupedCodecSpec.ValueOnly value -> GroupedCodec.valueOnly(ids(value.value(), Optional.empty()));
             case GroupedCodecSpec.Instance instance -> instance.codec();
         };

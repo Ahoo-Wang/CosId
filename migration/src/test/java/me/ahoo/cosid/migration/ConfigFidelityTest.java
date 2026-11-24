@@ -14,6 +14,7 @@
 package me.ahoo.cosid.migration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
@@ -110,6 +111,34 @@ class ConfigFidelityTest {
         assertThat(config.text("cosid.segment.share.converter.prefix"), is("Order "));
         assertThat(config.text("cosid.segment.share.converter.suffix"), is(" ready"));
         assertThat(config.number("cosid.segment.share.step", 10), is(20L));
+    }
+
+    // #1501: the 4.x group.pattern stays the text of the period key, while plan reformats the store keys (D51).
+    @Test
+    void theGroupPatternStaysInTheText() throws IOException {
+        String yaml = """
+            cosid:
+              segment:
+                enabled: true
+                provider:
+                  trade_order:
+                    group: { by: year_month_day, pattern: yyMMdd }
+                    converter: { type: to_string, prefix: TO-, group-prefix: { enabled: true } }
+                  bill:
+                    group: { by: year_month_day, pattern: yyMM }
+                    converter: { type: to_string, prefix: B-, group-prefix: { enabled: true } }
+            """;
+        ConfigConverter.Conversion conversion = convert(yaml);
+        RuntimeSpec spec = spec(conversion);
+        assertThat(((GeneratorSpec.PeriodicSegment) spec.generators().get("trade_order")).codec(),
+            is(new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "-", List.of(), List.of(new CodecSpec.Prefix("TO-")))));
+        assertThat(conversion.report(), hasItem(containsString("trade_order.group.pattern = yyMMdd: 5.0 period keys are yyyyMMdd; plan reformats the 4.x keys,"
+            + " and the period item keeps writing them as yyMMdd in grouped string ids (period.pattern)")));
+        // A pattern that does not tell the day cannot write the 5.0 keys: the text takes the preset, as the report says.
+        assertThat(((GeneratorSpec.PeriodicSegment) spec.generators().get("bill")).codec(),
+            is(new GroupedCodecSpec.DatePrefix("-", List.of(), List.of(new CodecSpec.Prefix("B-")))));
+        assertThat(conversion.report(), hasItem(allOf(containsString("bill.group.pattern = yyMM: 5.0 period keys are yyyyMMdd; plan reformats the 4.x keys;"),
+            containsString("does not tell a whole YEAR_MONTH_DAY period"), containsString("so grouped string ids now carry the yyyyMMdd prefix"))));
     }
 
     // #1468: Spring reads on, yes and 1 as true; a value that is no boolean is an error, never false.

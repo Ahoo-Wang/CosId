@@ -23,7 +23,8 @@ import java.util.function.UnaryOperator;
 
 /**
  * {@link GroupedCodec#datePrefix(Period, String, IdCodec, UnaryOperator)}: the period key and delimiter sit between the
- * value's text and the outer decorations.
+ * value's text and the outer decorations; with a {@link PeriodPattern}
+ * ({@link GroupedCodec#datePrefix(Period, String, String, IdCodec, UnaryOperator)}) the key is written in that pattern.
  *
  * <p>Encoding composes the decorations around a prefix of the period key once per key and keeps the last composition, so
  * a generator encodes without composing until its period changes. Decoding composes them around a layer that splits the
@@ -31,6 +32,8 @@ import java.util.function.UnaryOperator;
  */
 final class PeriodWithin implements GroupedCodec {
     private final Period period;
+    /** The pattern the keys are written in; null writes the keys themselves. */
+    private final PeriodPattern pattern;
     private final String delimiter;
     private final IdCodec inner;
     private final UnaryOperator<IdCodec> outer;
@@ -39,18 +42,28 @@ final class PeriodWithin implements GroupedCodec {
     private volatile Encoder last;
 
     PeriodWithin(Period period, String delimiter, IdCodec inner, UnaryOperator<IdCodec> outer) {
+        this(period, null, delimiter, inner, outer);
+    }
+
+    PeriodWithin(Period period, PeriodPattern pattern, String delimiter, IdCodec inner, UnaryOperator<IdCodec> outer) {
         this.period = Objects.requireNonNull(period, "period");
+        this.pattern = pattern;
         this.delimiter = Objects.requireNonNull(delimiter, "delimiter");
         this.inner = Objects.requireNonNull(inner, "inner");
         this.outer = Objects.requireNonNull(outer, "outer");
-        this.keyLength = period instanceof PatternPeriod preset ? preset.pattern().length() : -1;
+        if (pattern != null) {
+            this.keyLength = pattern.fixedLength();
+        } else {
+            this.keyLength = period instanceof PatternPeriod preset ? preset.pattern().length() : -1;
+        }
     }
 
     @Override
     public String encode(GroupedId id) {
         Encoder encoder = last;
         if (encoder == null || !encoder.key().equals(id.period())) {
-            encoder = new Encoder(id.period(), compose(inner.withPrefix(id.period() + delimiter)));
+            String key = pattern == null ? id.period() : pattern.text(id.period());
+            encoder = new Encoder(id.period(), compose(inner.withPrefix(key + delimiter)));
             last = encoder;
         }
         return encoder.codec().encode(id.value());
@@ -94,13 +107,19 @@ final class PeriodWithin implements GroupedCodec {
                 at = keyLength;
             } else if (delimiter.isEmpty()) {
                 throw new UnsupportedOperationException("A period key without a delimiter cannot be decoded: the key has no known length");
+            } else if (pattern != null) {
+                // A key of varying length ends where its pattern does, even if it holds the delimiter.
+                at = pattern.end(text);
+                if (at <= 0 || !text.startsWith(delimiter, at)) {
+                    throw new IllegalArgumentException("[" + text + "] has no period of the pattern [" + pattern.pattern() + "] followed by [" + delimiter + "]");
+                }
             } else {
                 at = text.indexOf(delimiter);
                 if (at <= 0) {
                     throw new IllegalArgumentException("[" + text + "] has no period followed by [" + delimiter + "]");
                 }
             }
-            key = text.substring(0, at);
+            key = pattern == null ? text.substring(0, at) : pattern.key(text.substring(0, at));
             return inner.decode(text.substring(at + delimiter.length()));
         }
     }

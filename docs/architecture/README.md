@@ -88,6 +88,7 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
   - 发布的 POM 写入解析后的具体版本，不带 BOM import,不把 Spring Boot 的版本强加给非 Spring 用户;
   - `benchmark/baseline-4x` 不受影响 | 已定(用户提出原则，下限按推荐) |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
+| D51 | **周期号段的期号文本格式可配置**(#1501,用户 2026-11-24):`period` 项新增 `pattern`(如 `yyMMdd`),只决定期号在文本里的写法;存储 key、`GroupedId.period()`、迁移的 key 映射与 `purge --before` 仍用预设格式(`yyyy`/`yyyyMM`/`yyyyMMdd`)。对应新增变体 `GroupedCodecSpec.FormattedDatePrefix` 与工厂 `GroupedCodec.datePrefix(Period, pattern, delimiter, inner, outer)`(D40:不改已冻结的 `DatePrefix` record)。只适用于预设期间;`pattern` 须与期间同粒度,严格解析,`Locale.ROOT`。`cosid-migration config` 把 4.x 的 `group.pattern` 写进 `period.pattern`,文本延续 4.x 的格式。设计见 04 §3 | 已定(用户确认方案) |
 
 ## 术语
 

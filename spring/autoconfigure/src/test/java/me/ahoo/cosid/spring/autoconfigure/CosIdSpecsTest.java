@@ -508,6 +508,32 @@ class CosIdSpecsTest {
     }
 
     @Test
+    void mapsThePeriodInAPatternOfItsOwn() {
+        // #1501: the 4.x group.pattern yyMMdd, as TO-261124-1; the store keys keep yyyyMMdd (D51).
+        RuntimeSpec spec = spec("cosid.generators.p.strategy=periodic-segment", "cosid.generators.p.store=s", "cosid.generators.p.period=YEAR_MONTH_DAY",
+            "cosid.generators.p.codec[0].period.pattern=yyMMdd",
+            "cosid.generators.p.codec[1].prefix=TO-",
+            "cosid.generators.q.strategy=periodic-segment", "cosid.generators.q.store=s", "cosid.generators.q.period=YEAR_MONTH",
+            "cosid.generators.q.codec[0].radix.radix=10", "cosid.generators.q.codec[0].radix.width=4", "cosid.generators.q.codec[0].radix.pad-start=true",
+            "cosid.generators.q.codec[1].period.pattern=yyMM",
+            "cosid.generators.q.codec[1].period.delimiter=");
+        assertEquals(new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "-", List.of(), List.of(new CodecSpec.Prefix("TO-"))),
+            ((GeneratorSpec.PeriodicSegment) spec.generators().get("p")).codec());
+        assertEquals(new GroupedCodecSpec.FormattedDatePrefix("yyMM", "", List.of(new CodecSpec.Radix(10, 4, true))),
+            ((GeneratorSpec.PeriodicSegment) spec.generators().get("q")).codec());
+    }
+
+    @Test
+    void reportsAPatternWithoutAPeriodText() {
+        String message = invalid("cosid.generators.a.strategy=periodic-segment", "cosid.generators.a.store=s", "cosid.generators.a.period=YEAR",
+            "cosid.generators.a.codec[0].prefix=O", "cosid.generators.a.codec[1].period.enabled=false", "cosid.generators.a.codec[1].period.pattern=yy",
+            "cosid.generators.b.strategy=periodic-segment", "cosid.generators.b.store=s", "cosid.generators.b.period=YEAR",
+            "cosid.generators.b.codec[0].period.pattern= ").getMessage();
+        assertThat(message, containsString("cosid.generators.a.codec[1].period.pattern: the period is left out of the text (enabled: false), so it has no pattern"));
+        assertThat(message, containsString("cosid.generators.b.codec[0].period.pattern: must not be blank"));
+    }
+
+    @Test
     void mapsAPeriodLeftOutOfTheText() {
         // 4.x group-prefix.enabled = false: the value codecs alone, wherever the period item stands.
         RuntimeSpec spec = spec("cosid.generators.p.strategy=periodic-segment", "cosid.generators.p.store=s", "cosid.generators.p.period=YEAR",

@@ -242,8 +242,11 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
      * @param enabled   whether the text holds the period key at all; false leaves it out, and such text cannot be
      *                  decoded (4.x {@code group-prefix.enabled = false}); default true
      * @param delimiter the text between the period key and what follows; default {@code -}
+     * @param pattern   the date pattern of the period key in the text, such as {@code yyMMdd} (the 4.x
+     *                  {@code group.pattern}); default the key itself ({@code yyyy}, {@code yyyyMM} or {@code yyyyMMdd}).
+     *                  It must tell exactly the period's date; the store keys keep the period's own pattern
      */
-    public record PeriodText(@DefaultValue("true") boolean enabled, @DefaultValue("-") String delimiter) {
+    public record PeriodText(@DefaultValue("true") boolean enabled, @DefaultValue("-") String delimiter, String pattern) {
     }
 
     /**
@@ -269,7 +272,8 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
     /**
      * A date prefix.
      *
-     * @param pattern   the date pattern; default {@code yyyyMMdd} (unused in a periodic segment, whose period gives it)
+     * @param pattern   the date pattern; default {@code yyyyMMdd} (unused in a periodic segment, whose period gives it:
+     *                  the {@code period} item's {@code pattern} writes the period key in a pattern of its own)
      * @param delimiter the text between the date and the id; default {@code -}
      * @param source    {@code ID_TIME} (default) or {@code NOW}
      * @param zone      the time zone; default the system zone

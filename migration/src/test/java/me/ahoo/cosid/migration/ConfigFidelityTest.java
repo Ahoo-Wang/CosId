@@ -127,6 +127,9 @@ class ConfigFidelityTest {
                   bill:
                     group: { by: year_month_day, pattern: yyMM }
                     converter: { type: to_string, prefix: B-, group-prefix: { enabled: true } }
+                  monthly:
+                    group: { by: year_month, pattern: yyyyMMM }
+                    converter: { type: to_string, group-prefix: { enabled: true } }
             """;
         ConfigConverter.Conversion conversion = convert(yaml);
         RuntimeSpec spec = spec(conversion);
@@ -134,6 +137,11 @@ class ConfigFidelityTest {
             is(new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "-", List.of(), List.of(new CodecSpec.Prefix("TO-")))));
         assertThat(conversion.report(), hasItem(containsString("trade_order.group.pattern = yyMMdd: 5.0 period keys are yyyyMMdd; plan reformats the 4.x keys,"
             + " and the period item keeps writing them as yyMMdd in grouped string ids (period.pattern)")));
+        assertThat(conversion.report(), not(hasItem(allOf(containsString("trade_order.group.pattern"), containsString("root locale")))));
+        // Text fields followed the 4.x JVM's locale; 5.0 writes them in the root locale, and the report says so.
+        assertThat(((GeneratorSpec.PeriodicSegment) spec.generators().get("monthly")).codec(),
+            is(new GroupedCodecSpec.FormattedDatePrefix("yyyyMMM", "-", List.of())));
+        assertThat(conversion.report(), hasItem(allOf(containsString("monthly.group.pattern = yyyyMMM"), containsString("5.0 writes them in the root locale"))));
         // A pattern that does not tell the day cannot write the 5.0 keys: the text takes the preset, as the report says.
         assertThat(((GeneratorSpec.PeriodicSegment) spec.generators().get("bill")).codec(),
             is(new GroupedCodecSpec.DatePrefix("-", List.of(), List.of(new CodecSpec.Prefix("B-")))));

@@ -131,6 +131,16 @@ class PeriodPatternTest {
     }
 
     @Test
+    void aTwoDigitYearRefusesAPeriodItWouldReadBackAsAnother() {
+        // yy reads 2000 to 2099: 1999 would decode as 2099, so it is refused rather than issued.
+        GroupedCodec codec = GroupedCodec.datePrefix(Period.YEAR_MONTH_DAY, "yyMMdd", "-", DECIMAL, FIRST);
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> codec.encode(new GroupedId("19991231", 1)));
+        assertThat(e.getMessage(), containsString("cannot write the YEAR_MONTH_DAY period [19991231]"));
+        assertThat(codec.encode(new GroupedId("20991231", 1)), is("991231-1"));
+        assertThrows(IllegalArgumentException.class, () -> codec.encode(new GroupedId("21000101", 1)));
+    }
+
+    @Test
     void thePatternMustTellExactlyThePeriod() {
         assertRefused(Period.YEAR_MONTH_DAY, "yyMM", "does not tell a whole YEAR_MONTH_DAY period");
         assertRefused(Period.YEAR_MONTH_DAY, "MMdd", "does not tell a whole YEAR_MONTH_DAY period");

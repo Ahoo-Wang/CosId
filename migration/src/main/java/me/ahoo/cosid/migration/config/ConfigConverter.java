@@ -34,7 +34,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -815,6 +817,9 @@ public final class ConfigConverter {
                     if (refused == null) {
                         periodText.put("pattern", pattern);
                         patternLine += ", and the period item keeps writing them as " + pattern + " in grouped string ids (period.pattern)";
+                        if (localeDependent(pattern)) {
+                            patternLine += "; its text fields followed the 4.x JVM's default locale, 5.0 writes them in the root locale (Nov), check it";
+                        }
                     } else {
                         patternLine += "; " + refused + ", so grouped string ids now carry the " + presetPattern + " prefix";
                     }
@@ -866,6 +871,12 @@ public final class ConfigConverter {
         } catch (IllegalArgumentException e) {
             return e.getMessage();
         }
+    }
+
+    /** Whether a valid group pattern writes text that depends on the locale, such as {@code MMM} or {@code EEE}. */
+    private static boolean localeDependent(String pattern) {
+        LocalDate sample = LocalDate.of(2026, 11, 24);
+        return !DateTimeFormatter.ofPattern(pattern, Locale.ROOT).format(sample).equals(DateTimeFormatter.ofPattern(pattern, Locale.FRANCE).format(sample));
     }
 
     private ZoneId zone() {

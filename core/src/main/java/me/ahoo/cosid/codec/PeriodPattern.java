@@ -128,10 +128,18 @@ final class PeriodPattern {
     /**
      * The text of a period key.
      *
-     * @throws IllegalArgumentException if {@code key} is not a key of the period
+     * @throws IllegalArgumentException if {@code key} is not a key of the period, or the pattern would read its text back
+     *                                  as another period, such as {@code yy} for a year outside 2000 to 2099
      */
     String text(String key) {
-        return formatter.format(period.dateOf(key));
+        Temporal date = period.dateOf(key);
+        String text = formatter.format(date);
+        // Once per period: an id whose text decodes to another period is refused rather than issued.
+        if (!date.equals(read(period, pattern, formatter, text))) {
+            throw new IllegalArgumentException("[" + pattern + "] cannot write the " + period.name() + " period [" + key + "]: its text [" + text
+                + "] reads back as another period");
+        }
+        return text;
     }
 
     /**

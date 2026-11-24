@@ -6,7 +6,7 @@ settings:
 
 overrides:
   vite: ^6.4.6
-  esbuild: ^0.25.0
+  esbuild: ^0.25.12
   source-map-js: ^1.2.4
   vue: ^3.5.45
 

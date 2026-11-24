@@ -5,6 +5,6 @@ onlyBuiltDependencies:
 # Patched versions of transitive dependencies of vitepress 1.6.4 (the latest 1.x; Dependabot alerts on the lock file).
 overrides:
   vite: ^6.4.6
-  esbuild: ^0.25.0
+  esbuild: ^0.25.12
   source-map-js: ^1.2.4
   vue: ^3.5.45

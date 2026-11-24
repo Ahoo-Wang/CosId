@@ -154,6 +154,10 @@ a `remote` store (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`).
 - **Friendly text.** The 4.x `snowflake_friendly` converter and `@AsString(FRIENDLY_ID)` did not pad the node and the
   sequence (`…-1-5`); the 5.0 `friendly` codec does by default (`…-0001-0005`). `config` writes `pad-start: false`, so
   the text stays as it was; in code, give `@AsString` `padStart = false`. Both forms decode.
+- **Group patterns.** `plan` reformats the 4.x group keys to the 5.0 preset (`yyMMdd` keys become `yyyyMMdd`), while
+  `config` writes the 4.x `group.pattern` as the `period` item's `pattern`, so grouped text ids keep the 4.x form
+  (`TO-261124-1`). A pattern that does not tell exactly the period's date (`yyMM` for days) cannot: the report says so,
+  and those ids carry the preset.
 - **A snowflake in a namespace of its own** gets a named machine ([below](#a-shared-cosidgenerator-namespace)).
 
 The CosIdGenerator keys map as follows (`config` writes them):

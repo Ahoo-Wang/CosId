@@ -77,6 +77,9 @@ class RuntimeModelTest {
             .periodic(PeriodicPolicy.DEFAULT)
             .codec(grouped)
             .build().codec(), is(grouped));
+        GroupedCodecSpec formatted = new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "-", List.of(new CodecSpec.Radix(10, 6, true)));
+        assertThat(formatted, is(new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "-", List.of(new CodecSpec.Radix(10, 6, true)), List.of())));
+        assertThrows(NullPointerException.class, () -> new GroupedCodecSpec.FormattedDatePrefix(null, "-", List.of()));
         MachineSpec.Static machine = MachineSpec.Static.builder(3)
             .bits(10)
             .stateFile(Path.of("state"))

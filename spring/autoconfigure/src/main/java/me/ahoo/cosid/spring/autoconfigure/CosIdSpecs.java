@@ -807,12 +807,24 @@ public final class CosIdSpecs {
             CosIdProperties.PeriodText period = items.get(periodAt).period();
             List<CodecSpec> value = codecs(at, items, 0, periodAt, zone, problems);
             List<CodecSpec> outer = codecs(at, items, periodAt + 1, items.size(), zone, problems);
+            String delimiter = period.delimiter() == null ? "" : period.delimiter();
             if (!period.enabled()) {
+                if (period.pattern() != null) {
+                    problems.add(at + ".codec[" + periodAt + "].period.pattern: the period is left out of the text (enabled: false), so it has no pattern");
+                }
                 List<CodecSpec> all = new ArrayList<>(value);
                 all.addAll(outer);
                 return new GroupedCodecSpec.ValueOnly(all);
             }
-            return new GroupedCodecSpec.DatePrefix(period.delimiter() == null ? "" : period.delimiter(), value, outer);
+            if (period.pattern() != null) {
+                // D51: the key in a pattern of its own; the runtime checks that it tells exactly the period's date.
+                if (period.pattern().isBlank()) {
+                    problems.add(at + ".codec[" + periodAt + "].period.pattern: must not be blank; leave it out for the period's own key");
+                    return fallback;
+                }
+                return new GroupedCodecSpec.FormattedDatePrefix(period.pattern(), delimiter, value, outer);
+            }
+            return new GroupedCodecSpec.DatePrefix(delimiter, value, outer);
         }
         String first = at + ".codec[0]";
         if (!single(first, items.get(0), problems)) {

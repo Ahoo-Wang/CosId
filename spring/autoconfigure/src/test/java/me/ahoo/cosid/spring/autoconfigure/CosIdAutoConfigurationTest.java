@@ -243,6 +243,43 @@ class CosIdAutoConfigurationTest {
     }
 
     @Test
+    void writesThePeriodInThePatternOfThePeriodItem() {
+        // #1501: the 4.x document numbers TO-yyMMdd-n by configuration alone; the period keys stay yyyyMMdd (D51).
+        withStores().withPropertyValues("cosid.stores.mem.type=memory",
+            "cosid.generators.[trading.trade_order].strategy=periodic-segment", "cosid.generators.[trading.trade_order].store=mem",
+            "cosid.generators.[trading.trade_order].period=YEAR_MONTH_DAY", "cosid.generators.[trading.trade_order].zone=Asia/Shanghai",
+            "cosid.generators.[trading.trade_order].codec[0].period.pattern=yyMMdd",
+            "cosid.generators.[trading.trade_order].codec[1].prefix=TO-").run(context -> {
+                assertNull(context.getStartupFailure());
+                CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+                GroupedId id = runtime.periodic("trading.trade_order").generate();
+                assertEquals(8, id.period().length());
+                GroupedCodec codec = runtime.get("trading.trade_order", GroupedCodec.class);
+                String text = codec.encode(id);
+                assertEquals("TO-" + id.period().substring(2) + "-" + id.value(), text);
+                assertEquals(id, codec.decode(text));
+                // Another id may fall in the next day; the shape is what this checks.
+                String next = runtime.text("trading.trade_order").get();
+                assertTrue(next.matches("TO-\\d{6}-\\d+"), next);
+            });
+    }
+
+    @Test
+    void aPeriodPatternThatDoesNotTellThePeriodFailsTheStartup() {
+        withStores().withPropertyValues("cosid.stores.mem.type=memory",
+            "cosid.generators.bill.strategy=periodic-segment", "cosid.generators.bill.store=mem", "cosid.generators.bill.period=YEAR_MONTH_DAY",
+            "cosid.generators.bill.codec[0].period.pattern=yyMM").run(context -> {
+                Throwable failure = context.getStartupFailure();
+                assertNotNull(failure);
+                StringBuilder messages = new StringBuilder();
+                for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+                    messages.append(cause.getMessage()).append('\n');
+                }
+                assertThat(messages.toString(), containsString("[yyMM] does not tell a whole YEAR_MONTH_DAY period"));
+            });
+    }
+
+    @Test
     void appliesCustomizersInOrderAndRegistersWhatTheyAdd() {
         withStores().withUserConfiguration(Customizers.class).withPropertyValues(
             "cosid.stores.mem.type=memory",

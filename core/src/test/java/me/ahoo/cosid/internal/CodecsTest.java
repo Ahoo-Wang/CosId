@@ -59,6 +59,29 @@ class CodecsTest {
     }
 
     @Test
+    void thePeriodInAPatternOfItsOwn() {
+        // 4.x group.pattern = yyMMdd with group-prefix before the business prefix (D51).
+        GroupedCodec codec = codecs.grouped(new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "-", List.of(), List.of(new CodecSpec.Prefix("TO-"))),
+            Period.YEAR_MONTH_DAY);
+        assertThat(codec.encode(id), is("TO-261026-42"));
+        assertThat(codec.decode("TO-261026-42"), is(id));
+        GroupedCodec first = codecs.grouped(new GroupedCodecSpec.FormattedDatePrefix("yyMM", "", List.of(new CodecSpec.Radix(10, 6, true))),
+            Period.YEAR_MONTH);
+        assertThat(first.encode(new GroupedId("202610", 42)), is("2610000042"));
+        assertThat(first.decode("2610000042"), is(new GroupedId("202610", 42)));
+    }
+
+    @Test
+    void aPatternThatDoesNotTellThePeriodFailsWhenBuilt() {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> codecs.grouped(
+            new GroupedCodecSpec.FormattedDatePrefix("yyMM", "-", List.of()), Period.YEAR_MONTH_DAY));
+        assertThat(e.getMessage(), containsString("does not tell a whole YEAR_MONTH_DAY period"));
+        IllegalArgumentException outer = assertThrows(IllegalArgumentException.class, () -> codecs.grouped(
+            new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "-", List.of(), List.of(new CodecSpec.Radix(62, 11, false))), Period.YEAR_MONTH_DAY));
+        assertThat(outer.getMessage(), containsString("must be the first codec"));
+    }
+
+    @Test
     void theDecorationsAroundThePeriodOnlyDecorate() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> codecs.grouped(
             new GroupedCodecSpec.DatePrefix("-", List.of(), List.of(new CodecSpec.Radix(62, 11, false))), Period.YEAR));

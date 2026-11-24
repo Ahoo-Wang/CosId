@@ -118,6 +118,8 @@ public interface GroupedCodec {
     String encode(GroupedId id);
     GroupedId decode(String text);
     static GroupedCodec datePrefix(String delimiter, IdCodec valueCodec);   // 例如 "20261026" + Radix.of(10, 6, true)
+    static GroupedCodec datePrefix(Period period, String pattern, String delimiter, IdCodec inner,
+                                   UnaryOperator<IdCodec> outer);           // 期号按 pattern 书写,如 "261026"(D51)
 }
 ```
 
@@ -129,6 +131,14 @@ public interface GroupedCodec {
   - `before-prefix=true`(4.x 默认):文本为"业务前缀 + 期间 + 值";`false`:期间在最前。
   - `enabled=false`:文本不含期间。此时无法从文本反解期间,`decode` 抛 `UnsupportedOperationException`(4.x 同样无法反解)。
   - 还有 `GroupedCodec.datePrefix(Period, delimiter, value)`:空分隔符时按期间长度反解。
+- 期号的文本格式(D51,#1501):4.x 的 `group.pattern` 同时决定存储 key 和文本,5.0 把两者分开。
+  - 存储 key、`GroupedId.period()`、`purge --before` 与迁移的 key 映射一律用预设格式,两位年份之类的写法不进入存储。
+    因此改 `pattern` 不改存储 key,序号照常延续;只是文本变了,`decode` 只认当前的 `pattern`。
+  - `GroupedCodec.datePrefix(Period, pattern, delimiter, inner, outer)`(规格 `GroupedCodecSpec.FormattedDatePrefix`,配置 `period: { pattern }`)只改变文本:
+    编码时把预设 key 按 `pattern` 重写,每个期只算一次;解码时按 `pattern` 严格解析,再换回预设 key。
+  - 约束:只适用于预设期间(自定义 `Period` 的 key 无从解析,构造时报错)。`pattern` 必须与期间同粒度(`YEAR_MONTH_DAY` 须含年、月、日,且不含更细的字段),
+    按 `ResolverStyle.STRICT` 与 `Locale.ROOT` 处理,`y` 按公历年 `u` 读,两位年份 `yy` 读作 2000–2099。
+  - 解码:`pattern` 定长时(如 `yyMMdd`)按长度切分,分隔符可以为空;不定长时需要非空分隔符,否则 `decode` 抛 `UnsupportedOperationException`。
 
 ## 4. 删除项
 

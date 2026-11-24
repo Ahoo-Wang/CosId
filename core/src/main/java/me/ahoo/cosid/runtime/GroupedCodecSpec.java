@@ -56,6 +56,38 @@ public sealed interface GroupedCodecSpec {
     }
 
     /**
+     * {@link GroupedCodec#datePrefix(me.ahoo.cosid.segment.Period, String, String, me.ahoo.cosid.codec.IdCodec,
+     * java.util.function.UnaryOperator)}: {@link DatePrefix} with the period key written in {@code pattern}, such as
+     * {@code yyMMdd} (the 4.x {@code group.pattern}); the period keys themselves, and so the store keys, keep the
+     * preset's pattern. For a preset period only.
+     *
+     * @param pattern   the date pattern of the key in the text, such as {@code yyMMdd}
+     * @param delimiter the text between the period and the value
+     * @param value     the codec list of the value, applied in order
+     * @param outer     the decorations of the text that starts with the period key (prefixes, suffixes, date prefixes),
+     *                  applied in order; empty puts the period first
+     */
+    record FormattedDatePrefix(String pattern, String delimiter, List<CodecSpec> value, List<CodecSpec> outer) implements GroupedCodecSpec {
+        public FormattedDatePrefix {
+            Objects.requireNonNull(pattern, "pattern");
+            Objects.requireNonNull(delimiter, "delimiter");
+            value = List.copyOf(Objects.requireNonNull(value, "value"));
+            outer = List.copyOf(Objects.requireNonNull(outer, "outer"));
+        }
+
+        /**
+         * The period first: the period key in {@code pattern}, the delimiter, then the value.
+         *
+         * @param pattern   the date pattern of the key in the text, such as {@code yyMMdd}
+         * @param delimiter the text between the period and the value
+         * @param value     the codec list of the value, applied in order
+         */
+        public FormattedDatePrefix(String pattern, String delimiter, List<CodecSpec> value) {
+            this(pattern, delimiter, value, List.of());
+        }
+    }
+
+    /**
      * {@link GroupedCodec#valueOnly}: the text holds the value alone, without its period (the 4.x
      * {@code group-prefix.enabled = false}); such text cannot be decoded.
      *

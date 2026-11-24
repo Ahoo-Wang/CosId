@@ -129,9 +129,9 @@ cosid:
 | `friendly` | `zone`（系统时区）、`pad-start`（`true`） | `yyyyMMddHHmmssSSS-node-seq`；仅限时间型 |
 | `prefix` | 一个字符串 | |
 | `suffix` | 一个字符串 | |
-| `date-prefix` | `pattern`（`yyyyMMdd`）、`delimiter`（`-`）、`source`（`ID_TIME` 或 `NOW`）、`zone`（系统时区） | 在周期号段中为周期前缀（其 pattern 来自周期） |
+| `date-prefix` | `pattern`（`yyyyMMdd`）、`delimiter`（`-`）、`source`（`ID_TIME` 或 `NOW`）、`zone`（系统时区） | 在周期号段中为周期前缀（其 pattern 来自周期；要改写法用 `period` 项的 `pattern`） |
 | `custom` | Bean 名称或类名 | 你自己的 `IdCodec` |
-| `period` | `enabled`（`true`）、`delimiter`（`-`） | 仅周期号段：周期 key 在文本中的位置（4.x 的 `group-prefix`） |
+| `period` | `enabled`（`true`）、`delimiter`（`-`）、`pattern`（周期 key 本身） | 仅周期号段：周期 key 在文本中的位置（4.x 的 `group-prefix`）及其写法（4.x 的 `group.pattern`） |
 
 规则：
 
@@ -165,6 +165,32 @@ cosid:
 ```
 
 文本不含周期（`enabled: false`）时，无法从文本得知周期，因此不支持 `GroupedCodec.decode`（抛出 `UnsupportedOperationException`）。一个列表至多有一个 `period` 项，且只有周期号段可以使用。`cosid-migration config` 会把 4.x 的设置转换为这些写法。
+
+### 周期的写法
+
+周期 key 是 `yyyy`、`yyyyMM` 或 `yyyyMMdd`。`period` 项的 `pattern` 让它在文本中换一种写法，与 4.x 的 `group.pattern` 相同：
+
+```yaml
+cosid:
+  generators:
+    "[trading.trade_order]":
+      strategy: periodic-segment
+      store: db
+      period: YEAR_MONTH_DAY
+      zone: Asia/Shanghai
+      codec:
+        - period: { pattern: yyMMdd }
+        - prefix: "TO-"                  # TO-261124-1、TO-261124-2……次日为 TO-261125-1
+```
+
+- 只改变文本。存储 key 与 `GroupedId.period()` 仍是预设格式（`20261124`），`decode` 也还原为它。因此修改 `pattern` 不会让序号重新开始；按旧 pattern 写出的文本则不再能解析。
+- pattern 必须恰好表达周期的日期：`YEAR_MONTH_DAY` 的 pattern 须含年、月、日，且任何 pattern 都不能含比周期更细的字段（`YEAR_MONTH` 配 `yyMMdd` 会启动失败）。它按 root locale 严格解析（`MMM` 在任何机器上都是 `Nov`），`yy` 读作 2000 到 2099。
+- 定长的 pattern（如 `yyMMdd`）在 `delimiter` 为空时也能解析；不定长的需要分隔符。
+- `enabled: false` 与 `pattern` 同时设置是配置错误。pattern 只适用于预设周期：由 `RuntimeSpecCustomizer` 设置的自定义 `Period`，其 key 无法被编解码器读取。
+
+::: warning 替换自定义周期
+以另一种格式生成 key 的自定义 `Period`（`261124`）与带 `pattern` 的预设周期（`20261124`）存储 key 不同。两者互换会使用新的 key，当前周期的序号会重新开始：请在两个周期之间、停掉所有实例后切换。
+:::
 
 ### 示例
 

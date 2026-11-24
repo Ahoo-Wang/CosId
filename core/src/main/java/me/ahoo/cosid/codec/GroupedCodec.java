@@ -136,6 +136,30 @@ public interface GroupedCodec {
     }
 
     /**
+     * {@link #datePrefix(Period, String, IdCodec, UnaryOperator)} with the period key written in {@code pattern}: with
+     * {@code yyMMdd} the id {@code (20261124, 1)} becomes {@code "261124-1"} (the 4.x {@code group.pattern}). Only the
+     * text changes: {@link GroupedId#period()}, and so the store keys, keep the preset's pattern, and decoding gives
+     * them back.
+     *
+     * <p>{@code pattern} is read strictly in {@link java.util.Locale#ROOT}, {@code y} as the proleptic year, so
+     * {@code yy} reads 2000 to 2099. It must tell exactly the period's date: a {@code YEAR_MONTH_DAY} pattern needs the
+     * year, month and day, and none takes a field finer than the period. A pattern of fixed length, such as
+     * {@code yyMMdd}, decodes even without a delimiter; any other needs one.
+     *
+     * @param period    the period of the keys; a preset ({@link Period#YEAR}, {@link Period#YEAR_MONTH} or
+     *                  {@link Period#YEAR_MONTH_DAY}), whose keys the codec can read
+     * @param pattern   the date pattern of the key in the text, such as {@code yyMMdd}
+     * @param delimiter the text between the period and the value; may be empty for a pattern of fixed length
+     * @param inner     the codec of the value
+     * @param outer     decorates the text that starts with the period key
+     * @return the codec
+     * @throws IllegalArgumentException if {@code period} is not a preset, or {@code pattern} does not tell exactly its date
+     */
+    static GroupedCodec datePrefix(Period period, String pattern, String delimiter, IdCodec inner, UnaryOperator<IdCodec> outer) {
+        return new PeriodWithin(period, PeriodPattern.of(period, pattern), delimiter, inner, outer);
+    }
+
+    /**
      * The value alone, without its period: the 4.x {@code group-prefix} with {@code enabled = false}. The text does not
      * tell the period, so {@link #decode} is not supported.
      *

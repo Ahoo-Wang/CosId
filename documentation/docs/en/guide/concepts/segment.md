@@ -80,7 +80,8 @@ public record PeriodicPolicy(Duration prewarm,             // default 1m
   `cosid-migration purge --before <period>`.
 - The text form is the codec list: a first `date-prefix` item puts the period first, and the rest encode the value. A
   `period` item instead places the period after a business prefix (4.x `before-prefix: true`), or leaves it out of the
-  text, which then cannot be decoded. See [where the period goes](../../reference/config/generators.md).
+  text, which then cannot be decoded. Its `pattern` writes the period another way, such as `yyMMdd`, while the store keys
+  keep the preset. See [where the period goes](../../reference/config/generators.md).
 
 ```yaml
 cosid:

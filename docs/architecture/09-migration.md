@@ -68,6 +68,7 @@ java -jar cosid-migration.jar purge  --to <5.0 存储> --namespace app --before 
 - 分组号段:4.x 的 `{namespace}.{name}@{groupKey}` 映射为 5.0 的 `{namespace}/{name}/{period}`。**默认迁移所有周期**,包括过去的周期:
   4.x 的周期 key 取决于服务器默认时区与时钟,5.0 改用显式时区后,仍可能落入工具认为"已过去"的周期。
   工具会校验 `groupKey` 格式与 5.0 的 `Period` 预设(`yyyy`、`yyyyMM`、`yyyyMMdd`)一致,不一致时要求操作者提供映射。
+  存储 key 总是重排为预设格式;`config` 则把 4.x 的 `group.pattern` 写成 `period.pattern`(D51),文本 ID 保持 4.x 的期号写法。
 
 ### 4.2 机器号与时间型 ID(M2)
 

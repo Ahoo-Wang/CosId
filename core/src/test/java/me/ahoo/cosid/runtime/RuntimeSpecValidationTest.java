@@ -161,7 +161,13 @@ class RuntimeSpecValidationTest {
                 .periodic(PeriodicPolicy.DEFAULT)
                 .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Friendly(ZoneOffset.UTC, false))))
                 .build())
+            .generator("monthly", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR_MONTH, ZoneOffset.UTC)
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "-", List.of()))
+                .build())
             .build());
+        assertThat(message, containsString("generator [monthly]: [yyMMdd] has a field finer than a YEAR_MONTH period"));
         assertThat(message, containsString("generator [friendly]: A friendly codec needs a time-based generator"));
         assertThat(message, containsString("generator [second]: Radix[radix=62, width=11, padStart=true] turns the id into text, so it must be the first codec"));
         assertThat(message, containsString("generator [radix]: radix must be in [2, 62]: 99"));

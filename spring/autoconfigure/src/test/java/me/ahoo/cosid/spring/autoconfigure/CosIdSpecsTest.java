@@ -524,6 +524,18 @@ class CosIdSpecsTest {
     }
 
     @Test
+    void aHandBuiltPeriodItemMayLeaveTheDelimiterNull() {
+        // Binding gives the delimiter its default; a record built in code may leave it null, which means none.
+        CosIdProperties.Generator receipt = new CosIdProperties.Generator("periodic-segment", false, null, null, null, null, null, null, null, null, null,
+            null, "db", 100, 1, Duration.ofSeconds(1), null, Duration.ofSeconds(3), null, "YEAR_MONTH_DAY", ZONE, Duration.ofMinutes(1), null,
+            List.of(new CosIdProperties.Codec(null, null, null, null, null, null, new CosIdProperties.PeriodText(true, null, "yyMMdd"))));
+        CosIdProperties properties = new CosIdProperties(true, "app",
+            Map.of("db", new CosIdProperties.Store("jdbc", Duration.ofSeconds(2), null, Map.of())), null, null, Map.of("receipt", receipt), null);
+        assertEquals(new GroupedCodecSpec.FormattedDatePrefix("yyMMdd", "", List.of()),
+            ((GeneratorSpec.PeriodicSegment) CosIdSpecs.toSpec(properties, ZONE).generators().get("receipt")).codec());
+    }
+
+    @Test
     void reportsAPatternWithoutAPeriodText() {
         String message = invalid("cosid.generators.a.strategy=periodic-segment", "cosid.generators.a.store=s", "cosid.generators.a.period=YEAR",
             "cosid.generators.a.codec[0].prefix=O", "cosid.generators.a.codec[1].period.enabled=false", "cosid.generators.a.codec[1].period.pattern=yy",

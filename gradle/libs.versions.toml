@@ -33,7 +33,7 @@ spring-boot = "4.1.2"
 # compileOnly in spring/autoconfigure: InetUtils for the owner key host (07 §1.1); Spring Cloud 2025.1
 spring-cloud-commons = "5.0.4"
 # R4-A: the OpenAPI document and Swagger UI of server/ (springdoc 3.x is the Spring Boot 4 line)
-springdoc = "3.2.0"
+springdoc = "3.2.1"
 # R4-B: integrations (all compileOnly in integrations; the application brings them)
 mybatis = "3.6.0"
 activiti = "7.0.0.SR1"

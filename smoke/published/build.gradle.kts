@@ -2,7 +2,7 @@
 // (README.md); -Pcosid.version and -Pcosid.repo (build/repos of the CosId build).
 plugins {
     java
-    id("org.springframework.boot") version "4.1.2"
+    id("org.springframework.boot") version "4.2.0"
 }
 
 val cosidVersion = findProperty("cosid.version")?.toString() ?: "5.0.0-SNAPSHOT"
@@ -21,7 +21,7 @@ repositories {
 }
 
 dependencies {
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:4.1.2"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:4.2.0"))
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:$cosidVersion")
     implementation("me.ahoo.cosid:cosid-store-redis:$cosidVersion")
     implementation("me.ahoo.cosid:cosid-store-mongo:$cosidVersion")
